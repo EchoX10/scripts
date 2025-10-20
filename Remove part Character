@@ -1,0 +1,231 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "RemovedorGui"
+screenGui.ResetOnSpawn = false
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 320, 0, 400)
+mainFrame.Position = UDim2.new(0.4, 0, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.Parent = screenGui
+
+local titleBar = Instance.new("Frame", mainFrame)
+titleBar.Size = UDim2.new(1,0,0,30)
+titleBar.BackgroundColor3 = Color3.fromRGB(50,50,50)
+
+local titleLabel = Instance.new("TextLabel", titleBar)
+titleLabel.Text = "Removedor de partes do personagem"
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextColor3 = Color3.new(1,1,1)
+titleLabel.TextSize = 16
+titleLabel.BackgroundTransparency = 1
+titleLabel.Size = UDim2.new(1, -80, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local closeBtn = Instance.new("TextButton", titleBar)
+closeBtn.Text = "X"
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 20
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.BackgroundColor3 = Color3.fromRGB(180,0,0)
+closeBtn.Size = UDim2.new(0, 40, 1, 0)
+closeBtn.Position = UDim2.new(1, -40, 0, 0)
+
+local minimizeBtn = Instance.new("TextButton", titleBar)
+minimizeBtn.Text = "-"
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.TextSize = 24
+minimizeBtn.TextColor3 = Color3.new(0,0,0)
+minimizeBtn.BackgroundColor3 = Color3.new(1,1,1)
+minimizeBtn.Size = UDim2.new(0, 40, 1, 0)
+minimizeBtn.Position = UDim2.new(1, -80, 0, 0)
+
+local openBtn = Instance.new("TextButton", screenGui)
+openBtn.Text = "Abrir Removedor"
+openBtn.Font = Enum.Font.GothamBold
+openBtn.TextSize = 18
+openBtn.TextColor3 = Color3.new(1,1,1)
+openBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+openBtn.Size = UDim2.new(0, 160, 0, 40)
+openBtn.Position = UDim2.new(0, 20, 0.9, 0)
+openBtn.Visible = false
+
+local scrollFrame = Instance.new("ScrollingFrame", mainFrame)
+scrollFrame.Size = UDim2.new(1, -20, 0, 220)
+scrollFrame.Position = UDim2.new(0, 10, 0, 50)
+scrollFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.Visible = false
+
+local selectPartBtn = Instance.new("TextButton", mainFrame)
+selectPartBtn.Text = "Selecionar parte"
+selectPartBtn.Font = Enum.Font.GothamBold
+selectPartBtn.TextSize = 18
+selectPartBtn.TextColor3 = Color3.new(1,1,1)
+selectPartBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+selectPartBtn.Size = UDim2.new(1, -20, 0, 40)
+selectPartBtn.Position = UDim2.new(0, 10, 0, 280)
+
+local removePartBtn = Instance.new("TextButton", mainFrame)
+removePartBtn.Text = "Retirar part"
+removePartBtn.Font = Enum.Font.GothamBold
+removePartBtn.TextSize = 18
+removePartBtn.TextColor3 = Color3.new(1,1,1)
+removePartBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+removePartBtn.Size = UDim2.new(1, -20, 0, 40)
+removePartBtn.Position = UDim2.new(0, 10, 0, 330)
+
+local partsButtons = {}
+local selectedPartName = nil
+
+local function makeDraggable(guiObject)
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    local function update(input)
+        local delta = input.Position - dragStart
+        guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                                       startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+
+    guiObject.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = guiObject.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    guiObject.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            update(input)
+        end
+    end)
+end
+
+makeDraggable(mainFrame)
+makeDraggable(openBtn)
+
+local function fillPartsList()
+    for _, btn in pairs(partsButtons) do btn:Destroy() end
+    partsButtons = {}
+    local yOffset = 0
+
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -20, 0, 30)
+            btn.Position = UDim2.new(0, 10, 0, yOffset)
+            btn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+            btn.Font = Enum.Font.Gotham
+            btn.TextSize = 16
+            btn.TextColor3 = Color3.new(1,1,1)
+            btn.Text = part.Name
+            btn.Parent = scrollFrame
+
+            btn.MouseButton1Click:Connect(function()
+                selectedPartName = part.Name
+                selectPartBtn.Text = "Parte selecionada: " .. selectedPartName
+                scrollFrame.Visible = false
+            end)
+
+            table.insert(partsButtons, btn)
+            yOffset = yOffset + 35
+        end
+    end
+
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+end
+
+selectPartBtn.MouseButton1Click:Connect(function()
+    scrollFrame.Visible = not scrollFrame.Visible
+    if scrollFrame.Visible then
+        fillPartsList()
+    end
+end)
+
+removePartBtn.MouseButton1Click:Connect(function()
+    if selectedPartName then
+        local part = character:FindFirstChild(selectedPartName)
+        if part and part.Parent and part:IsA("BasePart") then
+            local protectedParts = { "HumanoidRootPart", "Torso", "UpperTorso", "LowerTorso", "Head" }
+            for _, p in pairs(protectedParts) do
+                if selectedPartName == p then
+                    warn("Parte principal protegida, não pode ser removida.")
+                    return
+                end
+            end
+
+            for _, c in pairs(part:GetChildren()) do
+                if c:IsA("Motor6D") or c:IsA("Weld") or c:IsA("WeldConstraint") then
+                    c:Destroy()
+                end
+            end
+
+            part.Anchored = false
+            part.CanCollide = true
+            part.Parent = workspace
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Velocity = Vector3.new(0, -20, 0)
+            bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+            bodyVelocity.P = 1250
+            bodyVelocity.Parent = part
+
+            game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
+        end
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    openBtn.Visible = true
+end)
+
+openBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    openBtn.Visible = false
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    if mainFrame.Size.Y.Offset > 40 then
+        mainFrame.Size = UDim2.new(mainFrame.Size.X.Scale, mainFrame.Size.X.Offset, mainFrame.Size.Y.Scale, 40)
+        scrollFrame.Visible = false
+        selectPartBtn.Visible = false
+        removePartBtn.Visible = false
+    else
+        mainFrame.Size = UDim2.new(mainFrame.Size.X.Scale, mainFrame.Size.X.Offset, mainFrame.Size.Y.Scale, 400)
+        selectPartBtn.Visible = true
+        removePartBtn.Visible = true
+    end
+end)
+
+-- Atualizar a variável character e lista partes no respawn
+local function onCharacterAdded(newChar)
+    character = newChar
+    selectedPartName = nil
+    selectPartBtn.Text = "Selecionar parte"
+    fillPartsList()
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+if player.Character then
+    onCharacterAdded(player.Character)
+end
