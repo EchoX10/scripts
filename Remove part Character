@@ -172,23 +172,23 @@ removePartBtn.MouseButton1Click:Connect(function()
                     return
                 end
             end
+            -- Cria clone que cai fisicamente
+            local partClone = part:Clone()
+            partClone.Anchored = false
+            partClone.CanCollide = true
+            partClone.Parent = workspace
+            partClone.CFrame = part.CFrame
 
-            for _, c in pairs(part:GetChildren()) do
-                if c:IsA("Motor6D") or c:IsA("Weld") or c:IsA("WeldConstraint") then
-                    c:Destroy()
-                end
-            end
-
-            part.Anchored = false
-            part.CanCollide = true
-            part.Parent = workspace
             local bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.Velocity = Vector3.new(0, -20, 0)
             bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
             bodyVelocity.P = 1250
-            bodyVelocity.Parent = part
+            bodyVelocity.Parent = partClone
 
             game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
+
+            -- Remove parte original para evitar bugs de gráfico
+            part:Destroy()
         end
     end
 end)
@@ -216,7 +216,6 @@ minimizeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Atualizar a variável character e lista partes no respawn
 local function onCharacterAdded(newChar)
     character = newChar
     selectedPartName = nil
@@ -225,7 +224,6 @@ local function onCharacterAdded(newChar)
 end
 
 player.CharacterAdded:Connect(onCharacterAdded)
-
 if player.Character then
     onCharacterAdded(player.Character)
 end
