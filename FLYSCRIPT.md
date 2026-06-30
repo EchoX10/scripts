@@ -15,7 +15,7 @@ local playerGui = game.Players.LocalPlayer.PlayerGui
 
 local sound = Instance.new("Sound")
 sound.SoundId = getcustomasset(FOLDER .. "/" .. AUDIO_FILE)
-sound.Volume = 9
+sound.Volume = 0.9
 sound.Looped = true
 sound.PlayOnRemove = false
 sound.Parent = game:GetService("SoundService")
