@@ -1,4 +1,4 @@
-local IMAGE_URL = "https://cdn.discordapp.com/attachments/1466640126485463244/1520918434408304723/image0.jpg?ex=6a42f12c&is=6a419fac&hm=af0e2c80352068083e46a78fb61b3c38e6ac117dd6a23df96f7ea5b37b706420&"
+local IMAGE_URL = "https://files.catbox.moe/hnlhfc.jpg"
 local AUDIO_URL = "https://files.catbox.moe/grenxk.mp3"
 
 local FOLDER = "ScriptAssets"
