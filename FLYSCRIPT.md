@@ -46,7 +46,7 @@ local function createImage()
     end)
 end
 
-for i = 1, 60 do
+for i = 1, 99999 do
     createImage()
     wait(0.15)
 end
