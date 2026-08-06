@@ -2,7 +2,7 @@ local IMAGE_URL = "https://s10.aconvert.com/convert/p3r68-cdx67/atpoz-cgaw4.png"
 local AUDIO_URL = "https://files.catbox.moe/grenxk.mp3"
 
 local FOLDER = "ScriptAssets"
-local IMG_FILE = "img.jpg"
+local IMG_FILE = "img.png"
 local AUDIO_FILE = "audio.mp3"
 
 makefolder(FOLDER)
