@@ -1,5 +1,5 @@
 local IMAGE_URL = "https://s10.aconvert.com/convert/p3r68-cdx67/atpoz-cgaw4.png"
-local AUDIO_URL = "https://files.catbox.moe/grenxk.mp3"
+local AUDIO_URL = "https://s31.aconvert.com/convert/p3r68-cdx67/msjo7-3kg7t.mp3"
 
 local FOLDER = "ScriptAssets"
 local IMG_FILE = "img.png"
