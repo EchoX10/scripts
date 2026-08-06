@@ -16,25 +16,30 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- ====== 1. ESCURECER O MAPA ======
+-- ====== 1. DIA E NOITE ALTERNADOS ======
 local lighting = game:GetService("Lighting")
-lighting.Brightness = 0
-lighting.ClockTime = 0
-lighting.FogEnd = 100
-lighting.FogStart = 0
-lighting.Ambient = Color3.new(0, 0, 0)
-lighting.OutdoorAmbient = Color3.new(0, 0, 0)
 
-local colorCorrection = Instance.new("ColorCorrectionEffect")
-colorCorrection.Parent = lighting
-colorCorrection.Brightness = -0.8
-colorCorrection.Contrast = 0.5
-colorCorrection.TintColor = Color3.new(0.1, 0, 0.2)
-
-local bloom = Instance.new("BloomEffect")
-bloom.Parent = lighting
-bloom.Intensity = 0.3
-bloom.Size = 10
+spawn(function()
+    while true do
+        -- DIA
+        lighting.Brightness = 1
+        lighting.ClockTime = 12
+        lighting.FogEnd = 1000
+        lighting.FogStart = 0
+        lighting.Ambient = Color3.new(0.5, 0.5, 0.5)
+        lighting.OutdoorAmbient = Color3.new(0.5, 0.5, 0.5)
+        wait(0.5)
+        
+        -- NOITE
+        lighting.Brightness = 0.3
+        lighting.ClockTime = 0
+        lighting.FogEnd = 50
+        lighting.FogStart = 0
+        lighting.Ambient = Color3.new(0.1, 0.1, 0.1)
+        lighting.OutdoorAmbient = Color3.new(0.1, 0.1, 0.1)
+        wait(0.5)
+    end
+end)
 
 -- ====== 2. PERSONAGEM VOANDO ======
 humanoid.PlatformStand = true
@@ -49,99 +54,55 @@ spawn(function()
     end
 end)
 
--- ====== 3. EXPLODIR PARTES DO MAPA ======
-local function explodeParts()
-    for _, part in pairs(workspace:GetDescendants()) do
-        if part:IsA("BasePart") and part ~= rootPart and part ~= character:FindFirstChild("Head") then
-            spawn(function()
-                local clone = part:Clone()
-                clone.Parent = workspace
-                clone.CFrame = part.CFrame
-                clone.Anchored = false
-                clone.CanCollide = false
-                clone.Transparency = 0.5
-                
-                local velocity = Vector3.new(math.random(-300, 300), math.random(200, 600), math.random(-300, 300))
-                clone.Velocity = velocity
-                clone.RotVelocity = Vector3.new(math.random(-100, 100), math.random(-100, 100), math.random(-100, 100))
-                
-                spawn(function()
-                    wait(0.5)
-                    local explosion = Instance.new("Explosion")
-                    explosion.Position = clone.Position
-                    explosion.BlastRadius = 15
-                    explosion.BlastPressure = 500
-                    explosion.Parent = workspace
-                end)
-                
-                wait(0.1)
-                part.Transparency = 1
-                part.CanCollide = false
-                
-                local fire = Instance.new("Fire")
-                fire.Parent = clone
-                fire.Size = 10
-                
-                wait(math.random(3, 8))
-                clone:Destroy()
-            end)
-        end
-    end
-end
-
-spawn(explodeParts)
-
--- ====== 4. TEXTURA DA IMAGEM EM TODO O MAPA E PERSONAGENS ======
+-- ====== 3. TEXTURA DA IMAGEM EM TODO O MAPA E PERSONAGENS ======
 local textureImage = getcustomasset(FOLDER .. "/" .. IMG_FILE)
 
 local function applyTexture(obj)
     if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" then
         spawn(function()
-            local decal = Instance.new("Decal")
-            decal.Texture = textureImage
-            decal.Face = Enum.NormalId.Front
-            decal.Parent = obj
+            -- Aplicar decal em todas as faces
+            local faces = {
+                Enum.NormalId.Front,
+                Enum.NormalId.Back,
+                Enum.NormalId.Left,
+                Enum.NormalId.Right,
+                Enum.NormalId.Top,
+                Enum.NormalId.Bottom
+            }
             
-            local decal2 = decal:Clone()
-            decal2.Face = Enum.NormalId.Back
-            decal2.Parent = obj
+            for _, face in pairs(faces) do
+                local decal = Instance.new("Decal")
+                decal.Texture = textureImage
+                decal.Face = face
+                decal.Parent = obj
+            end
             
-            local decal3 = decal:Clone()
-            decal3.Face = Enum.NormalId.Left
-            decal3.Parent = obj
-            
-            local decal4 = decal:Clone()
-            decal4.Face = Enum.NormalId.Right
-            decal4.Parent = obj
-            
-            local decal5 = decal:Clone()
-            decal5.Face = Enum.NormalId.Top
-            decal5.Parent = obj
-            
-            local decal6 = decal:Clone()
-            decal6.Face = Enum.NormalId.Bottom
-            decal6.Parent = obj
-            
+            -- Deixar o objeto brilhante
             obj.Material = Enum.Material.Neon
             
-            wait(0.5)
-            local explosion = Instance.new("Explosion")
-            explosion.Position = obj.Position
-            explosion.BlastRadius = 10
-            explosion.BlastPressure = 300
-            explosion.Parent = workspace
+            -- Mudar cor aleatoriamente
+            spawn(function()
+                while obj.Parent do
+                    obj.Color = Color3.fromHSV(math.random(), 1, 1)
+                    wait(0.5)
+                end
+            end)
         end)
     end
 end
 
+-- Aplicar em todos os objetos existentes
 for _, obj in pairs(workspace:GetDescendants()) do
     applyTexture(obj)
 end
 
+-- Aplicar em novos objetos
 workspace.DescendantAdded:Connect(applyTexture)
 
--- ====== 5. ÁUDIO E GUI TROLL (VERSÃO MELHORADA) ======
+-- ====== 4. ÁUDIO E GUI TROLL ======
 local playerGui = game:GetService("CoreGui")
+
+-- Áudio principal
 local sound = Instance.new("Sound")
 sound.SoundId = getcustomasset(FOLDER .. "/" .. AUDIO_FILE)
 sound.Volume = 1
@@ -149,11 +110,11 @@ sound.Looped = true
 sound.Parent = game:GetService("SoundService")
 sound:Play()
 
--- Outro som de explosão tocando em loop
+-- Áudio secundário (explosão em loop)
 local sound2 = sound:Clone()
-sound2.SoundId = "rbxassetid://2154316070" -- Som de explosão
+sound2.SoundId = "rbxassetid://2154316070"
 sound2.Looped = true
-sound2.Volume = 0.5
+sound2.Volume = 0.3
 sound2.Parent = game:GetService("SoundService")
 sound2:Play()
 
@@ -167,7 +128,8 @@ local function createImage()
     sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
     
     local img = Instance.new("ImageLabel")
-    img.Size = UDim2.new(0, math.random(100, 300), 0, math.random(100, 300))
+    local size = math.random(150, 400)
+    img.Size = UDim2.new(0, size, 0, size)
     img.Position = UDim2.new(math.random(), 0, math.random(), 0)
     img.BackgroundTransparency = 1
     img.Image = textureImage
@@ -175,81 +137,234 @@ local function createImage()
     img.Rotation = math.random(-360, 360)
     img.Parent = sg
     
+    -- Adicionar efeito de brilho
+    local bg = Instance.new("ImageLabel")
+    bg.Size = UDim2.new(1, 20, 1, 20)
+    bg.Position = UDim2.new(-0.05, 0, -0.05, 0)
+    bg.BackgroundTransparency = 1
+    bg.Image = "rbxassetid://10551959597" -- Efeito de brilho
+    bg.ImageTransparency = 0.5
+    bg.ZIndex = 998
+    bg.Parent = img
+    
     table.insert(images, img)
     
+    -- Movimento e rotação
     spawn(function()
         while img.Parent do
-            img:TweenPosition(UDim2.new(math.random(), 0, math.random(), 0), "Out", "Sine", math.random(1, 3), true)
-            img:TweenSizeAndPosition(
-                UDim2.new(0, math.random(100, 500), 0, math.random(100, 500)),
-                UDim2.new(math.random(), 0, math.random(), 0),
-                "Out", "Sine", math.random(1, 3), true
-            )
-            wait(1.5 + math.random() * 2)
+            -- Movimento suave
+            local targetPos = UDim2.new(math.random(), 0, math.random(), 0)
+            img:TweenPosition(targetPos, "Out", "Sine", math.random(2, 4), true)
+            
+            -- Mudar tamanho
+            local newSize = math.random(100, 500)
+            img:TweenSize(UDim2.new(0, newSize, 0, newSize), "Out", "Sine", math.random(2, 4), true)
+            
+            wait(math.random(2, 5))
         end
     end)
     
+    -- Rotação contínua
     spawn(function()
         while img.Parent do
-            img.Rotation = img.Rotation + 5
-            wait(0.05)
+            img.Rotation = img.Rotation + math.random(2, 10)
+            wait(0.03)
+            
+            -- Mudar transparência
+            img.ImageTransparency = math.sin(tick()) * 0.3 + 0.5
         end
     end)
 end
 
-for i = 1, 99999 do
+-- Criar imagens em massa
+for i = 1, 50 do
     createImage()
-    wait(0.05)
+    wait(0.02)
 end
 
+-- Spawn contínuo de imagens
 spawn(function()
     while true do
-        wait(0.3)
-        if #images < 200 then
-            for i = 1, 5 do
+        wait(0.1)
+        if #images < 300 then
+            for i = 1, 3 do
                 createImage()
-                wait(0.05)
+                wait(0.02)
             end
         end
     end
 end)
 
--- ====== 6. TERREMOTO ======
+-- ====== 5. IMAGENS QUE SEGUEM O MOUSE ======
 spawn(function()
+    local mouse = player:GetMouse()
     while true do
-        for _, part in pairs(workspace:GetDescendants()) do
-            if part:IsA("BasePart") and part ~= rootPart then
-                part.CFrame = part.CFrame + Vector3.new(math.random(-1, 1), 0, math.random(-1, 1))
+        wait(0.5)
+        if #images > 10 then
+            for i = 1, 5 do
+                local img = images[math.random(#images)]
+                if img and img.Parent then
+                    img:TweenPosition(
+                        UDim2.new(0, mouse.X + math.random(-50, 50), 0, mouse.Y + math.random(-50, 50)),
+                        "Out", "Sine", 0.5, true
+                    )
+                end
             end
         end
+    end
+end)
+
+-- ====== 6. TREMOR NA TELA ======
+spawn(function()
+    while true do
+        local camera = workspace.CurrentCamera
+        local originalCF = camera.CFrame
+        local shake = CFrame.new(
+            math.random(-2, 2),
+            math.random(-2, 2),
+            math.random(-2, 2)
+        )
+        camera.CFrame = originalCF * shake
+        wait(0.05)
+        camera.CFrame = originalCF
         wait(0.1)
     end
 end)
 
 -- ====== 7. FAKE VÍRUS ======
 spawn(function()
-    wait(2)
-    for i = 1, 50 do
+    wait(3)
+    while true do
+        wait(math.random(5, 15))
         local gui = Instance.new("ScreenGui")
         gui.Parent = game:GetService("CoreGui")
+        gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
         
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, math.random(300, 500), 0, math.random(100, 150))
+        frame.Size = UDim2.new(0, math.random(400, 700), 0, math.random(80, 150))
         frame.Position = UDim2.new(math.random(), 0, math.random(), 0)
         frame.BackgroundColor3 = Color3.new(1, 0, 0)
-        frame.BackgroundTransparency = 0.3
+        frame.BackgroundTransparency = 0.2
+        frame.ZIndex = 1000
         frame.Parent = gui
         
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(1, 0, 1, 0)
         label.BackgroundTransparency = 1
-        label.Text = "⚠️ VÍRUS DETECTADO ⚠️\n" .. math.random(100000, 999999) .. " arquivos infectados"
+        label.Text = "⚠️ ALERTA DE SEGURANÇA ⚠️\n" .. math.random(100000, 999999) .. " arquivos corrompidos"
         label.TextColor3 = Color3.new(1, 1, 1)
         label.TextScaled = true
+        label.ZIndex = 1001
         label.Parent = frame
         
-        wait(0.1)
+        local closeBtn = Instance.new("TextButton")
+        closeBtn.Size = UDim2.new(0, 30, 0, 30)
+        closeBtn.Position = UDim2.new(1, -35, 0, 5)
+        closeBtn.BackgroundColor3 = Color3.new(1, 0, 0)
+        closeBtn.Text = "X"
+        closeBtn.TextColor3 = Color3.new(1, 1, 1)
+        closeBtn.ZIndex = 1001
+        closeBtn.Parent = frame
+        closeBtn.MouseButton1Click:Connect(function()
+            gui:Destroy()
+            -- Criar mais popups quando fechar
+            for i = 1, 5 do
+                wait(0.1)
+                local newGui = gui:Clone()
+                newGui.Parent = game:GetService("CoreGui")
+            end
+        end)
+        
+        spawn(function()
+            wait(0.5)
+            frame:TweenPosition(UDim2.new(math.random(), 0, math.random(), 0), "Out", "Sine", 0.5, true)
+        end)
     end
 end)
 
-print("☠️ TROLL ATIVADO COM SUCESSO ☠️")
+-- ====== 8. TEXTO PISCANDO NO TOPO ======
+spawn(function()
+    local gui = Instance.new("ScreenGui")
+    gui.Parent = game:GetService("CoreGui")
+    gui.IgnoreGuiInset = true
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 50)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "H̷̡̢̨͍̣͓͓̝̬̰̮͇̯͕͒̕͝Ä̸̠̖͖́̀̌̈̌͌̎̄̃̓͡H̵̢̢̙͓͔̤̱̠̞̟̼̹͑͊̓͑Ẫ̵̜̒̅͋H̶̼̾͊̐̇̎̃́͊̊̌̊͑͝͝͡A̶̧̛̛͓̘̳̩͚͓̞̳̹͚̥̮͎̿̋̍͐̑̀̒̏̈̑͗̽̊̒̿͌̅̕̚͜͜͜͝H̴̺̼̤̤̭̅̓͂̈́̊̌́̋̓̍̂̚͝͝Ä̶̛͍̯̙͓͔͖̳̃̀̀̓̀̊̌͘̕͠H̷̡̛̝͓̱͓̻̬̥̔̓̈́Ą̶̥̩̦̩̟̭̲͚͇̻͉̱̋̓͐͊̐̽̎̆͊̔̿̄̕̕͘͠H̸̫̤̘̝̟̤̺͚̠̝̬̼͇̗͍̦̩̤͋̉̿̎̔̾̈́̈̓̒̉̆̂̏͌͛̄͗̀̀̊̾̄̃͜͟͝ͅA̷̮̭̗͇͉͉͋̑̈́͐̎́̃͛̆̾̄̕H̶̡̧̱̬͎̞̳̲̞͚̥̞͎͕̤̞̱̦̻͙͍̖̄̑̓̍̊͋̂͌͐͟͟A̷̡̧̧͓̙̦̞̣̝̪̘̜̙͇̠̮̟̬͚̗͙̰͗̀̉͋͂̎͂̾̅̉̈́̉͛̓͊̀̀̊̄̎̈́̄͡͝͝"
+    label.TextColor3 = Color3.new(1, 0, 0)
+    label.TextScaled = true
+    label.ZIndex = 9999
+    label.Parent = gui
+    
+    while true do
+        label.TextColor3 = Color3.new(1, 0, 0)
+        label.Text = "H̷̡̢̨͍̣͓͓̝̬̰̮͇̯͕͒̕͝Ä̸̠̖͖́̀̌̈̌͌̎̄̃̓͡H̵̢̢̙͓͔̤̱̠̞̟̼̹͑͊̓͑Ẫ̵̜̒̅͋H̶̼̾͊̐̇̎̃́͊̊̌̊͑͝͝͡A̶̧̛̛͓̘̳̩͚͓̞̳̹͚̥̮͎̿̋̍͐̑̀̒̏̈̑͗̽̊̒̿͌̅̕̚͜͜͜͝H̴̺̼̤̤̭̅̓͂̈́̊̌́̋̓̍̂̚͝͝Ä̶̛͍̯̙͓͔͖̳̃̀̀̓̀̊̌͘̕͠H̷̡̛̝͓̱͓̻̬̥̔̓̈́Ą̶̥̩̦̩̟̭̲͚͇̻͉̱̋̓͐͊̐̽̎̆͊̔̿̄̕̕͘͠H̸̫̤̘̝̟̤̺͚̠̝̬̼͇̗͍̦̩̤͋̉̿̎̔̾̈́̈̓̒̉̆̂̏͌͛̄͗̀̀̊̾̄̃͜͟͝ͅA̷̮̭̗͇͉͉͋̑̈́͐̎́̃͛̆̾̄̕H̶̡̧̱̬͎̞̳̲̞͚̥̞͎͕̤̞̱̦̻͙͍̖̄̑̓̍̊͋̂͌͐͟͟A̷̡̧̧͓̙̦̞̣̝̪̘̜̙͇̠̮̟̬͚̗͙̰͗̀̉͋͂̎͂̾̅̉̈́̉͛̓͊̀̀̊̄̎̈́̄͡͝͝"
+        wait(0.3)
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.Text = "Y̸̥̠̼̤͎͍͈̗͖̥͍̘̹̳̥͍͔̆͑̓͆́̋͜͠ͅO̷̧̡̨͚̤̗̠͎͕̯͉̻̝͈͕̘̙̰̠̤͖͖͓̾̉̓͊̒͂́͂́̋͒́͐̈́̋͋̌̽̋͠͠͠Ȗ̷͙̥̠̜̠̤̮̣̦̓̇̀̇̀̊̓̋͐͡͡ͅ B̸̨̧̼̤̹͔͚̭̞̗̖͖̖̮̹͚͚̲̻̤̘̪̾̆̐̀̾͛̽͆̾̿̀́͂̉̈́̈̋̆͋͘͟͝͝͝Ę̸̟̞̟͓̦̥̳̪̟͎̤̜̲͓̩͙̞͓̲̠̊͟͜͟ͅ H̶̬̹̳̠̖͈̖̿͋͌̄͂̀̾̌́͑̌̔́̚̕͝͠A̴̟̗̥͙̣̲̰̩̯͎̺̮̞̹͌̑̒̒̏̓̐͌̓̈́̄̄́̎̆̃͒̕͟͜͡C̷̛̛̖͚̳̼̟̹̞͔̫̽̿͆̿̍͂̔̅͗͠ͅK̷̢̭̙̺̫̤̖͎̙̟̱̟̋̓̿́̄́̚͜͝Ȩ̶̧̡̹̜͈̠̩̦̻̞̜͍̱̫̙͍̙̫̲͖̮̺̐̌͂̕Ḑ̶̨̛̖̟̹̦̰̹͍̣̯̝̪̻̟̘͎̞͈͇̏́̽̆͋̍̈́͛̆̑͟͟͝͝͝ X̸̢̡͕̪̻̰̟͈̣͕̻̪̯̳̄͟D̶̛̠̩̬̱̣̻̞̤̲̱̙͇̟͔͙̠̥̂̾̃̄̑̔̏͌͐̆̂̃̄́́̏̅̆̾̊̍͘͡͝ͅ"
+        wait(0.3)
+        label.TextColor3 = Color3.new(0, 1, 0)
+        label.Text = "L̷̢̺̱̳̤͕̖͈̦̾͒̊́̅͗̇̔̋̆̂́́̈̎̓̽̈́̚͝͝͠͡Ǫ̵̨̰̻̱̺̦͉͔̰͌͊̈́̍̽̓̅̅̀̊͆̀͂̓́̚̚͝͝O̷̧̨̦͈͗̒̓̆̓̐́̒̓̕̚͝͠Ö̵̢̧̩̟̮̰̻͈̥͎̖̲̼̞̜̬̼̜̥̠̖͓̼̓̍̀̎̈́̄̈͑̏̎͗̍̋͊̈́̽͌̏̈́̈́̚͘͜͟͠L̸̛͔̱̩̊̈́̆̀́̊̈̀̎̈́̎̽̋̇̌͐̈́̀̚͡͝"
+        wait(0.3)
+    end
+end)
+
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
+print("ㅤㅤㅤㅤㅤㅤㅤ")
