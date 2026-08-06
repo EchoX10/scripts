@@ -1,4 +1,4 @@
-local IMAGE_URL = "https://files.catbox.moe/hnlhfc.jpg"
+local IMAGE_URL = "https://agreeable-black-vq8sbyya.edgeone.dev/"
 local AUDIO_URL = "https://files.catbox.moe/grenxk.mp3"
 
 local FOLDER = "ScriptAssets"
