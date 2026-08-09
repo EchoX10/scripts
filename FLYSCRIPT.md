@@ -1,7 +1,7 @@
 -- ====== SUBSTITUA AS URLs ABAIXO PELAS SUAS ======
 local IMAGE_URL = "https://cdn.phototourl.com/free/2026-08-06-e5494160-d34a-495f-b882-107639956873.png"
-local AUDIO_URL = "https://xenial-chocolate-awqrrkqh.edgeone.dev/" -- SEU NOVO SOM DO CONTADOR
-local AUDIO_URL2 = "https://sacred-lavender-zdclwbsj.edgeone.dev/" -- SOM DO TROLL
+local AUDIO_URL = "https://convinced-lavender-jbgaa7qy.edgeone.dev/" -- SOM DO CONTADOR (opcional)
+local AUDIO_URL2 = "https://xenial-chocolate-awqrrkqh.edgeone.dev/" -- SOM TROLL (vai tocar na espera de 5min)
 -- ===============================================
 
 local FOLDER = "ScriptAssets"
@@ -120,7 +120,6 @@ local distortion2 = createDistortedText(counterFrame, -5)
 local distortion3 = createDistortedText(counterFrame, 8)
 local distortion4 = createDistortedText(counterFrame, -8)
 
--- PRIMEIRO TEMPORIZADOR: 41 SEGUNDOS
 spawn(function()
     local startTime = tick()
     local duration = 41
@@ -173,40 +172,48 @@ spawn(function()
     bgGui:Destroy()
     counterGui:Destroy()
     
-    -- ====== SEGUNDO TEMPORIZADOR: 5 MINUTOS ======
+    -- ====== ESPERA DE 5 MINUTOS COM SOM TROLL ======
     waitFor5Minutes()
 end)
 
 -- ====== FUNÇÃO DE ESPERA DE 5 MINUTOS ======
 function waitFor5Minutes()
-    -- Tela preta
+    -- Tocar música troll durante a espera
+    local waitSound = Instance.new("Sound")
+    waitSound.SoundId = audio2Path
+    waitSound.Volume = 1
+    waitSound.Looped = true
+    waitSound.Parent = game:GetService("SoundService")
+    waitSound:Play()
+    
+    -- Tela preta de espera
     local waitBg = Instance.new("ScreenGui")
     waitBg.ResetOnSpawn = false
     waitBg.Parent = playerGui
     waitBg.IgnoreGuiInset = true
     waitBg.ZIndexBehavior = Enum.ZIndexBehavior.Global
-
+    
     local black = Instance.new("Frame")
     black.Size = UDim2.new(1, 0, 1, 0)
     black.BackgroundColor3 = Color3.new(0, 0, 0)
     black.BackgroundTransparency = 0
     black.ZIndex = 9998
     black.Parent = waitBg
-
-    -- Timer na tela
+    
+    -- Timer de 5 minutos
     local timerGui = Instance.new("ScreenGui")
     timerGui.ResetOnSpawn = false
     timerGui.Parent = playerGui
     timerGui.IgnoreGuiInset = true
     timerGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-
+    
     local timerFrame = Instance.new("Frame")
     timerFrame.Size = UDim2.new(0, 400, 0, 150)
     timerFrame.Position = UDim2.new(0.5, -200, 0.5, -75)
     timerFrame.BackgroundTransparency = 1
     timerFrame.ZIndex = 9999
     timerFrame.Parent = timerGui
-
+    
     local timerLabel = Instance.new("TextLabel")
     timerLabel.Size = UDim2.new(1, 0, 1, 0)
     timerLabel.BackgroundTransparency = 1
@@ -216,7 +223,7 @@ function waitFor5Minutes()
     timerLabel.Font = Enum.Font.Bangers
     timerLabel.ZIndex = 9999
     timerLabel.Parent = timerFrame
-
+    
     local subLabel = Instance.new("TextLabel")
     subLabel.Size = UDim2.new(1, 0, 0, 40)
     subLabel.Position = UDim2.new(0, 0, 1, -40)
@@ -227,43 +234,37 @@ function waitFor5Minutes()
     subLabel.Font = Enum.Font.Bangers
     subLabel.ZIndex = 9999
     subLabel.Parent = timerFrame
-
-    -- Tocar música de espera (pode ser a mesma do contador ou outra)
-    local waitSound = Instance.new("Sound")
-    waitSound.SoundId = audio1Path -- ou audio2Path
-    waitSound.Volume = 1
-    waitSound.Looped = true
-    waitSound.Parent = game:GetService("SoundService")
-    waitSound:Play()
-
+    
     local crashTime = tick() + 300 -- 5 minutos
-
+    
     spawn(function()
         while tick() < crashTime do
             local timeLeft = crashTime - tick()
             local minutes = math.floor(timeLeft / 60)
             local seconds = math.floor(timeLeft % 60)
             timerLabel.Text = string.format("⏳ INICIANDO EM\n%d:%02d", minutes, seconds)
-
+            
+            -- Efeitos
             timerFrame.Rotation = math.random(-3, 3)
             timerLabel.TextColor3 = Color3.new(1, timeLeft / 300, 0)
             timerLabel.TextTransparency = math.sin(tick() * 3) * 0.3 + 0.3
-
+            
             wait(0.1)
         end
-
+        
+        -- Acabou a espera
         waitSound:Stop()
         waitBg:Destroy()
         timerGui:Destroy()
-
-        -- ====== INICIAR O CAOS ======
+        
+        -- Iniciar o caos
         startChaos()
     end)
 end
 
 -- ====== FUNÇÃO DO CAOS ======
 function startChaos()
-    -- Tocar música troll
+    -- Tocar música troll (a mesma da espera, reiniciando)
     local sound = Instance.new("Sound")
     sound.SoundId = audio2Path
     sound.Volume = 1
@@ -308,7 +309,6 @@ function startChaos()
     local dvdImages = {}
     local clones = {}
     local cloneCount = 0
-    local dvdSpeed = 3
     
     local function createDVDImage()
         local sg = Instance.new("ScreenGui")
@@ -325,12 +325,15 @@ function startChaos()
         img.ZIndex = 999998
         img.Parent = sg
         
-        local speedX = 3
-        local speedY = 3
-        local directionX = 1
-        local directionY = 1
-        
-        table.insert(dvdImages, {img = img, sg = sg, speedX = speedX, speedY = speedY, dirX = directionX, dirY = directionY})
+        local data = {
+            img = img,
+            sg = sg,
+            speedX = 5,
+            speedY = 5,
+            dirX = 1,
+            dirY = 1
+        }
+        table.insert(dvdImages, data)
         return img
     end
     
@@ -344,7 +347,7 @@ function startChaos()
         local img = Instance.new("ImageLabel")
         local size = math.random(50, 300)
         img.Size = UDim2.new(0, size, 0, size)
-        img.Position = UDim2.new(position.X.Scale, position.X.Offset, position.Y.Scale, position.Y.Offset)
+        img.Position = position
         img.BackgroundTransparency = 1
         img.Image = textureImage
         img.ZIndex = 999998
@@ -361,8 +364,6 @@ function startChaos()
     
     spawn(function()
         while true do
-            dvdSpeed = 3 + (tick() % 300) / 300 * 50
-            
             for _, data in pairs(dvdImages) do
                 local img = data.img
                 if img and img.Parent then
@@ -372,8 +373,10 @@ function startChaos()
                     local yScale = pos.Y.Scale
                     local yOffset = pos.Y.Offset
                     
-                    xOffset = xOffset + dvdSpeed * data.dirX
-                    yOffset = yOffset + dvdSpeed * data.dirY
+                    local speed = 5 + (tick() % 300) / 300 * 50
+                    
+                    xOffset = xOffset + speed * data.dirX
+                    yOffset = yOffset + speed * data.dirY
                     
                     if xOffset > 1 then
                         xOffset = -1
@@ -405,7 +408,7 @@ function startChaos()
                     end
                     
                     img.Position = UDim2.new(xScale, xOffset, yScale, yOffset)
-                    img.Rotation = img.Rotation + 2
+                    img.Rotation = img.Rotation + 5
                 end
             end
             wait(0.01)
@@ -415,7 +418,7 @@ function startChaos()
     -- ====== MÉTODO 2: 99999 IMAGENS ======
     spawn(function()
         while true do
-            for i = 1, 100 do
+            for i = 1, 50 do
                 local sg = Instance.new("ScreenGui")
                 sg.ResetOnSpawn = false
                 sg.Parent = playerGui
@@ -570,6 +573,49 @@ function startChaos()
             end
             wait(0.5)
         end
+    end)
+
+    -- ====== MENSAGEM FINAL ======
+    spawn(function()
+        wait(3)
+        local finalBg = Instance.new("ScreenGui")
+        finalBg.ResetOnSpawn = false
+        finalBg.Parent = playerGui
+        finalBg.IgnoreGuiInset = true
+        finalBg.ZIndexBehavior = Enum.ZIndexBehavior.Global
+        
+        local black = Instance.new("Frame")
+        black.Size = UDim2.new(1, 0, 1, 0)
+        black.BackgroundColor3 = Color3.new(0, 0, 0)
+        black.BackgroundTransparency = 0
+        black.ZIndex = 9999999
+        black.Parent = finalBg
+        
+        local finalLabel = Instance.new("TextLabel")
+        finalLabel.Size = UDim2.new(1, 0, 1, 0)
+        finalLabel.BackgroundTransparency = 1
+        finalLabel.Text = "💀 MEMORY OVERFLOW\n☠️ SYSTEM CRASH\n🔥 GOODBYE"
+        finalLabel.TextColor3 = Color3.new(1, 0, 0)
+        finalLabel.TextScaled = true
+        finalLabel.Font = Enum.Font.Bangers
+        finalLabel.ZIndex = 9999999
+        finalLabel.Parent = finalBg
+        
+        spawn(function()
+            while true do
+                finalLabel.TextTransparency = math.random()
+                finalLabel.TextColor3 = Color3.fromHSV(math.random(), 1, 1)
+                finalLabel.Rotation = math.random(-10, 10)
+                wait(0.05)
+            end
+        end)
+        
+        -- Último esforço para crashar
+        spawn(function()
+            for i = 1, 99999 do
+                Instance.new("Part").Parent = workspace
+            end
+        end)
     end)
 
     print("=====================================")
