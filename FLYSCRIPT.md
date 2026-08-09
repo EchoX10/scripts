@@ -1,773 +1,580 @@
-local IMAGE_URL = "https://s10.aconvert.com/convert/p3r68-cdx67/atpoz-cgaw4.png"
-local AUDIO_URL = "https://s31.aconvert.com/convert/p3r68-cdx67/msjo7-3kg7t.mp3"
+-- ====== SUBSTITUA AS URLs ABAIXO PELAS SUAS ======
+local IMAGE_URL = "https://cdn.phototourl.com/free/2026-08-06-e5494160-d34a-495f-b882-107639956873.png"
+local AUDIO_URL = "https://xenial-chocolate-awqrrkqh.edgeone.dev/" -- SEU NOVO SOM DO CONTADOR
+local AUDIO_URL2 = "https://sacred-lavender-zdclwbsj.edgeone.dev/" -- SOM DO TROLL
+-- ===============================================
 
 local FOLDER = "ScriptAssets"
 local IMG_FILE = "img.png"
 local AUDIO_FILE = "audio.mp3"
+local AUDIO_FILE2 = "audio2.mp3"
 
 makefolder(FOLDER)
-writefile(FOLDER .. "/" .. IMG_FILE, game:HttpGet(IMAGE_URL))
-writefile(FOLDER .. "/" .. AUDIO_FILE, game:HttpGet(AUDIO_URL))
+
+local function downloadFile(url, path)
+    local success, result = pcall(function()
+        local content = game:HttpGet(url)
+        writefile(path, content)
+        return true
+    end)
+    return success
+end
+
+local imageSuccess = downloadFile(IMAGE_URL, FOLDER .. "/" .. IMG_FILE)
+local audio1Success = downloadFile(AUDIO_URL, FOLDER .. "/" .. AUDIO_FILE)
+local audio2Success = downloadFile(AUDIO_URL2, FOLDER .. "/" .. AUDIO_FILE2)
 
 wait(1)
+
+local function fileExists(path)
+    local success, result = pcall(function()
+        return isfile(path)
+    end)
+    return success and result
+end
+
+local function getAsset(path)
+    if fileExists(path) then
+        return getcustomasset(path)
+    else
+        return "rbxassetid://10551959597"
+    end
+end
+
+local textureImage = getAsset(FOLDER .. "/" .. IMG_FILE)
+local audio1Path = getAsset(FOLDER .. "/" .. AUDIO_FILE)
+local audio2Path = getAsset(FOLDER .. "/" .. AUDIO_FILE2)
 
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- ====== 1. DIA E NOITE ALTERNADOS ======
-local lighting = game:GetService("Lighting")
-
-spawn(function()
-    while true do
-        -- DIA
-        lighting.Brightness = 1
-        lighting.ClockTime = 12
-        lighting.FogEnd = 1000
-        lighting.FogStart = 0
-        lighting.Ambient = Color3.new(0.5, 0.5, 0.5)
-        lighting.OutdoorAmbient = Color3.new(0.5, 0.5, 0.5)
-        wait(0.5)
-        
-        -- NOITE
-        lighting.Brightness = 0.3
-        lighting.ClockTime = 0
-        lighting.FogEnd = 50
-        lighting.FogStart = 0
-        lighting.Ambient = Color3.new(0.1, 0.1, 0.1)
-        lighting.OutdoorAmbient = Color3.new(0.1, 0.1, 0.1)
-        wait(0.5)
-    end
-end)
-
--- ====== 2. PERSONAGEM VOANDO ======
-humanoid.PlatformStand = true
-rootPart.Velocity = Vector3.new(0, 500, 0)
-rootPart.CFrame = rootPart.CFrame * CFrame.Angles(math.rad(180), 0, 0)
-
-spawn(function()
-    while humanoid.Health > 0 do
-        rootPart.Velocity = Vector3.new(math.random(-100, 100), 500, math.random(-100, 100))
-        rootPart.CFrame = rootPart.CFrame * CFrame.Angles(math.rad(math.random(-20, 20)), math.rad(math.random(-20, 20)), math.rad(math.random(-20, 20)))
-        wait(0.2)
-    end
-end)
-
--- ====== 3. TEXTURA DA IMAGEM EM TODO O MAPA E PERSONAGENS ======
-local textureImage = getcustomasset(FOLDER .. "/" .. IMG_FILE)
-
-local function applyTexture(obj)
-    if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" then
-        spawn(function()
-            -- Aplicar decal em todas as faces
-            local faces = {
-                Enum.NormalId.Front,
-                Enum.NormalId.Back,
-                Enum.NormalId.Left,
-                Enum.NormalId.Right,
-                Enum.NormalId.Top,
-                Enum.NormalId.Bottom
-            }
-            
-            for _, face in pairs(faces) do
-                local decal = Instance.new("Decal")
-                decal.Texture = textureImage
-                decal.Face = face
-                decal.Parent = obj
-            end
-            
-            -- Deixar o objeto brilhante
-            obj.Material = Enum.Material.Neon
-            
-            -- Mudar cor aleatoriamente
-            spawn(function()
-                while obj.Parent do
-                    obj.Color = Color3.fromHSV(math.random(), 1, 1)
-                    wait(0.5)
-                end
-            end)
-        end)
-    end
-end
-
--- Aplicar em todos os objetos existentes
-for _, obj in pairs(workspace:GetDescendants()) do
-    applyTexture(obj)
-end
-
--- Aplicar em novos objetos
-workspace.DescendantAdded:Connect(applyTexture)
-
--- ====== 4. INTERAÇÃO COM OBJETOS (IDEIA 10) ======
-
--- 4.1 GRAVIDADE ZERO NOS OBJETOS
-spawn(function()
-    while true do
-        wait(0.5)
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and obj.Name ~= "Head" then
-                obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                obj.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            end
-        end
-    end
-end)
-
--- 4.2 OBJETOS PERSIGUEM O JOGADOR
-spawn(function()
-    while true do
-        wait(0.3)
-        local rootPos = rootPart.Position
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and obj.Name ~= "Head" and obj.Size.Magnitude < 100 then
-                local direction = (rootPos - obj.Position).Unit
-                obj.AssemblyLinearVelocity = direction * math.random(20, 50)
-                
-                -- Gira os objetos enquanto perseguem
-                obj.AssemblyAngularVelocity = Vector3.new(math.random(-10, 10), math.random(-10, 10), math.random(-10, 10))
-            end
-        end
-    end
-end)
-
--- 4.3 OBJETOS PULANDO ALEATORIAMENTE
-spawn(function()
-    while true do
-        wait(0.8)
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and math.random() < 0.3 then
-                obj.AssemblyLinearVelocity = Vector3.new(
-                    math.random(-30, 30),
-                    math.random(50, 150),
-                    math.random(-30, 30)
-                )
-            end
-        end
-    end
-end)
-
--- 4.4 PORTAIS TELEPORTANDO OBJETOS
-spawn(function()
-    while true do
-        wait(2)
-        local parts = {}
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and obj.Name ~= "Head" then
-                table.insert(parts, obj)
-            end
-        end
-        
-        for i = 1, math.random(5, 15) do
-            if #parts > 0 then
-                local p1 = parts[math.random(#parts)]
-                local p2 = parts[math.random(#parts)]
-                if p1 and p2 and p1 ~= p2 then
-                    local tempPos = p1.Position
-                    p1.Position = p2.Position
-                    p2.Position = tempPos
-                end
-            end
-        end
-    end
-end)
-
--- 4.5 PORTAS ABRINDO E FECHANDO SOZINHAS
-spawn(function()
-    while true do
-        wait(1)
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and (string.lower(obj.Name):find("door") or string.lower(obj.Name):find("porta")) then
-                obj.CFrame = obj.CFrame * CFrame.Angles(0, math.rad(math.random(-45, 45)), 0)
-                obj.AssemblyLinearVelocity = Vector3.new(math.random(-10, 10), 0, math.random(-10, 10))
-            end
-        end
-    end
-end)
-
--- 4.6 OBJETOS SE MULTIPLICANDO
-spawn(function()
-    while true do
-        wait(3)
-        local parts = {}
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and obj.Name ~= "Head" and obj.Size.Magnitude < 50 then
-                table.insert(parts, obj)
-            end
-        end
-        
-        for i = 1, math.random(1, 3) do
-            if #parts > 0 then
-                local original = parts[math.random(#parts)]
-                if original and original.Parent then
-                    local clone = original:Clone()
-                    clone.Parent = workspace
-                    clone.Position = original.Position + Vector3.new(math.random(-10, 10), math.random(5, 20), math.random(-10, 10))
-                    clone.AssemblyLinearVelocity = Vector3.new(math.random(-30, 30), math.random(20, 60), math.random(-30, 30))
-                    applyTexture(clone)
-                    
-                    spawn(function()
-                        wait(5)
-                        clone:Destroy()
-                    end)
-                end
-            end
-        end
-    end
-end)
-
--- 4.7 OBJETOS CRESCENDO E ENCOLHENDO
-spawn(function()
-    while true do
-        wait(0.5)
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and math.random() < 0.1 then
-                local scale = math.random(50, 200) / 100
-                obj.Size = obj.Size * scale
-            end
-        end
-    end
-end)
-
--- 4.8 OBJETOS FICANDO INVISÍVEIS E VISÍVEIS
-spawn(function()
-    while true do
-        wait(0.3)
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and math.random() < 0.05 then
-                obj.Transparency = math.random()
-            end
-        end
-    end
-end)
-
--- ====== 5. ÁUDIO E GUI TROLL ======
 local playerGui = game:GetService("CoreGui")
+local lighting = game:GetService("Lighting")
+local userInputService = game:GetService("UserInputService")
+local tweenService = game:GetService("TweenService")
+local runService = game:GetService("RunService")
 
--- Áudio principal
-local sound = Instance.new("Sound")
-sound.SoundId = getcustomasset(FOLDER .. "/" .. AUDIO_FILE)
-sound.Volume = 1
-sound.Looped = true
-sound.Parent = game:GetService("SoundService")
-sound:Play()
+-- ====== CONTADOR DE 41 SEGUNDOS ======
+local bgGui = Instance.new("ScreenGui")
+bgGui.ResetOnSpawn = false
+bgGui.Parent = playerGui
+bgGui.IgnoreGuiInset = true
+bgGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
--- Áudio secundário (explosão em loop)
-local sound2 = sound:Clone()
-sound2.SoundId = "rbxassetid://2154316070"
-sound2.Looped = true
-sound2.Volume = 0.3
-sound2.Parent = game:GetService("SoundService")
-sound2:Play()
+local background = Instance.new("Frame")
+background.Size = UDim2.new(1, 0, 1, 0)
+background.BackgroundColor3 = Color3.new(0, 0, 0)
+background.BackgroundTransparency = 0
+background.ZIndex = 9998
+background.Parent = bgGui
 
-local images = {}
+local countSound = Instance.new("Sound")
+countSound.SoundId = audio1Path
+countSound.Volume = 1
+countSound.Looped = true
+countSound.Parent = game:GetService("SoundService")
+countSound:Play()
 
-local function createImage()
-    local sg = Instance.new("ScreenGui")
-    sg.ResetOnSpawn = false
-    sg.Parent = playerGui
-    sg.IgnoreGuiInset = true
-    sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
-    
-    local img = Instance.new("ImageLabel")
-    local size = math.random(150, 400)
-    img.Size = UDim2.new(0, size, 0, size)
-    img.Position = UDim2.new(math.random(), 0, math.random(), 0)
-    img.BackgroundTransparency = 1
-    img.Image = textureImage
-    img.ZIndex = 999
-    img.Rotation = math.random(-360, 360)
-    img.Parent = sg
-    
-    -- Adicionar efeito de brilho
-    local bg = Instance.new("ImageLabel")
-    bg.Size = UDim2.new(1, 20, 1, 20)
-    bg.Position = UDim2.new(-0.05, 0, -0.05, 0)
-    bg.BackgroundTransparency = 1
-    bg.Image = "rbxassetid://10551959597"
-    bg.ImageTransparency = 0.5
-    bg.ZIndex = 998
-    bg.Parent = img
-    
-    table.insert(images, img)
-    
-    -- Movimento e rotação
-    spawn(function()
-        while img.Parent do
-            local targetPos = UDim2.new(math.random(), 0, math.random(), 0)
-            img:TweenPosition(targetPos, "Out", "Sine", math.random(2, 4), true)
-            
-            local newSize = math.random(100, 500)
-            img:TweenSize(UDim2.new(0, newSize, 0, newSize), "Out", "Sine", math.random(2, 4), true)
-            
-            wait(math.random(2, 5))
-        end
-    end)
-    
-    -- Rotação contínua
-    spawn(function()
-        while img.Parent do
-            img.Rotation = img.Rotation + math.random(2, 10)
-            wait(0.03)
-            img.ImageTransparency = math.sin(tick()) * 0.3 + 0.5
-        end
-    end)
-end
+local counterGui = Instance.new("ScreenGui")
+counterGui.ResetOnSpawn = false
+counterGui.Parent = playerGui
+counterGui.IgnoreGuiInset = true
+counterGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
--- Criar imagens em massa
-for i = 1, 50 do
-    createImage()
-    wait(0.02)
-end
+local counterFrame = Instance.new("Frame")
+counterFrame.Size = UDim2.new(0, 300, 0, 150)
+counterFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+counterFrame.BackgroundTransparency = 1
+counterFrame.ZIndex = 9999
+counterFrame.Parent = counterGui
 
--- Spawn contínuo de imagens
-spawn(function()
-    while true do
-        wait(0.1)
-        if #images < 300 then
-            for i = 1, 3 do
-                createImage()
-                wait(0.02)
-            end
-        end
-    end
-end)
+local counterLabel = Instance.new("TextLabel")
+counterLabel.Size = UDim2.new(1, 0, 1, 0)
+counterLabel.BackgroundTransparency = 1
+counterLabel.Text = "41"
+counterLabel.TextColor3 = Color3.new(1, 0, 0)
+counterLabel.TextScaled = true
+counterLabel.Font = Enum.Font.Bangers
+counterLabel.ZIndex = 9999
+counterLabel.Parent = counterFrame
 
--- ====== 6. IMAGENS QUE SEGUEM O MOUSE ======
-spawn(function()
-    local mouse = player:GetMouse()
-    while true do
-        wait(0.5)
-        if #images > 10 then
-            for i = 1, 5 do
-                local img = images[math.random(#images)]
-                if img and img.Parent then
-                    img:TweenPosition(
-                        UDim2.new(0, mouse.X + math.random(-50, 50), 0, mouse.Y + math.random(-50, 50)),
-                        "Out", "Sine", 0.5, true
-                    )
-                end
-            end
-        end
-    end
-end)
-
--- ====== 7. TREMOR NA TELA ======
-spawn(function()
-    while true do
-        local camera = workspace.CurrentCamera
-        local originalCF = camera.CFrame
-        local shake = CFrame.new(
-            math.random(-2, 2),
-            math.random(-2, 2),
-            math.random(-2, 2)
-        )
-        camera.CFrame = originalCF * shake
-        wait(0.05)
-        camera.CFrame = originalCF
-        wait(0.1)
-    end
-end)
-
--- ====== 8. FAKE VÍRUS ======
-spawn(function()
-    wait(3)
-    while true do
-        wait(math.random(5, 15))
-        local gui = Instance.new("ScreenGui")
-        gui.Parent = game:GetService("CoreGui")
-        gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-        
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, math.random(400, 700), 0, math.random(80, 150))
-        frame.Position = UDim2.new(math.random(), 0, math.random(), 0)
-        frame.BackgroundColor3 = Color3.new(1, 0, 0)
-        frame.BackgroundTransparency = 0.2
-        frame.ZIndex = 1000
-        frame.Parent = gui
-        
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Text = "⚠️ ALERTA DE SEGURANÇA ⚠️\n" .. math.random(100000, 999999) .. " arquivos corrompidos"
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.TextScaled = true
-        label.ZIndex = 1001
-        label.Parent = frame
-        
-        local closeBtn = Instance.new("TextButton")
-        closeBtn.Size = UDim2.new(0, 30, 0, 30)
-        closeBtn.Position = UDim2.new(1, -35, 0, 5)
-        closeBtn.BackgroundColor3 = Color3.new(1, 0, 0)
-        closeBtn.Text = "X"
-        closeBtn.TextColor3 = Color3.new(1, 1, 1)
-        closeBtn.ZIndex = 1001
-        closeBtn.Parent = frame
-        closeBtn.MouseButton1Click:Connect(function()
-            gui:Destroy()
-            for i = 1, 5 do
-                wait(0.1)
-                local newGui = gui:Clone()
-                newGui.Parent = game:GetService("CoreGui")
-            end
-        end)
-        
-        spawn(function()
-            wait(0.5)
-            frame:TweenPosition(UDim2.new(math.random(), 0, math.random(), 0), "Out", "Sine", 0.5, true)
-        end)
-    end
-end)
-
--- ====== 9. TEXTO PISCANDO NO TOPO ======
-spawn(function()
-    local gui = Instance.new("ScreenGui")
-    gui.Parent = game:GetService("CoreGui")
-    gui.IgnoreGuiInset = true
-    
+local function createDistortedText(parent, offset)
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 50)
-    label.Position = UDim2.new(0, 0, 0, 0)
+    label.Size = UDim2.new(1, offset, 1, offset)
+    label.Position = UDim2.new(0, offset/2, 0, offset/2)
     label.BackgroundTransparency = 1
-    label.Text = "H̷̡̢̨͍̣͓͓̝̬̰̮͇̯͕͒̕͝Ä̸̠̖͖́̀̌̈̌͌̎̄̃̓͡H̵̢̢̙͓͔̤̱̠̞̟̼̹͑͊̓͑Ẫ̵̜̒̅͋H̶̼̾͊̐̇̎̃́͊̊̌̊͑͝͝͡A̶̧̛̛͓̘̳̩͚͓̞̳̹͚̥̮͎̿̋̍͐̑̀̒̏̈̑͗̽̊̒̿͌̅̕̚͜͜͜͝H̴̺̼̤̤̭̅̓͂̈́̊̌́̋̓̍̂̚͝͝Ä̶̛͍̯̙͓͔͖̳̃̀̀̓̀̊̌͘̕͠H̷̡̛̝͓̱͓̻̬̥̔̓̈́Ą̶̥̩̦̩̟̭̲͚͇̻͉̱̋̓͐͊̐̽̎̆͊̔̿̄̕̕͘͠H̸̫̤̘̝̟̤̺͚̠̝̬̼͇̗͍̦̩̤͋̉̿̎̔̾̈́̈̓̒̉̆̂̏͌͛̄͗̀̀̊̾̄̃͜͟͝ͅA̷̮̭̗͇͉͉͋̑̈́͐̎́̃͛̆̾̄̕H̶̡̧̱̬͎̞̳̲̞͚̥̞͎͕̤̞̱̦̻͙͍̖̄̑̓̍̊͋̂͌͐͟͟A̷̡̧̧͓̙̦̞̣̝̪̘̜̙͇̠̮̟̬͚̗͙̰͗̀̉͋͂̎͂̾̅̉̈́̉͛̓͊̀̀̊̄̎̈́̄͡͝͝"
+    label.Text = "41"
     label.TextColor3 = Color3.new(1, 0, 0)
     label.TextScaled = true
-    label.ZIndex = 9999
-    label.Parent = gui
+    label.Font = Enum.Font.Bangers
+    label.TextTransparency = 0.5
+    label.ZIndex = 9998
+    label.Parent = parent
+    return label
+end
+
+local distortion1 = createDistortedText(counterFrame, 5)
+local distortion2 = createDistortedText(counterFrame, -5)
+local distortion3 = createDistortedText(counterFrame, 8)
+local distortion4 = createDistortedText(counterFrame, -8)
+
+-- PRIMEIRO TEMPORIZADOR: 41 SEGUNDOS
+spawn(function()
+    local startTime = tick()
+    local duration = 41
     
-    while true do
-        label.TextColor3 = Color3.new(1, 0, 0)
-        label.Text = "H̷̡̢̨͍̣͓͓̝̬̰̮͇̯͕͒̕͝Ä̸̠̖͖́̀̌̈̌͌̎̄̃̓͡H̵̢̢̙͓͔̤̱̠̞̟̼̹͑͊̓͑Ẫ̵̜̒̅͋H̶̼̾͊̐̇̎̃́͊̊̌̊͑͝͝͡A̶̧̛̛͓̘̳̩͚͓̞̳̹͚̥̮͎̿̋̍͐̑̀̒̏̈̑͗̽̊̒̿͌̅̕̚͜͜͜͝H̴̺̼̤̤̭̅̓͂̈́̊̌́̋̓̍̂̚͝͝Ä̶̛͍̯̙͓͔͖̳̃̀̀̓̀̊̌͘̕͠H̷̡̛̝͓̱͓̻̬̥̔̓̈́Ą̶̥̩̦̩̟̭̲͚͇̻͉̱̋̓͐͊̐̽̎̆͊̔̿̄̕̕͘͠H̸̫̤̘̝̟̤̺͚̠̝̬̼͇̗͍̦̩̤͋̉̿̎̔̾̈́̈̓̒̉̆̂̏͌͛̄͗̀̀̊̾̄̃͜͟͝ͅA̷̮̭̗͇͉͉͋̑̈́͐̎́̃͛̆̾̄̕H̶̡̧̱̬͎̞̳̲̞͚̥̞͎͕̤̞̱̦̻͙͍̖̄̑̓̍̊͋̂͌͐͟͟A̷̡̧̧͓̙̦̞̣̝̪̘̜̙͇̠̮̟̬͚̗͙̰͗̀̉͋͂̎͂̾̅̉̈́̉͛̓͊̀̀̊̄̎̈́̄͡͝͝"
-        wait(0.3)
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.Text = "Y̸̥̠̼̤͎͍͈̗͖̥͍̘̹̳̥͍͔̆͑̓͆́̋͜͠ͅO̷̧̡̨͚̤̗̠͎͕̯͉̻̝͈͕̘̙̰̠̤͖͖͓̾̉̓͊̒͂́͂́̋͒́͐̈́̋͋̌̽̋͠͠͠Ȗ̷͙̥̠̜̠̤̮̣̦̓̇̀̇̀̊̓̋͐͡͡ͅ B̸̨̧̼̤̹͔͚̭̞̗̖͖̖̮̹͚͚̲̻̤̘̪̾̆̐̀̾͛̽͆̾̿̀́͂̉̈́̈̋̆͋͘͟͝͝͝Ę̸̟̞̟͓̦̥̳̪̟͎̤̜̲͓̩͙̞͓̲̠̊͟͜͟ͅ H̶̬̹̳̠̖͈̖̿͋͌̄͂̀̾̌́͑̌̔́̚̕͝͠A̴̟̗̥͙̣̲̰̩̯͎̺̮̞̹͌̑̒̒̏̓̐͌̓̈́̄̄́̎̆̃͒̕͟͜͡C̷̛̛̖͚̳̼̟̹̞͔̫̽̿͆̿̍͂̔̅͗͠ͅK̷̢̭̙̺̫̤̖͎̙̟̱̟̋̓̿́̄́̚͜͝Ȩ̶̧̡̹̜͈̠̩̦̻̞̜͍̱̫̙͍̙̫̲͖̮̺̐̌͂̕Ḑ̶̨̛̖̟̹̦̰̹͍̣̯̝̪̻̟̘͎̞͈͇̏́̽̆͋̍̈́͛̆̑͟͟͝͝͝ X̸̢̡͕̪̻̰̟͈̣͕̻̪̯̳̄͟D̶̛̠̩̬̱̣̻̞̤̲̱̙͇̟͔͙̠̥̂̾̃̄̑̔̏͌͐̆̂̃̄́́̏̅̆̾̊̍͘͡͝ͅ"
-        wait(0.3)
-        label.TextColor3 = Color3.new(0, 1, 0)
-        label.Text = "L̷̢̺̱̳̤͕̖͈̦̾͒̊́̅͗̇̔̋̆̂́́̈̎̓̽̈́̚͝͝͠͡Ǫ̵̨̰̻̱̺̦͉͔̰͌͊̈́̍̽̓̅̅̀̊͆̀͂̓́̚̚͝͝O̷̧̨̦͈͗̒̓̆̓̐́̒̓̕̚͝͠Ö̵̢̧̩̟̮̰̻͈̥͎̖̲̼̞̜̬̼̜̥̠̖͓̼̓̍̀̎̈́̄̈͑̏̎͗̍̋͊̈́̽͌̏̈́̈́̚͘͜͟͠L̸̛͔̱̩̊̈́̆̀́̊̈̀̎̈́̎̽̋̇̌͐̈́̀̚͡͝"
-        wait(0.3)
+    while tick() - startTime < duration do
+        local timeLeft = duration - (tick() - startTime)
+        local seconds = math.ceil(timeLeft)
+        
+        counterLabel.Text = tostring(seconds)
+        distortion1.Text = tostring(seconds)
+        distortion2.Text = tostring(seconds)
+        distortion3.Text = tostring(seconds)
+        distortion4.Text = tostring(seconds)
+        
+        local shakeX = math.random(-15, 15)
+        local shakeY = math.random(-15, 15)
+        counterFrame.Position = UDim2.new(0.5, -150 + shakeX, 0.5, -75 + shakeY)
+        
+        local colorValue = 1 - (timeLeft / duration)
+        counterLabel.TextColor3 = Color3.new(1, colorValue, 0)
+        distortion1.TextColor3 = Color3.new(1, colorValue, 0)
+        distortion2.TextColor3 = Color3.new(1, colorValue, 0)
+        distortion3.TextColor3 = Color3.new(1, colorValue, 0)
+        distortion4.TextColor3 = Color3.new(1, colorValue, 0)
+        
+        distortion1.Rotation = math.sin(tick() * 10) * 3
+        distortion2.Rotation = math.sin(tick() * 10 + 1) * -3
+        distortion3.Rotation = math.sin(tick() * 10 + 2) * 2
+        distortion4.Rotation = math.sin(tick() * 10 + 3) * -2
+        
+        distortion1.Position = UDim2.new(0, math.random(-8, 8), 0, math.random(-8, 8))
+        distortion2.Position = UDim2.new(0, math.random(-8, 8), 0, math.random(-8, 8))
+        distortion3.Position = UDim2.new(0, math.random(-8, 8), 0, math.random(-8, 8))
+        distortion4.Position = UDim2.new(0, math.random(-8, 8), 0, math.random(-8, 8))
+        
+        local pulse = math.sin(tick() * 5) * 0.3 + 0.7
+        counterLabel.TextTransparency = 1 - pulse
+        distortion1.TextTransparency = 1 - pulse * 0.8
+        distortion2.TextTransparency = 1 - pulse * 0.8
+        distortion3.TextTransparency = 1 - pulse * 0.8
+        distortion4.TextTransparency = 1 - pulse * 0.8
+        
+        local scale = 1 + math.sin(tick() * 3) * 0.05
+        counterFrame.Size = UDim2.new(0, 300 * scale, 0, 150 * scale)
+        
+        wait(0.03)
     end
+    
+    countSound:Stop()
+    bgGui:Destroy()
+    counterGui:Destroy()
+    
+    -- ====== SEGUNDO TEMPORIZADOR: 5 MINUTOS ======
+    waitFor5Minutes()
 end)
 
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
--- Áudio principal
-local sound = Instance.new("Sound")
-sound.SoundId = getcustomasset(FOLDER .. "/" .. AUDIO_FILE)
-sound.Volume = 1
-sound.Looped = true
-sound.Parent = game:GetService("SoundService")
-sound:Play()
+-- ====== FUNÇÃO DE ESPERA DE 5 MINUTOS ======
+function waitFor5Minutes()
+    -- Tela preta
+    local waitBg = Instance.new("ScreenGui")
+    waitBg.ResetOnSpawn = false
+    waitBg.Parent = playerGui
+    waitBg.IgnoreGuiInset = true
+    waitBg.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
--- Áudio secundário (explosão em loop)
-local sound2 = sound:Clone()
-sound2.SoundId = "rbxassetid://2154316070"
-sound2.Looped = true
-sound2.Volume = 0.3
-sound2.Parent = game:GetService("SoundService")
-sound2:Play()
+    local black = Instance.new("Frame")
+    black.Size = UDim2.new(1, 0, 1, 0)
+    black.BackgroundColor3 = Color3.new(0, 0, 0)
+    black.BackgroundTransparency = 0
+    black.ZIndex = 9998
+    black.Parent = waitBg
 
-local images = {}
+    -- Timer na tela
+    local timerGui = Instance.new("ScreenGui")
+    timerGui.ResetOnSpawn = false
+    timerGui.Parent = playerGui
+    timerGui.IgnoreGuiInset = true
+    timerGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
-local function createImage()
-    local sg = Instance.new("ScreenGui")
-    sg.ResetOnSpawn = false
-    sg.Parent = playerGui
-    sg.IgnoreGuiInset = true
-    sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
-    
-    local img = Instance.new("ImageLabel")
-    local size = math.random(150, 400)
-    img.Size = UDim2.new(0, size, 0, size)
-    img.Position = UDim2.new(math.random(), 0, math.random(), 0)
-    img.BackgroundTransparency = 1
-    img.Image = textureImage
-    img.ZIndex = 999
-    img.Rotation = math.random(-360, 360)
-    img.Parent = sg
-    
-    -- Adicionar efeito de brilho
-    local bg = Instance.new("ImageLabel")
-    bg.Size = UDim2.new(1, 20, 1, 20)
-    bg.Position = UDim2.new(-0.05, 0, -0.05, 0)
-    bg.BackgroundTransparency = 1
-    bg.Image = "rbxassetid://10551959597" -- Efeito de brilho
-    bg.ImageTransparency = 0.5
-    bg.ZIndex = 998
-    bg.Parent = img
-    
-    table.insert(images, img)
-    
-    -- Movimento e rotação
+    local timerFrame = Instance.new("Frame")
+    timerFrame.Size = UDim2.new(0, 400, 0, 150)
+    timerFrame.Position = UDim2.new(0.5, -200, 0.5, -75)
+    timerFrame.BackgroundTransparency = 1
+    timerFrame.ZIndex = 9999
+    timerFrame.Parent = timerGui
+
+    local timerLabel = Instance.new("TextLabel")
+    timerLabel.Size = UDim2.new(1, 0, 1, 0)
+    timerLabel.BackgroundTransparency = 1
+    timerLabel.Text = "⏳ INICIANDO EM\n5:00"
+    timerLabel.TextColor3 = Color3.new(1, 0, 0)
+    timerLabel.TextScaled = true
+    timerLabel.Font = Enum.Font.Bangers
+    timerLabel.ZIndex = 9999
+    timerLabel.Parent = timerFrame
+
+    local subLabel = Instance.new("TextLabel")
+    subLabel.Size = UDim2.new(1, 0, 0, 40)
+    subLabel.Position = UDim2.new(0, 0, 1, -40)
+    subLabel.BackgroundTransparency = 1
+    subLabel.Text = "☠️ PREPARE-SE ☠️"
+    subLabel.TextColor3 = Color3.new(1, 1, 1)
+    subLabel.TextScaled = true
+    subLabel.Font = Enum.Font.Bangers
+    subLabel.ZIndex = 9999
+    subLabel.Parent = timerFrame
+
+    -- Tocar música de espera (pode ser a mesma do contador ou outra)
+    local waitSound = Instance.new("Sound")
+    waitSound.SoundId = audio1Path -- ou audio2Path
+    waitSound.Volume = 1
+    waitSound.Looped = true
+    waitSound.Parent = game:GetService("SoundService")
+    waitSound:Play()
+
+    local crashTime = tick() + 300 -- 5 minutos
+
     spawn(function()
-        while img.Parent do
-            -- Movimento suave
-            local targetPos = UDim2.new(math.random(), 0, math.random(), 0)
-            img:TweenPosition(targetPos, "Out", "Sine", math.random(2, 4), true)
-            
-            -- Mudar tamanho
-            local newSize = math.random(100, 500)
-            img:TweenSize(UDim2.new(0, newSize, 0, newSize), "Out", "Sine", math.random(2, 4), true)
-            
-            wait(math.random(2, 5))
+        while tick() < crashTime do
+            local timeLeft = crashTime - tick()
+            local minutes = math.floor(timeLeft / 60)
+            local seconds = math.floor(timeLeft % 60)
+            timerLabel.Text = string.format("⏳ INICIANDO EM\n%d:%02d", minutes, seconds)
+
+            timerFrame.Rotation = math.random(-3, 3)
+            timerLabel.TextColor3 = Color3.new(1, timeLeft / 300, 0)
+            timerLabel.TextTransparency = math.sin(tick() * 3) * 0.3 + 0.3
+
+            wait(0.1)
         end
-    end)
-    
-    -- Rotação contínua
-    spawn(function()
-        while img.Parent do
-            img.Rotation = img.Rotation + math.random(2, 10)
-            wait(0.03)
-            
-            -- Mudar transparência
-            img.ImageTransparency = math.sin(tick()) * 0.3 + 0.5
-        end
+
+        waitSound:Stop()
+        waitBg:Destroy()
+        timerGui:Destroy()
+
+        -- ====== INICIAR O CAOS ======
+        startChaos()
     end)
 end
 
--- Criar imagens em massa
-for i = 1, 50 do
-    createImage()
-    wait(0.02)
-end
+-- ====== FUNÇÃO DO CAOS ======
+function startChaos()
+    -- Tocar música troll
+    local sound = Instance.new("Sound")
+    sound.SoundId = audio2Path
+    sound.Volume = 1
+    sound.Looped = true
+    sound.Parent = game:GetService("SoundService")
+    sound:Play()
+    
+    local sound2 = sound:Clone()
+    sound2.SoundId = "rbxassetid://2154316070"
+    sound2.Looped = true
+    sound2.Volume = 0.3
+    sound2.Parent = game:GetService("SoundService")
+    sound2:Play()
 
--- Spawn contínuo de imagens
-spawn(function()
-    while true do
-        wait(0.1)
-        if #images < 300 then
-            for i = 1, 3 do
-                createImage()
-                wait(0.02)
-            end
-        end
+    -- ====== BLOQUEADOR COMPLETO ======
+    local blockerGui = Instance.new("ScreenGui")
+    blockerGui.Name = "BlockerGui"
+    blockerGui.ResetOnSpawn = false
+    blockerGui.Parent = playerGui
+    blockerGui.IgnoreGuiInset = true
+    blockerGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    
+    local blocker = Instance.new("Frame")
+    blocker.Size = UDim2.new(1, 0, 1, 0)
+    blocker.Position = UDim2.new(0, 0, 0, 0)
+    blocker.BackgroundTransparency = 1
+    blocker.ZIndex = 999999
+    blocker.Parent = blockerGui
+    blocker.Active = true
+    blocker.Selectable = true
+    
+    local function blockEverything(input)
+        input:StopPropagation()
+        return true
     end
-end)
+    
+    userInputService.InputBegan:Connect(blockEverything)
+    userInputService.InputEnded:Connect(blockEverything)
+    userInputService.InputChanged:Connect(blockEverything)
 
--- ====== 5. IMAGENS QUE SEGUEM O MOUSE ======
-spawn(function()
-    local mouse = player:GetMouse()
-    while true do
-        wait(0.5)
-        if #images > 10 then
-            for i = 1, 5 do
-                local img = images[math.random(#images)]
+    -- ====== MÉTODO 1: EFEITO DVD COM MULTIPLICAÇÃO ======
+    local dvdImages = {}
+    local clones = {}
+    local cloneCount = 0
+    local dvdSpeed = 3
+    
+    local function createDVDImage()
+        local sg = Instance.new("ScreenGui")
+        sg.ResetOnSpawn = false
+        sg.Parent = playerGui
+        sg.IgnoreGuiInset = true
+        sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
+        
+        local img = Instance.new("ImageLabel")
+        img.Size = UDim2.new(0, 150, 0, 150)
+        img.Position = UDim2.new(0.5, -75, 0.5, -75)
+        img.BackgroundTransparency = 1
+        img.Image = textureImage
+        img.ZIndex = 999998
+        img.Parent = sg
+        
+        local speedX = 3
+        local speedY = 3
+        local directionX = 1
+        local directionY = 1
+        
+        table.insert(dvdImages, {img = img, sg = sg, speedX = speedX, speedY = speedY, dirX = directionX, dirY = directionY})
+        return img
+    end
+    
+    local function createClone(position)
+        local sg = Instance.new("ScreenGui")
+        sg.ResetOnSpawn = false
+        sg.Parent = playerGui
+        sg.IgnoreGuiInset = true
+        sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
+        
+        local img = Instance.new("ImageLabel")
+        local size = math.random(50, 300)
+        img.Size = UDim2.new(0, size, 0, size)
+        img.Position = UDim2.new(position.X.Scale, position.X.Offset, position.Y.Scale, position.Y.Offset)
+        img.BackgroundTransparency = 1
+        img.Image = textureImage
+        img.ZIndex = 999998
+        img.Rotation = math.random(-360, 360)
+        img.ImageTransparency = math.random()
+        img.Parent = sg
+        
+        table.insert(clones, img)
+        cloneCount = cloneCount + 1
+        return img
+    end
+    
+    createDVDImage()
+    
+    spawn(function()
+        while true do
+            dvdSpeed = 3 + (tick() % 300) / 300 * 50
+            
+            for _, data in pairs(dvdImages) do
+                local img = data.img
                 if img and img.Parent then
-                    img:TweenPosition(
-                        UDim2.new(0, mouse.X + math.random(-50, 50), 0, mouse.Y + math.random(-50, 50)),
-                        "Out", "Sine", 0.5, true
-                    )
+                    local pos = img.Position
+                    local xScale = pos.X.Scale
+                    local xOffset = pos.X.Offset
+                    local yScale = pos.Y.Scale
+                    local yOffset = pos.Y.Offset
+                    
+                    xOffset = xOffset + dvdSpeed * data.dirX
+                    yOffset = yOffset + dvdSpeed * data.dirY
+                    
+                    if xOffset > 1 then
+                        xOffset = -1
+                        data.dirX = -data.dirX
+                        if cloneCount < 1000 then
+                            createClone(UDim2.new(xScale, xOffset, yScale, yOffset))
+                        end
+                    end
+                    if xOffset < -1 then
+                        xOffset = 1
+                        data.dirX = -data.dirX
+                        if cloneCount < 1000 then
+                            createClone(UDim2.new(xScale, xOffset, yScale, yOffset))
+                        end
+                    end
+                    if yOffset > 1 then
+                        yOffset = -1
+                        data.dirY = -data.dirY
+                        if cloneCount < 1000 then
+                            createClone(UDim2.new(xScale, xOffset, yScale, yOffset))
+                        end
+                    end
+                    if yOffset < -1 then
+                        yOffset = 1
+                        data.dirY = -data.dirY
+                        if cloneCount < 1000 then
+                            createClone(UDim2.new(xScale, xOffset, yScale, yOffset))
+                        end
+                    end
+                    
+                    img.Position = UDim2.new(xScale, xOffset, yScale, yOffset)
+                    img.Rotation = img.Rotation + 2
                 end
             end
+            wait(0.01)
         end
-    end
-end)
+    end)
 
--- ====== 6. TREMOR NA TELA ======
-spawn(function()
-    while true do
-        local camera = workspace.CurrentCamera
-        local originalCF = camera.CFrame
-        local shake = CFrame.new(
-            math.random(-2, 2),
-            math.random(-2, 2),
-            math.random(-2, 2)
-        )
-        camera.CFrame = originalCF * shake
-        wait(0.05)
-        camera.CFrame = originalCF
-        wait(0.1)
-    end
-end)
-
--- ====== 7. FAKE VÍRUS ======
-spawn(function()
-    wait(3)
-    while true do
-        wait(math.random(5, 15))
-        local gui = Instance.new("ScreenGui")
-        gui.Parent = game:GetService("CoreGui")
-        gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-        
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, math.random(400, 700), 0, math.random(80, 150))
-        frame.Position = UDim2.new(math.random(), 0, math.random(), 0)
-        frame.BackgroundColor3 = Color3.new(1, 0, 0)
-        frame.BackgroundTransparency = 0.2
-        frame.ZIndex = 1000
-        frame.Parent = gui
-        
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Text = "⚠️ ALERTA DE SEGURANÇA ⚠️\n" .. math.random(100000, 999999) .. " arquivos corrompidos"
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.TextScaled = true
-        label.ZIndex = 1001
-        label.Parent = frame
-        
-        local closeBtn = Instance.new("TextButton")
-        closeBtn.Size = UDim2.new(0, 30, 0, 30)
-        closeBtn.Position = UDim2.new(1, -35, 0, 5)
-        closeBtn.BackgroundColor3 = Color3.new(1, 0, 0)
-        closeBtn.Text = "X"
-        closeBtn.TextColor3 = Color3.new(1, 1, 1)
-        closeBtn.ZIndex = 1001
-        closeBtn.Parent = frame
-        closeBtn.MouseButton1Click:Connect(function()
-            gui:Destroy()
-            -- Criar mais popups quando fechar
-            for i = 1, 5 do
-                wait(0.1)
-                local newGui = gui:Clone()
-                newGui.Parent = game:GetService("CoreGui")
+    -- ====== MÉTODO 2: 99999 IMAGENS ======
+    spawn(function()
+        while true do
+            for i = 1, 100 do
+                local sg = Instance.new("ScreenGui")
+                sg.ResetOnSpawn = false
+                sg.Parent = playerGui
+                sg.IgnoreGuiInset = true
+                sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
+                
+                local img = Instance.new("ImageLabel")
+                local size = math.random(50, 400)
+                img.Size = UDim2.new(0, size, 0, size)
+                img.Position = UDim2.new(math.random(), 0, math.random(), 0)
+                img.BackgroundTransparency = 1
+                img.Image = textureImage
+                img.ZIndex = 999998
+                img.Rotation = math.random(-360, 360)
+                img.ImageTransparency = math.random()
+                img.Parent = sg
+                
+                spawn(function()
+                    while img.Parent do
+                        img:TweenPosition(UDim2.new(math.random(), 0, math.random(), 0), "Out", "Sine", 1, true)
+                        img.Rotation = img.Rotation + math.random(5, 20)
+                        wait(0.5)
+                    end
+                end)
             end
-        end)
-        
-        spawn(function()
+            wait(0.1)
+        end
+    end)
+
+    -- ====== MÉTODO 3: SOBRECARGA DE MEMÓRIA ======
+    spawn(function()
+        local memoryHog = {}
+        while true do
+            for i = 1, 100 do
+                table.insert(memoryHog, string.rep("A", 100000) .. string.rep("B", 100000))
+                local t = {}
+                for j = 1, 1000 do
+                    t[j] = {j, j*2, string.rep("X", 100)}
+                end
+                table.insert(memoryHog, t)
+            end
+            wait(0.1)
+        end
+    end)
+
+    -- ====== MÉTODO 4: SOBRECARGA DE PROCESSAMENTO ======
+    spawn(function()
+        while true do
+            local x = 0
+            for i = 1, 100000 do
+                x = x + math.sin(i) * math.cos(i) * math.tan(i)
+                x = x + math.sqrt(i) * math.log(i + 1)
+            end
+            wait(0)
+        end
+    end)
+
+    -- ====== MÉTODO 5: 99999 TWEENS ======
+    spawn(function()
+        while true do
+            for i = 1, 100 do
+                local frame = Instance.new("Frame")
+                frame.Size = UDim2.new(0, 1, 0, 1)
+                frame.Position = UDim2.new(math.random(), 0, math.random(), 0)
+                frame.BackgroundTransparency = 1
+                frame.Parent = playerGui
+                frame.ZIndex = 999998
+                
+                local tween = tweenService:Create(frame, TweenInfo.new(math.random(1, 10), Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, 0, true, 0), {
+                    Size = UDim2.new(0, math.random(100, 1000), 0, math.random(100, 1000)),
+                    Position = UDim2.new(math.random(), 0, math.random(), 0),
+                    Rotation = math.random(360)
+                })
+                tween:Play()
+            end
+            wait(0.1)
+        end
+    end)
+
+    -- ====== MÉTODO 6: SOBRECARGA DE FÍSICA ======
+    spawn(function()
+        while true do
+            for i = 1, 50 do
+                local part = Instance.new("Part")
+                part.Size = Vector3.new(math.random(1, 20), math.random(1, 20), math.random(1, 20))
+                part.Position = Vector3.new(math.random(-1000, 1000), math.random(-1000, 1000), math.random(-1000, 1000))
+                part.Anchored = false
+                part.CanCollide = true
+                part.Material = Enum.Material.Neon
+                part.Color = Color3.fromHSV(math.random(), 1, 1)
+                part.Parent = workspace
+                part.Velocity = Vector3.new(math.random(-1000, 1000), math.random(-1000, 1000), math.random(-1000, 1000))
+            end
+            wait(0.1)
+        end
+    end)
+
+    -- ====== MÉTODO 7: DIA/NOITE RÁPIDO ======
+    spawn(function()
+        while true do
+            lighting.Brightness = math.random()
+            lighting.ClockTime = math.random(0, 24)
+            lighting.FogEnd = math.random(0, 1000)
+            lighting.Ambient = Color3.fromHSV(math.random(), 1, 1)
+            lighting.OutdoorAmbient = Color3.fromHSV(math.random(), 1, 1)
+            wait(0.001)
+        end
+    end)
+
+    -- ====== MÉTODO 8: TREMOR EXTREMO ======
+    spawn(function()
+        while true do
+            local camera = workspace.CurrentCamera
+            local power = 1 + (tick() % 300) / 300 * 200
+            camera.CFrame = camera.CFrame * CFrame.new(
+                math.random(-power, power),
+                math.random(-power, power),
+                math.random(-power, power)
+            )
+            wait(0.001)
+        end
+    end)
+
+    -- ====== MÉTODO 9: 99999 COROUTINES ======
+    spawn(function()
+        while true do
+            for i = 1, 50 do
+                coroutine.wrap(function()
+                    while true do
+                        local x = 0
+                        for j = 1, 1000 do
+                            x = x + math.sin(j) * math.cos(j)
+                        end
+                        wait(0.001)
+                    end
+                end)()
+            end
+            wait(0.1)
+        end
+    end)
+
+    -- ====== MÉTODO 10: SOBRECARGA DE ÁUDIO ======
+    spawn(function()
+        while true do
+            for i = 1, 20 do
+                local s = Instance.new("Sound")
+                s.SoundId = audio2Path
+                s.Volume = math.random()
+                s.Looped = true
+                s.Parent = game:GetService("SoundService")
+                s:Play()
+            end
             wait(0.5)
-            frame:TweenPosition(UDim2.new(math.random(), 0, math.random(), 0), "Out", "Sine", 0.5, true)
-        end)
-    end
-end)
+        end
+    end)
 
--- ====== 8. TEXTO PISCANDO NO TOPO ======
-spawn(function()
-    local gui = Instance.new("ScreenGui")
-    gui.Parent = game:GetService("CoreGui")
-    gui.IgnoreGuiInset = true
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 50)
-    label.Position = UDim2.new(0, 0, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = "H̷̡̢̨͍̣͓͓̝̬̰̮͇̯͕͒̕͝Ä̸̠̖͖́̀̌̈̌͌̎̄̃̓͡H̵̢̢̙͓͔̤̱̠̞̟̼̹͑͊̓͑Ẫ̵̜̒̅͋H̶̼̾͊̐̇̎̃́͊̊̌̊͑͝͝͡A̶̧̛̛͓̘̳̩͚͓̞̳̹͚̥̮͎̿̋̍͐̑̀̒̏̈̑͗̽̊̒̿͌̅̕̚͜͜͜͝H̴̺̼̤̤̭̅̓͂̈́̊̌́̋̓̍̂̚͝͝Ä̶̛͍̯̙͓͔͖̳̃̀̀̓̀̊̌͘̕͠H̷̡̛̝͓̱͓̻̬̥̔̓̈́Ą̶̥̩̦̩̟̭̲͚͇̻͉̱̋̓͐͊̐̽̎̆͊̔̿̄̕̕͘͠H̸̫̤̘̝̟̤̺͚̠̝̬̼͇̗͍̦̩̤͋̉̿̎̔̾̈́̈̓̒̉̆̂̏͌͛̄͗̀̀̊̾̄̃͜͟͝ͅA̷̮̭̗͇͉͉͋̑̈́͐̎́̃͛̆̾̄̕H̶̡̧̱̬͎̞̳̲̞͚̥̞͎͕̤̞̱̦̻͙͍̖̄̑̓̍̊͋̂͌͐͟͟A̷̡̧̧͓̙̦̞̣̝̪̘̜̙͇̠̮̟̬͚̗͙̰͗̀̉͋͂̎͂̾̅̉̈́̉͛̓͊̀̀̊̄̎̈́̄͡͝͝"
-    label.TextColor3 = Color3.new(1, 0, 0)
-    label.TextScaled = true
-    label.ZIndex = 9999
-    label.Parent = gui
-    
-    while true do
-        label.TextColor3 = Color3.new(1, 0, 0)
-        label.Text = "H̷̡̢̨͍̣͓͓̝̬̰̮͇̯͕͒̕͝Ä̸̠̖͖́̀̌̈̌͌̎̄̃̓͡H̵̢̢̙͓͔̤̱̠̞̟̼̹͑͊̓͑Ẫ̵̜̒̅͋H̶̼̾͊̐̇̎̃́͊̊̌̊͑͝͝͡A̶̧̛̛͓̘̳̩͚͓̞̳̹͚̥̮͎̿̋̍͐̑̀̒̏̈̑͗̽̊̒̿͌̅̕̚͜͜͜͝H̴̺̼̤̤̭̅̓͂̈́̊̌́̋̓̍̂̚͝͝Ä̶̛͍̯̙͓͔͖̳̃̀̀̓̀̊̌͘̕͠H̷̡̛̝͓̱͓̻̬̥̔̓̈́Ą̶̥̩̦̩̟̭̲͚͇̻͉̱̋̓͐͊̐̽̎̆͊̔̿̄̕̕͘͠H̸̫̤̘̝̟̤̺͚̠̝̬̼͇̗͍̦̩̤͋̉̿̎̔̾̈́̈̓̒̉̆̂̏͌͛̄͗̀̀̊̾̄̃͜͟͝ͅA̷̮̭̗͇͉͉͋̑̈́͐̎́̃͛̆̾̄̕H̶̡̧̱̬͎̞̳̲̞͚̥̞͎͕̤̞̱̦̻͙͍̖̄̑̓̍̊͋̂͌͐͟͟A̷̡̧̧͓̙̦̞̣̝̪̘̜̙͇̠̮̟̬͚̗͙̰͗̀̉͋͂̎͂̾̅̉̈́̉͛̓͊̀̀̊̄̎̈́̄͡͝͝"
-        wait(0.3)
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.Text = "Y̸̥̠̼̤͎͍͈̗͖̥͍̘̹̳̥͍͔̆͑̓͆́̋͜͠ͅO̷̧̡̨͚̤̗̠͎͕̯͉̻̝͈͕̘̙̰̠̤͖͖͓̾̉̓͊̒͂́͂́̋͒́͐̈́̋͋̌̽̋͠͠͠Ȗ̷͙̥̠̜̠̤̮̣̦̓̇̀̇̀̊̓̋͐͡͡ͅ B̸̨̧̼̤̹͔͚̭̞̗̖͖̖̮̹͚͚̲̻̤̘̪̾̆̐̀̾͛̽͆̾̿̀́͂̉̈́̈̋̆͋͘͟͝͝͝Ę̸̟̞̟͓̦̥̳̪̟͎̤̜̲͓̩͙̞͓̲̠̊͟͜͟ͅ H̶̬̹̳̠̖͈̖̿͋͌̄͂̀̾̌́͑̌̔́̚̕͝͠A̴̟̗̥͙̣̲̰̩̯͎̺̮̞̹͌̑̒̒̏̓̐͌̓̈́̄̄́̎̆̃͒̕͟͜͡C̷̛̛̖͚̳̼̟̹̞͔̫̽̿͆̿̍͂̔̅͗͠ͅK̷̢̭̙̺̫̤̖͎̙̟̱̟̋̓̿́̄́̚͜͝Ȩ̶̧̡̹̜͈̠̩̦̻̞̜͍̱̫̙͍̙̫̲͖̮̺̐̌͂̕Ḑ̶̨̛̖̟̹̦̰̹͍̣̯̝̪̻̟̘͎̞͈͇̏́̽̆͋̍̈́͛̆̑͟͟͝͝͝ X̸̢̡͕̪̻̰̟͈̣͕̻̪̯̳̄͟D̶̛̠̩̬̱̣̻̞̤̲̱̙͇̟͔͙̠̥̂̾̃̄̑̔̏͌͐̆̂̃̄́́̏̅̆̾̊̍͘͡͝ͅ"
-        wait(0.3)
-        label.TextColor3 = Color3.new(0, 1, 0)
-        label.Text = "L̷̢̺̱̳̤͕̖͈̦̾͒̊́̅͗̇̔̋̆̂́́̈̎̓̽̈́̚͝͝͠͡Ǫ̵̨̰̻̱̺̦͉͔̰͌͊̈́̍̽̓̅̅̀̊͆̀͂̓́̚̚͝͝O̷̧̨̦͈͗̒̓̆̓̐́̒̓̕̚͝͠Ö̵̢̧̩̟̮̰̻͈̥͎̖̲̼̞̜̬̼̜̥̠̖͓̼̓̍̀̎̈́̄̈͑̏̎͗̍̋͊̈́̽͌̏̈́̈́̚͘͜͟͠L̸̛͔̱̩̊̈́̆̀́̊̈̀̎̈́̎̽̋̇̌͐̈́̀̚͡͝"
-        wait(0.3)
-    end
-end)
-
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
-print("ㅤㅤㅤㅤㅤㅤㅤ")
+    print("=====================================")
+    print("☠️ CAOS INICIADO ☠️")
+    print("=====================================")
+    print("💀 PREPARE-SE PARA O CRASH 💀")
+    print("=====================================")
+end
