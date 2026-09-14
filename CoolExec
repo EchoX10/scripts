@@ -761,8 +761,8 @@ FloatButton.MouseLeave:Connect(function()
     TweenService:Create(FloatButton, TweenInfo.new(0.2), {Size = UDim2.new(0, buttonSize, 0, buttonSize)}):Play() 
 end)
 
-local guiWidth = UserInputService.TouchEnabled and 420 or 380
-local guiHeight = UserInputService.TouchEnabled and 480 or 400
+local guiWidth = UserInputService.TouchEnabled and 340 or 300
+local guiHeight = UserInputService.TouchEnabled and 400 or 340
 
 local MainGui = Instance.new("Frame")
 MainGui.Size = UDim2.new(0, guiWidth, 0, guiHeight)
