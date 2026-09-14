@@ -8,42 +8,138 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local MarketplaceService = game:GetService("MarketplaceService")
 
+-- ==================== COMPATIBILIDADE (evita attempt to call a nil value) ====================
+local _isfolder = rawget(_G, "isfolder") or rawget(_G, "is_folder")
+local _isfile = rawget(_G, "isfile") or rawget(_G, "is_file")
+local _makefolder = rawget(_G, "makefolder") or rawget(_G, "make_folder") or rawget(_G, "makeFolder")
+local _listfiles = rawget(_G, "listfiles") or rawget(_G, "list_files") or rawget(_G, "listFiles")
+local _readfile = rawget(_G, "readfile") or rawget(_G, "read_file")
+local _writefile = rawget(_G, "writefile") or rawget(_G, "write_file")
+local _delfile = rawget(_G, "delfile") or rawget(_G, "del_file") or rawget(_G, "deletefile")
+local _delfolder = rawget(_G, "delfolder") or rawget(_G, "del_folder") or rawget(_G, "deletefolder")
+local _loadstring = rawget(_G, "loadstring") or rawget(_G, "load")
+
+function isfolder(path)
+    if type(_isfolder) == "function" then
+        local ok, r = pcall(_isfolder, path)
+        return ok and r == true
+    end
+    return false
+end
+
+function isfile(path)
+    if type(_isfile) == "function" then
+        local ok, r = pcall(_isfile, path)
+        return ok and r == true
+    end
+    return false
+end
+
+function makefolder(path)
+    if type(_makefolder) == "function" then
+        local ok = pcall(_makefolder, path)
+        return ok
+    end
+    return false
+end
+
+function listfiles(path)
+    if type(_listfiles) == "function" then
+        local ok, r = pcall(_listfiles, path)
+        if ok and type(r) == "table" then return r end
+    end
+    return {}
+end
+
+function readfile(path)
+    if type(_readfile) == "function" then
+        local ok, r = pcall(_readfile, path)
+        if ok then return r end
+    end
+    return nil
+end
+
+function writefile(path, content)
+    if type(_writefile) == "function" then
+        local ok = pcall(_writefile, path, content)
+        return ok
+    end
+    return false
+end
+
+function delfile(path)
+    if type(_delfile) == "function" then
+        local ok = pcall(_delfile, path)
+        return ok
+    end
+    return false
+end
+
+function delfolder(path)
+    if type(_delfolder) == "function" then
+        local ok = pcall(_delfolder, path)
+        return ok
+    end
+    return false
+end
+
+local function safeLoadstring(code)
+    if type(_loadstring) ~= "function" then
+        return nil, "loadstring não disponível neste executor"
+    end
+    return _loadstring(code)
+end
+
 -- ==================== VARIÁVEIS GLOBAIS ====================
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
+local character = player.Character
+if not character then
+    local ok, ch = pcall(function()
+        return player.CharacterAdded:Wait()
+    end)
+    character = (ok and ch) or nil
+end
+local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 local scriptCount = 0
 local coolExecStartTime = os.time()
 
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
+    rootPart = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart", 5)
+end)
+
 -- ==================== AUTO-INSTALAÇÃO ====================
 local function selfInstall()
-    local autoExecPath = "coolexec/autoexec/"
-    if not isfolder(autoExecPath) then makefolder(autoExecPath) end
-    
-    local scriptPath = autoExecPath .. "CoolExec.lua"
-    if not isfile(scriptPath) then
-        local source = debug.getinfo(1).source
-        if source and source:sub(1, 1) == "@" then
-            local currentFile = source:sub(2)
-            if isfile(currentFile) then
-                writefile(scriptPath, readfile(currentFile))
-                print("✅ CoolExec instalado no autoexec!")
+    pcall(function()
+        local autoExecPath = "coolexec/autoexec/"
+        if not isfolder(autoExecPath) then makefolder(autoExecPath) end
+        local scriptPath = autoExecPath .. "CoolExec.lua"
+        if not isfile(scriptPath) then
+            local ok, source = pcall(function()
+                return debug.getinfo(1).source
+            end)
+            if ok and type(source) == "string" and source:sub(1, 1) == "@" then
+                local currentFile = source:sub(2)
+                if isfile(currentFile) then
+                    writefile(scriptPath, readfile(currentFile))
+                end
             end
         end
-    end
+    end)
 end
-selfInstall()
+pcall(selfInstall)
 
 -- ==================== CONFIGURAÇÃO ====================
 local SAVE_FOLDER = "coolexec/saved"
-if not isfolder(SAVE_FOLDER) then makefolder(SAVE_FOLDER) end
+pcall(function() if not isfolder(SAVE_FOLDER) then makefolder(SAVE_FOLDER) end end)
 
 local FAVORITES_FOLDER = "coolexec/favorites"
-if not isfolder(FAVORITES_FOLDER) then makefolder(FAVORITES_FOLDER) end
+pcall(function() if not isfolder(FAVORITES_FOLDER) then makefolder(FAVORITES_FOLDER) end end)
 
 local AUTOEXEC_FOLDER = "coolexec/autoexec_scripts"
-if not isfolder(AUTOEXEC_FOLDER) then makefolder(AUTOEXEC_FOLDER) end
+pcall(function() if not isfolder(AUTOEXEC_FOLDER) then makefolder(AUTOEXEC_FOLDER) end end
 
 local WEBHOOK_FILE = "coolexec/webhook_url.txt"
 local SETTINGS_FILE = "coolexec/settings.json"
@@ -86,7 +182,7 @@ local FOLDER_PATH = "coolexec/assets"
 local IMAGE_PATH = FOLDER_PATH .. "/button.png"
 local IMAGE_URL = "https://cdn.corenexis.com/f/aiCA5RtZkXu.png"
 
-if not isfolder(FOLDER_PATH) then makefolder(FOLDER_PATH) end
+pcall(function() if not isfolder(FOLDER_PATH) then makefolder(FOLDER_PATH) end end)
 if not isfile(IMAGE_PATH) then
     local success, data = pcall(function() return game:HttpGet(IMAGE_URL) end)
     if success then writefile(IMAGE_PATH, data) end
@@ -1814,13 +1910,13 @@ DoUpdateBtn.MouseButton1Click:Connect(function()
     
     -- Executa o novo script
     local success, err = pcall(function()
-        loadstring(codeToRun)()
+        (function() local fn,e=safeLoadstring(codeToRun); if not fn then error(tostring(e or 'loadstring nil')) end; return fn() end)()
     end)
     
     if not success then
         warn("[CoolExec Update] Erro ao carregar nova versão:", err)
         -- tenta de novo uma vez
-        pcall(function() loadstring(codeToRun)() end)
+        pcall(function() (function() local fn,e=safeLoadstring(codeToRun); if not fn then error(tostring(e or 'loadstring nil')) end; return fn() end)() end)
     end
 end)
 
@@ -2365,7 +2461,7 @@ local function autoExecuteScripts()
             if isfile(scriptPath) then
                 local content = readfile(scriptPath)
                 local success, err = pcall(function()
-                    loadstring(content)()
+                    (function() local fn,e=safeLoadstring(content); if not fn then error(tostring(e or 'loadstring nil')) end; return fn() end)()
                 end)
                 if success then
                     addConsoleLine("🔄 Auto-executou: " .. name, Color3.fromRGB(0, 255, 100))
@@ -2394,7 +2490,7 @@ local function executeScript(code)
     playSound("click")
     
     local success, err = pcall(function()
-        loadstring(code)()
+        (function() local fn,e=safeLoadstring(code); if not fn then error(tostring(e or 'loadstring nil')) end; return fn() end)()
     end)
     
     if success then
