@@ -55,7 +55,9 @@ local defaultSettings = {
     randomGuiName = true,
     notifications = true,
     autoCheckUpdate = true,
-    keybindOpen = "RightShift"
+    keybindOpen = "RightShift",
+    soundEnabled = true,
+    soundVolume = 0.5
 }
 local settings = {}
 local function loadSettings()
@@ -116,6 +118,106 @@ local function setupGui(gui)
     gui.DisplayOrder = 999
 end
 
+-- ==================== SONS ====================
+local SoundService = game:GetService("SoundService")
+local function playSound(kind)
+    if settings and settings.soundEnabled == false then return end
+    local vol = (settings and settings.soundVolume) or 0.5
+    local ids = {
+        notify = "rbxassetid://131390520971848",
+        success = "rbxassetid://131390520971848",
+        error = "rbxassetid://128187340772806",
+        click = "rbxassetid://116080744084010"
+    }
+    local id = ids[kind] or ids.click
+    local s = Instance.new("Sound")
+    s.SoundId = id
+    s.Volume = math.clamp(vol, 0, 1)
+    s.PlayOnRemove = false
+    s.Parent = SoundService
+    pcall(function() s:Play() end)
+    task.delay(2, function()
+        pcall(function() s:Destroy() end)
+    end)
+end
+
+-- ==================== DIÁLOGO DE CONFIRMAÇÃO ====================
+local function confirmDialog(titleText, messageText, onYes)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "CE_Confirm_" .. tostring(math.random(1000, 9999))
+    gui.ResetOnSpawn = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.DisplayOrder = 2000
+    gui.Parent = CoreGui
+    
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    bg.BackgroundTransparency = 0.5
+    bg.Parent = gui
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 140)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -70)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 22)
+    frame.Parent = gui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+    local st = Instance.new("UIStroke", frame)
+    st.Color = Color3.fromRGB(170, 0, 0)
+    st.Thickness = 1.5
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -16, 0, 28)
+    title.Position = UDim2.new(0, 8, 0, 8)
+    title.BackgroundTransparency = 1
+    title.Text = titleText
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextScaled = true
+    title.Font = Enum.Font.GothamBold
+    title.Parent = frame
+    
+    local msg = Instance.new("TextLabel")
+    msg.Size = UDim2.new(1, -16, 0, 40)
+    msg.Position = UDim2.new(0, 8, 0, 40)
+    msg.BackgroundTransparency = 1
+    msg.Text = messageText
+    msg.TextColor3 = Color3.fromRGB(180, 180, 180)
+    msg.TextScaled = true
+    msg.TextWrapped = true
+    msg.Font = Enum.Font.Gotham
+    msg.Parent = frame
+    
+    local yesBtn = Instance.new("TextButton")
+    yesBtn.Size = UDim2.new(0.42, 0, 0, 32)
+    yesBtn.Position = UDim2.new(0.05, 0, 1, -42)
+    yesBtn.BackgroundColor3 = Color3.fromRGB(170, 30, 30)
+    yesBtn.Text = "Sim"
+    yesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    yesBtn.TextScaled = true
+    yesBtn.Font = Enum.Font.GothamBold
+    yesBtn.Parent = frame
+    Instance.new("UICorner", yesBtn).CornerRadius = UDim.new(0, 6)
+    
+    local noBtn = Instance.new("TextButton")
+    noBtn.Size = UDim2.new(0.42, 0, 0, 32)
+    noBtn.Position = UDim2.new(0.53, 0, 1, -42)
+    noBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+    noBtn.Text = "Não"
+    noBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    noBtn.TextScaled = true
+    noBtn.Font = Enum.Font.GothamBold
+    noBtn.Parent = frame
+    Instance.new("UICorner", noBtn).CornerRadius = UDim.new(0, 6)
+    
+    yesBtn.MouseButton1Click:Connect(function()
+        gui:Destroy()
+        if onYes then onYes() end
+    end)
+    noBtn.MouseButton1Click:Connect(function()
+        gui:Destroy()
+    end)
+end
+
 -- ==================== NOTIFICAÇÕES ====================
 local Notifications = Instance.new("ScreenGui")
 Notifications.Name = "CoolNotifications"
@@ -144,6 +246,8 @@ local function createNotification(text, color)
     if settings and settings.notifications == false then
         return
     end
+    
+    playSound("notify")
     
     local notif = Instance.new("Frame")
     notif.Size = UDim2.new(0, NOTIF_WIDTH, 0, NOTIF_HEIGHT)
@@ -917,7 +1021,7 @@ LineCountLabel.Parent = ExecHeader
 
 -- Caixa de script mais bonita
 local ScriptBoxFrame = Instance.new("Frame")
-ScriptBoxFrame.Size = UDim2.new(1, 0, 1, -78)
+ScriptBoxFrame.Size = UDim2.new(1, 0, 1, -108)
 ScriptBoxFrame.Position = UDim2.new(0, 0, 0, 30)
 ScriptBoxFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
 ScriptBoxFrame.BackgroundTransparency = 0.15
@@ -1027,6 +1131,48 @@ CopyBtn.AutoButtonColor = false
 Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 8)
 styleExecButton(CopyBtn, Color3.fromRGB(45, 45, 50), Color3.fromRGB(65, 65, 75))
 
+-- ===== SNIPPETS RÁPIDOS =====
+local SnippetsBar = Instance.new("ScrollingFrame")
+SnippetsBar.Size = UDim2.new(1, 0, 0, 26)
+SnippetsBar.Position = UDim2.new(0, 0, 1, -70)
+SnippetsBar.BackgroundTransparency = 1
+SnippetsBar.ScrollBarThickness = 0
+SnippetsBar.ScrollingDirection = Enum.ScrollingDirection.X
+SnippetsBar.CanvasSize = UDim2.new(0, 520, 0, 26)
+SnippetsBar.Parent = ExecutorContent
+
+local SnipLayout = Instance.new("UIListLayout")
+SnipLayout.FillDirection = Enum.FillDirection.Horizontal
+SnipLayout.Padding = UDim.new(0, 4)
+SnipLayout.Parent = SnippetsBar
+
+local snippets = {
+    {name = "IY", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()"},
+    {name = "Dex", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/infyiff/backup/main/dex.lua'))()"},
+    {name = "ESP", code = "for _,p in pairs(game.Players:GetPlayers()) do if p~=game.Players.LocalPlayer and p.Character then local h=Instance.new('Highlight',p.Character) h.FillColor=Color3.new(1,0,0) h.OutlineColor=Color3.new(1,1,1) end end"},
+    {name = "Speed", code = "game.Players.LocalPlayer.Character.Humanoid.WalkSpeed=50"},
+    {name = "Jump", code = "game.Players.LocalPlayer.Character.Humanoid.JumpPower=100"},
+    {name = "Noclip", code = "local r=game:GetService('RunService') r.Stepped:Connect(function() if game.Players.LocalPlayer.Character then for _,p in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do if p:IsA('BasePart') then p.CanCollide=false end end end end)"},
+    {name = "Print", code = "print('CoolExec OK!')"},
+}
+
+for _, sn in ipairs(snippets) do
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(0, 58, 0, 24)
+    b.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    b.Text = sn.name
+    b.TextColor3 = Color3.fromRGB(200, 200, 210)
+    b.TextScaled = true
+    b.Font = Enum.Font.GothamBold
+    b.Parent = SnippetsBar
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+    b.MouseButton1Click:Connect(function()
+        ScriptBox.Text = sn.code
+        createNotification("Snippet: " .. sn.name, Color3.fromRGB(100, 200, 255))
+        playSound("click")
+    end)
+end
+
 -- ===== HUB CONTENT =====
 local HubContent = Instance.new("Frame")
 HubContent.Size = UDim2.new(1, 0, 1, 0)
@@ -1077,7 +1223,7 @@ HubSearchBox.Size = UDim2.new(1, -10, 0, 28)
 HubSearchBox.Position = UDim2.new(0, 5, 0, 28)
 HubSearchBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 HubSearchBox.Text = ""
-HubSearchBox.PlaceholderText = "🔍 Buscar scripts/pastas..."
+HubSearchBox.PlaceholderText = "🔍 Busca global (todas as pastas)..."
 HubSearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 HubSearchBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
 HubSearchBox.TextScaled = true
@@ -1311,6 +1457,58 @@ end)
 
 addSettingToggle("🔀 Nome aleatório do GUI (proteção)", "randomGuiName", nil)
 addSettingToggle("🔄 Verificar update ao abrir", "autoCheckUpdate", nil)
+addSettingToggle("🔊 Sons", "soundEnabled", function(val)
+    if val then playSound("click") end
+end)
+
+local volLabel = Instance.new("TextLabel")
+volLabel.Size = UDim2.new(1, -10, 0, 22)
+volLabel.BackgroundTransparency = 1
+volLabel.Text = "Volume dos sons: " .. tostring(math.floor((settings.soundVolume or 0.5) * 100)) .. "%"
+volLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+volLabel.TextScaled = true
+volLabel.TextXAlignment = Enum.TextXAlignment.Left
+volLabel.Font = Enum.Font.Gotham
+volLabel.Parent = SettingsScroll
+
+local volRow = Instance.new("Frame")
+volRow.Size = UDim2.new(1, -10, 0, 28)
+volRow.BackgroundTransparency = 1
+volRow.Parent = SettingsScroll
+
+local volDown = Instance.new("TextButton")
+volDown.Size = UDim2.new(0.2, 0, 1, 0)
+volDown.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+volDown.Text = "−"
+volDown.TextColor3 = Color3.new(1,1,1)
+volDown.TextScaled = true
+volDown.Font = Enum.Font.GothamBold
+volDown.Parent = volRow
+Instance.new("UICorner", volDown).CornerRadius = UDim.new(0, 5)
+
+local volUp = Instance.new("TextButton")
+volUp.Size = UDim2.new(0.2, 0, 1, 0)
+volUp.Position = UDim2.new(0.8, 0, 0, 0)
+volUp.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+volUp.Text = "+"
+volUp.TextColor3 = Color3.new(1,1,1)
+volUp.TextScaled = true
+volUp.Font = Enum.Font.GothamBold
+volUp.Parent = volRow
+Instance.new("UICorner", volUp).CornerRadius = UDim.new(0, 5)
+
+volDown.MouseButton1Click:Connect(function()
+    settings.soundVolume = math.clamp((settings.soundVolume or 0.5) - 0.1, 0, 1)
+    saveSettings()
+    volLabel.Text = "Volume dos sons: " .. tostring(math.floor(settings.soundVolume * 100)) .. "%"
+    playSound("click")
+end)
+volUp.MouseButton1Click:Connect(function()
+    settings.soundVolume = math.clamp((settings.soundVolume or 0.5) + 0.1, 0, 1)
+    saveSettings()
+    volLabel.Text = "Volume dos sons: " .. tostring(math.floor(settings.soundVolume * 100)) .. "%"
+    playSound("click")
+end)
 
 -- FPS + Ping ao vivo
 local statsTitle = Instance.new("TextLabel")
@@ -1626,10 +1824,39 @@ DoUpdateBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Proteção: nome aleatório do ScreenGui
+-- Proteção avançada: nomes aleatórios em todas as GUIs
 if settings.randomGuiName then
-    local randomName = "CE_" .. tostring(math.random(100000, 999999))
-    if ScreenGui then ScreenGui.Name = randomName end
+    local function rndName()
+        local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        local s = ""
+        for i = 1, 12 do
+            local idx = math.random(1, #chars)
+            s = s .. chars:sub(idx, idx)
+        end
+        return s
+    end
+    pcall(function() if ScreenGui then ScreenGui.Name = rndName() end end)
+    pcall(function() if Notifications then Notifications.Name = rndName() end end)
+    pcall(function() if TutorialGui then TutorialGui.Name = rndName() end end)
+    pcall(function() if MsgDialogGui then MsgDialogGui.Name = rndName() end end)
+    pcall(function() if SaveDialogGui then SaveDialogGui.Name = rndName() end end)
+    pcall(function()
+        if MiniConsole and MiniConsole.Parent and MiniConsole.Parent:IsA("ScreenGui") then
+            MiniConsole.Parent.Name = rndName()
+        elseif MiniConsole then
+            MiniConsole.Name = rndName()
+        end
+    end)
+    -- Re-randomiza periodicamente
+    task.spawn(function()
+        while ScreenGui and ScreenGui.Parent do
+            task.wait(30 + math.random(10, 40))
+            pcall(function()
+                if ScreenGui then ScreenGui.Name = rndName() end
+                if Notifications then Notifications.Name = rndName() end
+            end)
+        end
+    end)
 end
 
 if settings.hideFloatButton and FloatButton then
@@ -2158,23 +2385,27 @@ local function executeScript(code)
     
     if not code or code:match("^%s*$") then
         createNotification("⚠️ Digite um script!", Color3.fromRGB(255, 200, 0))
+        playSound("error")
         return
     end
     
     addConsoleLine("▶️ Executando script...", Color3.fromRGB(100, 200, 255))
     addMiniConsoleLine("▶️ Executando...", Color3.fromRGB(100, 200, 255))
+    playSound("click")
     
     local success, err = pcall(function()
         loadstring(code)()
     end)
     
     if success then
+        playSound("success")
         createNotification("✅ Script executado!", Color3.fromRGB(0, 255, 100))
         addConsoleLine("✅ Script executado com sucesso!", Color3.fromRGB(0, 255, 100))
         addMiniConsoleLine("✅ Sucesso!", Color3.fromRGB(0, 255, 100))
     else
+        playSound("error")
         createNotification("❌ Erro: " .. tostring(err), Color3.fromRGB(255, 80, 80))
-        addConsoleLine("❌ Erro: " .. tostring(err), Color3.fromRGB(255, 50, 50))
+        addConsoleLine("❌ [ERROR] " .. tostring(err), Color3.fromRGB(255, 50, 50))
         addMiniConsoleLine("❌ Erro: " .. tostring(err), Color3.fromRGB(255, 50, 50))
     end
 end
@@ -2188,22 +2419,53 @@ local function getRelativePath()
     return "/saved" .. rel:gsub("\\", "/")
 end
 
-local function getHubEntries()
+local function getHubEntries(searchQuery)
     local entries = {}
-    local ok, files = pcall(listfiles, currentHubPath)
-    if not ok then return entries end
+    searchQuery = (searchQuery or ""):lower()
     
-    for _, file in ipairs(files) do
-        local name = file:match("([^/\\]+)$")
-        if isfolder(file) then
-            table.insert(entries, {name = name, path = file, isFolder = true})
-        elseif file:find("%.lua$") then
-            table.insert(entries, {name = name:gsub("%.lua$", ""), path = file, isFolder = false})
+    local function scan(path, prefix)
+        local ok, files = pcall(listfiles, path)
+        if not ok then return end
+        for _, file in ipairs(files) do
+            local name = file:match("([^/\\]+)$")
+            if isfolder(file) then
+                local display = prefix ~= "" and (prefix .. "/" .. name) or name
+                if searchQuery == "" or name:lower():find(searchQuery, 1, true) then
+                    if searchQuery == "" and path == currentHubPath then
+                        table.insert(entries, {name = name, path = file, isFolder = true, display = name})
+                    elseif searchQuery ~= "" then
+                        table.insert(entries, {name = name, path = file, isFolder = true, display = display})
+                    end
+                end
+                if searchQuery ~= "" or path == currentHubPath then
+                    scan(file, display)
+                end
+            elseif file:find("%.lua$") then
+                local sname = name:gsub("%.lua$", "")
+                local display = prefix ~= "" and (prefix .. "/" .. sname) or sname
+                local inCurrent = (path == currentHubPath)
+                if searchQuery == "" then
+                    if inCurrent then
+                        table.insert(entries, {name = sname, path = file, isFolder = false, display = sname})
+                    end
+                else
+                    if sname:lower():find(searchQuery, 1, true) or display:lower():find(searchQuery, 1, true) then
+                        table.insert(entries, {name = sname, path = file, isFolder = false, display = display})
+                    end
+                end
+            end
         end
     end
+    
+    if searchQuery ~= "" then
+        scan(SAVE_FOLDER, "")
+    else
+        scan(currentHubPath, "")
+    end
+    
     table.sort(entries, function(a, b)
         if a.isFolder ~= b.isFolder then return a.isFolder end
-        return a.name:lower() < b.name:lower()
+        return (a.display or a.name):lower() < (b.display or b.name):lower()
     end)
     return entries
 end
@@ -2239,11 +2501,15 @@ local function refreshHub(filter)
         end)
     end
     
-    local entries = getHubEntries()
+    local entries = getHubEntries(search)
     local shown = 0
     
+    if search ~= "" and HubPathLabel then
+        HubPathLabel.Text = "🔍 Busca global: \"" .. search .. "\""
+    end
+    
     for _, entry in ipairs(entries) do
-        if search ~= "" and not entry.name:lower():find(search, 1, true) then
+        if false then -- filtro já feito em getHubEntries
             -- skip
         else
             shown = shown + 1
@@ -2256,7 +2522,7 @@ local function refreshHub(filter)
             local btn = Instance.new("TextButton")
             btn.Size = UDim2.new(0.55, 0, 1, 0)
             btn.BackgroundTransparency = 1
-            btn.Text = (entry.isFolder and "📁 " or "📄 ") .. entry.name
+            btn.Text = (entry.isFolder and "📁 " or "📄 ") .. (entry.display or entry.name)
             btn.TextColor3 = Color3.fromRGB(220, 220, 220)
             btn.TextScaled = true
             btn.TextXAlignment = Enum.TextXAlignment.Left
@@ -2363,9 +2629,11 @@ local function refreshHub(filter)
                 delBtn.Font = Enum.Font.GothamBold
                 delBtn.Parent = container
                 delBtn.MouseButton1Click:Connect(function()
-                    pcall(function() if delfolder then delfolder(entry.path) end end)
-                    createNotification("🗑️ Pasta removida", Color3.fromRGB(255,100,100))
-                    refreshHub(filter)
+                    confirmDialog("🗑️ Deletar pasta?", "Tem certeza que quer apagar \"" .. entry.name .. "\"?", function()
+                        pcall(function() if delfolder then delfolder(entry.path) end end)
+                        createNotification("🗑️ Pasta removida", Color3.fromRGB(255,100,100))
+                        refreshHub(filter)
+                    end)
                 end)
             else
                 btn.MouseButton1Click:Connect(function()
@@ -2374,8 +2642,8 @@ local function refreshHub(filter)
                     switchTab("Executor")
                 end)
                 local runBtn = Instance.new("TextButton")
-                runBtn.Size = UDim2.new(0.1, 0, 0.8, 0)
-                runBtn.Position = UDim2.new(0.68, 0, 0.1, 0)
+                runBtn.Size = UDim2.new(0.08, 0, 0.8, 0)
+                runBtn.Position = UDim2.new(0.66, 0, 0.1, 0)
                 runBtn.BackgroundTransparency = 1
                 runBtn.Text = "▶"
                 runBtn.TextColor3 = Color3.fromRGB(0, 255, 100)
@@ -2388,8 +2656,107 @@ local function refreshHub(filter)
                     executeScript(content)
                     switchTab("Console")
                 end)
+                
+                -- Mover script para outra pasta
+                local moveBtn = Instance.new("TextButton")
+                moveBtn.Size = UDim2.new(0.08, 0, 0.8, 0)
+                moveBtn.Position = UDim2.new(0.75, 0, 0.1, 0)
+                moveBtn.BackgroundTransparency = 1
+                moveBtn.Text = "📁"
+                moveBtn.TextColor3 = Color3.fromRGB(100, 180, 255)
+                moveBtn.TextScaled = true
+                moveBtn.Font = Enum.Font.GothamBold
+                moveBtn.Parent = container
+                moveBtn.MouseButton1Click:Connect(function()
+                    local folders = {}
+                    local function scan(path, prefix)
+                        local ok, files = pcall(listfiles, path)
+                        if not ok then return end
+                        for _, f in ipairs(files) do
+                            if isfolder(f) then
+                                local n = f:match("([^/\\]+)$")
+                                table.insert(folders, {name = (prefix or "") .. n, path = f})
+                                scan(f, (prefix or "") .. n .. "/")
+                            end
+                        end
+                    end
+                    scan(SAVE_FOLDER, "")
+                    if #folders == 0 then
+                        createNotification("Nenhuma pasta pra mover. Crie uma primeiro.", Color3.fromRGB(255, 200, 0))
+                        return
+                    end
+                    local moveGui = Instance.new("ScreenGui", CoreGui)
+                    moveGui.Name = "CE_Move"
+                    moveGui.DisplayOrder = 2000
+                    local mf = Instance.new("Frame", moveGui)
+                    mf.Size = UDim2.new(0, 260, 0, 200)
+                    mf.Position = UDim2.new(0.5, -130, 0.5, -100)
+                    mf.BackgroundColor3 = Color3.fromRGB(20, 20, 22)
+                    Instance.new("UICorner", mf).CornerRadius = UDim.new(0, 10)
+                    local mt = Instance.new("TextLabel", mf)
+                    mt.Size = UDim2.new(1, 0, 0, 28)
+                    mt.BackgroundTransparency = 1
+                    mt.Text = "Mover para pasta"
+                    mt.TextColor3 = Color3.new(1,1,1)
+                    mt.TextScaled = true
+                    mt.Font = Enum.Font.GothamBold
+                    local list = Instance.new("ScrollingFrame", mf)
+                    list.Size = UDim2.new(1, -12, 1, -40)
+                    list.Position = UDim2.new(0, 6, 0, 32)
+                    list.BackgroundTransparency = 1
+                    list.ScrollBarThickness = 4
+                    local lay = Instance.new("UIListLayout", list)
+                    lay.Padding = UDim.new(0, 4)
+                    -- opção raiz
+                    local rootBtn = Instance.new("TextButton", list)
+                    rootBtn.Size = UDim2.new(1, 0, 0, 28)
+                    rootBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+                    rootBtn.Text = "📁 /saved (raiz)"
+                    rootBtn.TextColor3 = Color3.new(1,1,1)
+                    rootBtn.TextScaled = true
+                    rootBtn.Font = Enum.Font.Gotham
+                    Instance.new("UICorner", rootBtn).CornerRadius = UDim.new(0, 4)
+                    rootBtn.MouseButton1Click:Connect(function()
+                        local dest = SAVE_FOLDER .. "/" .. entry.name .. ".lua"
+                        if isfile(dest) then createNotification("Já existe na raiz", Color3.fromRGB(255,80,80)) return end
+                        writefile(dest, readfile(entry.path))
+                        delfile(entry.path)
+                        createNotification("Movido para /saved", Color3.fromRGB(0,255,100))
+                        moveGui:Destroy()
+                        refreshHub(filter)
+                    end)
+                    for _, fol in ipairs(folders) do
+                        local fb = Instance.new("TextButton", list)
+                        fb.Size = UDim2.new(1, 0, 0, 28)
+                        fb.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+                        fb.Text = "📁 " .. fol.name
+                        fb.TextColor3 = Color3.new(1,1,1)
+                        fb.TextScaled = true
+                        fb.Font = Enum.Font.Gotham
+                        Instance.new("UICorner", fb).CornerRadius = UDim.new(0, 4)
+                        fb.MouseButton1Click:Connect(function()
+                            local dest = fol.path .. "/" .. entry.name .. ".lua"
+                            if isfile(dest) then createNotification("Já existe nessa pasta", Color3.fromRGB(255,80,80)) return end
+                            writefile(dest, readfile(entry.path))
+                            delfile(entry.path)
+                            createNotification("Movido para " .. fol.name, Color3.fromRGB(0,255,100))
+                            moveGui:Destroy()
+                            refreshHub(filter)
+                        end)
+                    end
+                    local closeM = Instance.new("TextButton", mf)
+                    closeM.Size = UDim2.new(0, 24, 0, 24)
+                    closeM.Position = UDim2.new(1, -28, 0, 4)
+                    closeM.BackgroundTransparency = 1
+                    closeM.Text = "✕"
+                    closeM.TextColor3 = Color3.fromRGB(255, 80, 80)
+                    closeM.TextScaled = true
+                    closeM.Font = Enum.Font.GothamBold
+                    closeM.MouseButton1Click:Connect(function() moveGui:Destroy() end)
+                end)
+                
                 local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0.1, 0, 0.8, 0)
+                delBtn.Size = UDim2.new(0.08, 0, 0.8, 0)
                 delBtn.Position = UDim2.new(0.88, 0, 0.1, 0)
                 delBtn.BackgroundTransparency = 1
                 delBtn.Text = "✕"
@@ -2398,9 +2765,11 @@ local function refreshHub(filter)
                 delBtn.Font = Enum.Font.GothamBold
                 delBtn.Parent = container
                 delBtn.MouseButton1Click:Connect(function()
-                    delfile(entry.path)
-                    createNotification("🗑️ Script deletado!", Color3.fromRGB(255, 100, 100))
-                    refreshHub(filter)
+                    confirmDialog("🗑️ Deletar script?", "Tem certeza que quer apagar \"" .. entry.name .. "\"?", function()
+                        delfile(entry.path)
+                        createNotification("🗑️ Script deletado!", Color3.fromRGB(255, 100, 100))
+                        refreshHub(filter)
+                    end)
                 end)
             end
         end
@@ -2825,22 +3194,23 @@ print = function(...)
     local args = {...}
     local msg = table.concat(args, " ")
     oldPrint(...)
-    addConsoleLine("[PRINT] " .. msg, Color3.fromRGB(0, 255, 120))
-    addMiniConsoleLine("[PRINT] " .. msg, Color3.fromRGB(0, 255, 120))
+    addConsoleLine("🟢 [PRINT] " .. msg, Color3.fromRGB(0, 255, 120))
+    addMiniConsoleLine("🟢 [PRINT] " .. msg, Color3.fromRGB(0, 255, 120))
 end
 
 warn = function(...)
     local args = {...}
     local msg = table.concat(args, " ")
     oldWarn(...)
-    addConsoleLine("[WARN] " .. msg, Color3.fromRGB(255, 200, 0))
-    addMiniConsoleLine("[WARN] " .. msg, Color3.fromRGB(255, 200, 0))
+    addConsoleLine("🟡 [WARN] " .. msg, Color3.fromRGB(255, 200, 0))
+    addMiniConsoleLine("🟡 [WARN] " .. msg, Color3.fromRGB(255, 200, 0))
 end
 
 error = function(msg, level)
     oldError(msg, level)
-    addConsoleLine("[ERROR] " .. tostring(msg), Color3.fromRGB(255, 50, 50))
-    addMiniConsoleLine("[ERROR] " .. tostring(msg), Color3.fromRGB(255, 50, 50))
+    playSound("error")
+    addConsoleLine("🔴 [ERROR] " .. tostring(msg), Color3.fromRGB(255, 60, 60))
+    addMiniConsoleLine("🔴 [ERROR] " .. tostring(msg), Color3.fromRGB(255, 60, 60))
 end
 
 -- ==================== CONEXÕES ====================
