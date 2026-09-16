@@ -1,14 +1,27 @@
--- ==================== COOL EXEC v4 - ULTIMATE (WEBHOOK COMPLETO) ====================
+-- ==================== COOL EXEC v4 - ULTIMATE (FIXED FOR ARCEUS X) ====================
 
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local MarketplaceService = game:GetService("MarketplaceService")
+local SoundService = game:GetService("SoundService")
 
--- ==================== COMPATIBILIDADE (evita attempt to call a nil value) ====================
+-- ==================== CORE GUI SEGURO (FIX ARCEUS X) ====================
+local CoreGui
+pcall(function() CoreGui = game:GetService("CoreGui") end)
+if not CoreGui then
+    pcall(function() CoreGui = gethui and gethui() end)
+end
+if not CoreGui then
+    CoreGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- ==================== GETCUSTOMASSET SEGURO ====================
+local _getcustomasset = rawget(_G, "getcustomasset")
+
+-- ==================== COMPATIBILIDADE ARQUIVOS ====================
 local _isfolder = rawget(_G, "isfolder") or rawget(_G, "is_folder")
 local _isfile = rawget(_G, "isfile") or rawget(_G, "is_file")
 local _makefolder = rawget(_G, "makefolder") or rawget(_G, "make_folder") or rawget(_G, "makeFolder")
@@ -37,8 +50,7 @@ end
 
 function makefolder(path)
     if type(_makefolder) == "function" then
-        local ok = pcall(_makefolder, path)
-        return ok
+        return pcall(_makefolder, path)
     end
     return false
 end
@@ -61,24 +73,21 @@ end
 
 function writefile(path, content)
     if type(_writefile) == "function" then
-        local ok = pcall(_writefile, path, content)
-        return ok
+        return pcall(_writefile, path, content)
     end
     return false
 end
 
 function delfile(path)
     if type(_delfile) == "function" then
-        local ok = pcall(_delfile, path)
-        return ok
+        return pcall(_delfile, path)
     end
     return false
 end
 
 function delfolder(path)
     if type(_delfolder) == "function" then
-        local ok = pcall(_delfolder, path)
-        return ok
+        return pcall(_delfolder, path)
     end
     return false
 end
@@ -90,13 +99,25 @@ local function safeLoadstring(code)
     return _loadstring(code)
 end
 
+-- ==================== FORWARD DECLARATIONS ====================
+local switchTab
+local refreshHub
+local createNotification
+local addConsoleLine
+local addMiniConsoleLine
+local playSound
+local confirmDialog
+local openTutorial
+local openMsgDialog
+local openSaveDialog
+local updateSavedUrlLabel
+local checkForUpdate
+
 -- ==================== VARIÁVEIS GLOBAIS ====================
 local player = Players.LocalPlayer
 local character = player.Character
 if not character then
-    local ok, ch = pcall(function()
-        return player.CharacterAdded:Wait()
-    end)
+    local ok, ch = pcall(function() return player.CharacterAdded:Wait() end)
     character = (ok and ch) or nil
 end
 local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -111,25 +132,20 @@ player.CharacterAdded:Connect(function(char)
 end)
 
 -- ==================== AUTO-INSTALAÇÃO ====================
-local function selfInstall()
-    pcall(function()
-        local autoExecPath = "coolexec/autoexec/"
-        if not isfolder(autoExecPath) then makefolder(autoExecPath) end
-        local scriptPath = autoExecPath .. "CoolExec.lua"
-        if not isfile(scriptPath) then
-            local ok, source = pcall(function()
-                return debug.getinfo(1).source
-            end)
-            if ok and type(source) == "string" and source:sub(1, 1) == "@" then
-                local currentFile = source:sub(2)
-                if isfile(currentFile) then
-                    writefile(scriptPath, readfile(currentFile))
-                end
+pcall(function()
+    local autoExecPath = "coolexec/autoexec/"
+    if not isfolder(autoExecPath) then makefolder(autoExecPath) end
+    local scriptPath = autoExecPath .. "CoolExec.lua"
+    if not isfile(scriptPath) then
+        local ok, source = pcall(function() return debug.getinfo(1).source end)
+        if ok and type(source) == "string" and source:sub(1, 1) == "@" then
+            local currentFile = source:sub(2)
+            if isfile(currentFile) then
+                writefile(scriptPath, readfile(currentFile))
             end
         end
-    end)
-end
-pcall(selfInstall)
+    end
+end)
 
 -- ==================== CONFIGURAÇÃO ====================
 local SAVE_FOLDER = "coolexec/saved"
@@ -139,13 +155,12 @@ local FAVORITES_FOLDER = "coolexec/favorites"
 pcall(function() if not isfolder(FAVORITES_FOLDER) then makefolder(FAVORITES_FOLDER) end end)
 
 local AUTOEXEC_FOLDER = "coolexec/autoexec_scripts"
-pcall(function() if not isfolder(AUTOEXEC_FOLDER) then makefolder(AUTOEXEC_FOLDER) end end
+pcall(function() if not isfolder(AUTOEXEC_FOLDER) then makefolder(AUTOEXEC_FOLDER) end end)
 
 local WEBHOOK_FILE = "coolexec/webhook_url.txt"
 local SETTINGS_FILE = "coolexec/settings.json"
 local LAST_SHA_FILE = "coolexec/last_update_sha.txt"
 
--- Settings carregadas cedo para as funções respeitarem
 local defaultSettings = {
     hideFloatButton = false,
     randomGuiName = true,
@@ -159,7 +174,7 @@ local settings = {}
 local function loadSettings()
     if isfile(SETTINGS_FILE) then
         local ok, data = pcall(function()
-            return game:GetService("HttpService"):JSONDecode(readfile(SETTINGS_FILE))
+            return HttpService:JSONDecode(readfile(SETTINGS_FILE))
         end)
         if ok and type(data) == "table" then
             for k, v in pairs(defaultSettings) do
@@ -174,7 +189,7 @@ loadSettings()
 
 local function saveSettings()
     pcall(function()
-        writefile(SETTINGS_FILE, game:GetService("HttpService"):JSONEncode(settings))
+        writefile(SETTINGS_FILE, HttpService:JSONEncode(settings))
     end)
 end
 
@@ -185,16 +200,16 @@ local IMAGE_URL = "https://cdn.corenexis.com/f/aiCA5RtZkXu.png"
 pcall(function() if not isfolder(FOLDER_PATH) then makefolder(FOLDER_PATH) end end)
 if not isfile(IMAGE_PATH) then
     local success, data = pcall(function() return game:HttpGet(IMAGE_URL) end)
-    if success then writefile(IMAGE_PATH, data) end
+    if success and data then writefile(IMAGE_PATH, data) end
 end
 
 -- ==================== FUNÇÃO COPIAR ====================
 local function copyToClipboard(text)
     if setclipboard then
-        setclipboard(text)
+        pcall(setclipboard, text)
         return true
     elseif toclipboard then
-        toclipboard(text)
+        pcall(toclipboard, text)
         return true
     end
     return false
@@ -215,8 +230,7 @@ local function setupGui(gui)
 end
 
 -- ==================== SONS ====================
-local SoundService = game:GetService("SoundService")
-local function playSound(kind)
+function playSound(kind)
     if settings and settings.soundEnabled == false then return end
     local vol = (settings and settings.soundVolume) or 0.5
     local ids = {
@@ -232,26 +246,24 @@ local function playSound(kind)
     s.PlayOnRemove = false
     s.Parent = SoundService
     pcall(function() s:Play() end)
-    task.delay(2, function()
-        pcall(function() s:Destroy() end)
-    end)
+    task.delay(2, function() pcall(function() s:Destroy() end) end)
 end
 
 -- ==================== DIÁLOGO DE CONFIRMAÇÃO ====================
-local function confirmDialog(titleText, messageText, onYes)
+function confirmDialog(titleText, messageText, onYes)
     local gui = Instance.new("ScreenGui")
     gui.Name = "CE_Confirm_" .. tostring(math.random(1000, 9999))
     gui.ResetOnSpawn = false
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.DisplayOrder = 2000
     gui.Parent = CoreGui
-    
+
     local bg = Instance.new("Frame")
     bg.Size = UDim2.new(1, 0, 1, 0)
     bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     bg.BackgroundTransparency = 0.5
     bg.Parent = gui
-    
+
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 300, 0, 140)
     frame.Position = UDim2.new(0.5, -150, 0.5, -70)
@@ -261,7 +273,7 @@ local function confirmDialog(titleText, messageText, onYes)
     local st = Instance.new("UIStroke", frame)
     st.Color = Color3.fromRGB(170, 0, 0)
     st.Thickness = 1.5
-    
+
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, -16, 0, 28)
     title.Position = UDim2.new(0, 8, 0, 8)
@@ -271,7 +283,7 @@ local function confirmDialog(titleText, messageText, onYes)
     title.TextScaled = true
     title.Font = Enum.Font.GothamBold
     title.Parent = frame
-    
+
     local msg = Instance.new("TextLabel")
     msg.Size = UDim2.new(1, -16, 0, 40)
     msg.Position = UDim2.new(0, 8, 0, 40)
@@ -282,7 +294,7 @@ local function confirmDialog(titleText, messageText, onYes)
     msg.TextWrapped = true
     msg.Font = Enum.Font.Gotham
     msg.Parent = frame
-    
+
     local yesBtn = Instance.new("TextButton")
     yesBtn.Size = UDim2.new(0.42, 0, 0, 32)
     yesBtn.Position = UDim2.new(0.05, 0, 1, -42)
@@ -293,7 +305,7 @@ local function confirmDialog(titleText, messageText, onYes)
     yesBtn.Font = Enum.Font.GothamBold
     yesBtn.Parent = frame
     Instance.new("UICorner", yesBtn).CornerRadius = UDim.new(0, 6)
-    
+
     local noBtn = Instance.new("TextButton")
     noBtn.Size = UDim2.new(0.42, 0, 0, 32)
     noBtn.Position = UDim2.new(0.53, 0, 1, -42)
@@ -304,14 +316,12 @@ local function confirmDialog(titleText, messageText, onYes)
     noBtn.Font = Enum.Font.GothamBold
     noBtn.Parent = frame
     Instance.new("UICorner", noBtn).CornerRadius = UDim.new(0, 6)
-    
+
     yesBtn.MouseButton1Click:Connect(function()
         gui:Destroy()
         if onYes then onYes() end
     end)
-    noBtn.MouseButton1Click:Connect(function()
-        gui:Destroy()
-    end)
+    noBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 end
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -321,7 +331,6 @@ Notifications.ResetOnSpawn = false
 Notifications.Parent = CoreGui
 setupGui(Notifications)
 
--- Sistema de empilhamento de notificações
 local activeNotifications = {}
 local NOTIF_HEIGHT = 60
 local NOTIF_GAP = 8
@@ -337,14 +346,11 @@ local function updateNotificationStack()
     end
 end
 
-local function createNotification(text, color)
-    -- Respeita a configuração de notificações
-    if settings and settings.notifications == false then
-        return
-    end
-    
+function createNotification(text, color)
+    if settings and settings.notifications == false then return end
+
     playSound("notify")
-    
+
     local notif = Instance.new("Frame")
     notif.Size = UDim2.new(0, NOTIF_WIDTH, 0, NOTIF_HEIGHT)
     notif.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
@@ -371,28 +377,22 @@ local function createNotification(text, color)
     label.TextWrapped = true
     label.ZIndex = 1000
 
-    -- Posição inicial (fora da tela, à direita)
     notif.Position = UDim2.new(1, 20, 1, -80)
 
-    -- Adiciona na lista de notificações ativas
     local notifData = {frame = notif, stroke = stroke, label = label}
-    table.insert(activeNotifications, 1, notifData) -- nova notificação no topo da pilha
+    table.insert(activeNotifications, 1, notifData)
 
-    -- Atualiza as posições de todas (empilha)
     updateNotificationStack()
 
-    -- Animação de entrada
     TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
         BackgroundTransparency = 0.1
     }):Play()
     TweenService:Create(stroke, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {Transparency = 0}):Play()
     TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {TextTransparency = 0}):Play()
 
-    -- Remove depois do tempo
     task.delay(NOTIF_DURATION, function()
         if not notif or not notif.Parent then return end
 
-        -- Animação de saída
         TweenService:Create(notif, TweenInfo.new(0.35, Enum.EasingStyle.Quint), {
             BackgroundTransparency = 1,
             Position = UDim2.new(1, 20, notif.Position.Y.Scale, notif.Position.Y.Offset)
@@ -402,7 +402,6 @@ local function createNotification(text, color)
 
         task.wait(0.4)
 
-        -- Remove da lista
         for i, data in ipairs(activeNotifications) do
             if data.frame == notif then
                 table.remove(activeNotifications, i)
@@ -410,23 +409,26 @@ local function createNotification(text, color)
             end
         end
 
-        if notif and notif.Parent then
-            notif:Destroy()
-        end
-
-        -- Reorganiza a pilha depois de remover
+        if notif and notif.Parent then notif:Destroy() end
         updateNotificationStack()
     end)
 end
 
--- ==================== MINI CONSOLE ====================
+-- ==================== MINI CONSOLE (FIX: parented em ScreenGui) ====================
+local MiniConsoleGui = Instance.new("ScreenGui")
+MiniConsoleGui.Name = "CoolExecMiniConsole"
+MiniConsoleGui.ResetOnSpawn = false
+MiniConsoleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+MiniConsoleGui.DisplayOrder = 998
+MiniConsoleGui.Parent = CoreGui
+
 local MiniConsole = Instance.new("Frame")
 MiniConsole.Size = UDim2.new(0, 280, 0, 120)
 MiniConsole.Position = UDim2.new(0.05, 0, 0.75, 0)
 MiniConsole.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MiniConsole.BackgroundTransparency = 0.15
 MiniConsole.Visible = false
-MiniConsole.Parent = CoreGui
+MiniConsole.Parent = MiniConsoleGui
 MiniConsole.ZIndex = 200
 MiniConsole.Active = true
 MiniConsole.Selectable = true
@@ -493,11 +495,11 @@ MiniConsoleContent.Parent = MiniConsoleText
 
 local miniConsoleLines = {}
 
-local function addMiniConsoleLine(text, color)
+function addMiniConsoleLine(text, color)
     color = color or Color3.fromRGB(0, 255, 120)
     table.insert(miniConsoleLines, {text = text, color = color})
     if #miniConsoleLines > 50 then table.remove(miniConsoleLines, 1) end
-    
+
     local displayText = "📟 Mini Console\n\n"
     for _, line in ipairs(miniConsoleLines) do
         displayText = displayText .. line.text .. "\n"
@@ -514,17 +516,14 @@ local function toggleMiniConsole()
     end
 end
 
-MiniConsoleClose.MouseButton1Click:Connect(function()
-    MiniConsole.Visible = false
-end)
-
+MiniConsoleClose.MouseButton1Click:Connect(function() MiniConsole.Visible = false end)
 MiniConsoleClear.MouseButton1Click:Connect(function()
     miniConsoleLines = {}
     MiniConsoleContent.Text = "📟 Mini Console\n\nAguardando saída..."
     createNotification("🗑️ Mini Console limpo!", Color3.fromRGB(255, 180, 80))
 end)
 
--- ==================== WEBHOOK COM PALAVRAS-CHAVE ====================
+-- ==================== WEBHOOKS ====================
 local WEBHOOKS_FILE = "coolexec/webhooks.json"
 local selectedWebhookIndex = 1
 
@@ -535,7 +534,6 @@ local function loadWebhooks()
             return data
         end
     end
-    -- Migração do arquivo antigo de URL única
     if isfile(WEBHOOK_FILE) then
         local old = readfile(WEBHOOK_FILE)
         if old and old ~= "" then
@@ -559,15 +557,55 @@ local function getWebhookUrl()
     return webhookList[selectedWebhookIndex].url
 end
 
-local function setWebhookUrl(url)
-    -- Compatibilidade: adiciona como webhook principal se lista vazia
-    if #webhookList == 0 then
-        table.insert(webhookList, {name = "Principal", url = url})
-    else
-        webhookList[selectedWebhookIndex].url = url
+-- ==================== HTTP REQUEST UNIVERSAL ====================
+local function httpPost(url, body)
+    -- request do Synapse / Arceus
+    if request then
+        local ok, res = pcall(request, {
+            Url = url, Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = body
+        })
+        if ok and res then return true end
     end
-    saveWebhooks(webhookList)
-    return true
+    if syn and syn.request then
+        local ok, res = pcall(syn.request, {
+            Url = url, Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = body
+        })
+        if ok and res then return true end
+    end
+    if http_request then
+        local ok, res = pcall(http_request, {
+            Url = url, Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = body
+        })
+        if ok and res then return true end
+    end
+    local ok = pcall(function()
+        return HttpService:PostAsync(url, body, Enum.HttpContentType.ApplicationJson)
+    end)
+    return ok
+end
+
+local function httpGet(url)
+    if request then
+        local ok, res = pcall(request, {Url = url, Method = "GET"})
+        if ok and res and res.Body then return res.Body end
+    end
+    if syn and syn.request then
+        local ok, res = pcall(syn.request, {Url = url, Method = "GET"})
+        if ok and res and res.Body then return res.Body end
+    end
+    if http_request then
+        local ok, res = pcall(http_request, {Url = url, Method = "GET"})
+        if ok and res and res.Body then return res.Body end
+    end
+    local ok, body = pcall(function() return game:HttpGet(url) end)
+    if ok then return body end
+    return nil
 end
 
 local function sendWebhookMessage(message)
@@ -576,8 +614,7 @@ local function sendWebhookMessage(message)
         createNotification("❌ Nenhum WebHook configurado!", Color3.fromRGB(255, 80, 80))
         return false
     end
-    
-    -- ===== COLETAR INFORMAÇÕES =====
+
     local playerName = player.Name
     local playerId = player.UserId
     local playerTeam = (player.Team and player.Team.Name) or "Sem time"
@@ -585,9 +622,8 @@ local function sendWebhookMessage(message)
     local playerMaxHealth = humanoid and math.floor(humanoid.MaxHealth) or "N/A"
     local playerPosition = rootPart and string.format("%.1f, %.1f, %.1f", rootPart.Position.X, rootPart.Position.Y, rootPart.Position.Z) or "N/A"
     local playerWalkSpeed = humanoid and math.floor(humanoid.WalkSpeed) or "N/A"
-    local playerJumpPower = humanoid and math.floor(humanoid.JumpPower) or "N/A"
-    
-    -- Informações do servidor
+    local playerJumpPower = humanoid and math.floor(humanoid.JumpPower or 0) or "N/A"
+
     local players = Players:GetPlayers()
     local playerCount = #players
     local playerNames = {}
@@ -595,112 +631,69 @@ local function sendWebhookMessage(message)
         table.insert(playerNames, "- " .. plr.Name)
     end
     local playerList = table.concat(playerNames, "\n")
-    
-    -- Jogador aleatório
+
     local randomPlayer = "N/A"
     if #players > 0 then
-        local randomIndex = math.random(1, #players)
-        randomPlayer = players[randomIndex].Name
+        randomPlayer = players[math.random(1, #players)].Name
     end
-    
-    -- Informações do jogo
+
     local gameName = "Desconhecido"
     local gameId = game.PlaceId or "N/A"
     local placeId = game.PlaceId or "N/A"
     local serverRegion = "N/A"
-    
+
     pcall(function()
         local productInfo = MarketplaceService:GetProductInfo(game.PlaceId)
-        if productInfo and productInfo.Name then
-            gameName = productInfo.Name
-        end
+        if productInfo and productInfo.Name then gameName = productInfo.Name end
     end)
-    
-    -- Data e hora
+
     local date = os.date("%d/%m/%Y")
     local time = os.date("%H:%M:%S")
     local dateTime = os.date("%d/%m/%Y %H:%M:%S")
     local timestamp = os.time()
-    
-    -- Estatísticas do CoolExec
+
     local uptime = os.time() - coolExecStartTime
     local uptimeStr = string.format("%dh %dm %ds", math.floor(uptime / 3600), math.floor((uptime % 3600) / 60), uptime % 60)
-    local fps = "N/A"
+
+    local fps = 60
     pcall(function()
         fps = math.floor(1 / task.wait())
     end)
-    
-    local ping = "N/A"
+
+    local ping = 0
     pcall(function()
-        ping = math.floor(game:GetService("Stats"):GetAveragePing())
+        ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
     end)
-    
-    -- ===== SUBSTITUIR PALAVRAS-CHAVE =====
-    local processedMessage = message
-    
-    -- 👤 Jogador
-    processedMessage = processedMessage:gsub("{MyUserName}", playerName)
-    processedMessage = processedMessage:gsub("{MyUserID}", tostring(playerId))
-    processedMessage = processedMessage:gsub("{MyTeam}", playerTeam)
-    processedMessage = processedMessage:gsub("{MyHealth}", tostring(playerHealth))
-    processedMessage = processedMessage:gsub("{MyMaxHealth}", tostring(playerMaxHealth))
-    processedMessage = processedMessage:gsub("{MyPosition}", playerPosition)
-    processedMessage = processedMessage:gsub("{MyWalkSpeed}", tostring(playerWalkSpeed))
-    processedMessage = processedMessage:gsub("{MyJumpPower}", tostring(playerJumpPower))
-    processedMessage = processedMessage:gsub("{MyFPS}", tostring(fps))
-    processedMessage = processedMessage:gsub("{MyPing}", tostring(ping))
-    
-    -- 👥 Servidor
-    processedMessage = processedMessage:gsub("{PeopleCounter}", tostring(playerCount))
-    processedMessage = processedMessage:gsub("{UsernameListPlayers}", playerList)
-    processedMessage = processedMessage:gsub("{PlayerCount}", tostring(playerCount))
-    processedMessage = processedMessage:gsub("{GameName}", gameName)
-    processedMessage = processedMessage:gsub("{GameID}", tostring(gameId))
-    processedMessage = processedMessage:gsub("{PlaceID}", tostring(placeId))
-    processedMessage = processedMessage:gsub("{ServerRegion}", serverRegion)
-    processedMessage = processedMessage:gsub("{RandomPlayer}", randomPlayer)
-    
-    -- ⏰ Data/Hora
-    processedMessage = processedMessage:gsub("{Date}", date)
-    processedMessage = processedMessage:gsub("{Time}", time)
-    processedMessage = processedMessage:gsub("{DateTime}", dateTime)
-    processedMessage = processedMessage:gsub("{Timestamp}", tostring(timestamp))
-    
-    -- 📊 CoolExec
-    processedMessage = processedMessage:gsub("{ScriptsExecuted}", tostring(scriptCount))
-    processedMessage = processedMessage:gsub("{Uptime}", uptimeStr)
-    
-    -- ===== ENVIAR MENSAGEM =====
-    local success = false
-    
-    if request then
-        success, _ = pcall(function()
-            return request({
-                Url = url,
-                Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = HttpService:JSONEncode({content = processedMessage})
-            })
-        end)
-    end
-    
-    if not success then
-        success, _ = pcall(function()
-            return HttpService:PostAsync(url, HttpService:JSONEncode({content = processedMessage}), Enum.HttpContentType.ApplicationJson)
-        end)
-    end
-    
-    if not success and syn and syn.request then
-        success, _ = pcall(function()
-            return syn.request({
-                Url = url,
-                Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = HttpService:JSONEncode({content = processedMessage})
-            })
-        end)
-    end
-    
+
+    local msg = message
+    msg = msg:gsub("{MyUserName}", playerName)
+    msg = msg:gsub("{MyUserID}", tostring(playerId))
+    msg = msg:gsub("{MyTeam}", playerTeam)
+    msg = msg:gsub("{MyHealth}", tostring(playerHealth))
+    msg = msg:gsub("{MyMaxHealth}", tostring(playerMaxHealth))
+    msg = msg:gsub("{MyPosition}", playerPosition)
+    msg = msg:gsub("{MyWalkSpeed}", tostring(playerWalkSpeed))
+    msg = msg:gsub("{MyJumpPower}", tostring(playerJumpPower))
+    msg = msg:gsub("{MyFPS}", tostring(fps))
+    msg = msg:gsub("{MyPing}", tostring(ping))
+    msg = msg:gsub("{PeopleCounter}", tostring(playerCount))
+    msg = msg:gsub("{UsernameListPlayers}", playerList)
+    msg = msg:gsub("{PlayerCount}", tostring(playerCount))
+    msg = msg:gsub("{GameName}", gameName)
+    msg = msg:gsub("{GameID}", tostring(gameId))
+    msg = msg:gsub("{PlaceID}", tostring(placeId))
+    msg = msg:gsub("{ServerRegion}", serverRegion)
+    msg = msg:gsub("{RandomPlayer}", randomPlayer)
+    msg = msg:gsub("{Date}", date)
+    msg = msg:gsub("{Time}", time)
+    msg = msg:gsub("{DateTime}", dateTime)
+    msg = msg:gsub("{Timestamp}", tostring(timestamp))
+    msg = msg:gsub("{ScriptsExecuted}", tostring(scriptCount))
+    msg = msg:gsub("{Uptime}", uptimeStr)
+
+    local body = HttpService:JSONEncode({content = msg})
+    local success = httpPost(url, body)
+
     if success then
         createNotification("✅ Mensagem enviada!", Color3.fromRGB(0, 255, 100))
         addConsoleLine("📨 Mensagem enviada para WebHook!", Color3.fromRGB(0, 255, 100))
@@ -731,14 +724,6 @@ TutorialFrame.Selectable = true
 TutorialFrame.ZIndex = 1000
 Instance.new("UICorner", TutorialFrame).CornerRadius = UDim.new(0, 12)
 
-local TutorialGradient = Instance.new("UIGradient")
-TutorialGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 0, 0)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 0, 0))
-}
-TutorialGradient.Rotation = 90
-TutorialGradient.Parent = TutorialFrame
-
 local TutorialStroke = Instance.new("UIStroke", TutorialFrame)
 TutorialStroke.Color = Color3.fromRGB(170, 0, 0)
 TutorialStroke.Thickness = 1.5
@@ -748,13 +733,12 @@ local TutorialTitle = Instance.new("TextLabel")
 TutorialTitle.Size = UDim2.new(1, -50, 0, 35)
 TutorialTitle.Position = UDim2.new(0, 10, 0, 5)
 TutorialTitle.BackgroundTransparency = 1
-TutorialTitle.Text = "📖 Tutorial WebHook (PC + Mobile)"
+TutorialTitle.Text = "📖 Tutorial WebHook"
 TutorialTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 TutorialTitle.TextTransparency = 1
 TutorialTitle.TextScaled = true
 TutorialTitle.Font = Enum.Font.GothamBold
 TutorialTitle.Parent = TutorialFrame
-TutorialTitle.ZIndex = 1000
 
 local TutorialCloseBtn = Instance.new("TextButton")
 TutorialCloseBtn.Size = UDim2.new(0, 30, 0, 30)
@@ -766,11 +750,7 @@ TutorialCloseBtn.TextTransparency = 1
 TutorialCloseBtn.TextScaled = true
 TutorialCloseBtn.Font = Enum.Font.GothamBold
 TutorialCloseBtn.Parent = TutorialFrame
-TutorialCloseBtn.Active = true
-TutorialCloseBtn.Selectable = true
-TutorialCloseBtn.ZIndex = 1000
 
--- ScrollingFrame com o tutorial completo
 local TutorialScroll = Instance.new("ScrollingFrame")
 TutorialScroll.Size = UDim2.new(1, -20, 1, -50)
 TutorialScroll.Position = UDim2.new(0, 10, 0, 42)
@@ -779,156 +759,69 @@ TutorialScroll.BackgroundTransparency = 0.25
 TutorialScroll.BorderSizePixel = 0
 TutorialScroll.ScrollBarThickness = 8
 TutorialScroll.ScrollBarImageColor3 = Color3.fromRGB(170, 0, 0)
-TutorialScroll.ScrollingEnabled = true
-TutorialScroll.Active = true
-TutorialScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-TutorialScroll.AutomaticCanvasSize = Enum.AutomaticSize.None -- vamos controlar manualmente
 TutorialScroll.Parent = TutorialFrame
-TutorialScroll.ZIndex = 1000
 Instance.new("UICorner", TutorialScroll).CornerRadius = UDim.new(0, 8)
 
 local TutorialContent = Instance.new("TextLabel")
-TutorialContent.Size = UDim2.new(1, -20, 0, 0) -- altura será calculada
+TutorialContent.Size = UDim2.new(1, -20, 0, 2000)
 TutorialContent.Position = UDim2.new(0, 10, 0, 10)
 TutorialContent.BackgroundTransparency = 1
-TutorialContent.Text = [[📺 TUTORIAL COMPLETO - CRIAR WEBHOOK NO DISCORD (2026)
+TutorialContent.Text = [[📺 COMO CRIAR WEBHOOK NO DISCORD
 
-Você precisa ter a permissão "Gerenciar Webhooks" no servidor.
+🖥️ PC:
+1. Clique no nome do servidor
+2. Configurações do Servidor → Integrações
+3. Webhooks → Novo Webhook
+4. Copie a URL
 
-══════════════════════════════════════
-🖥️  COMO CRIAR NO PC (Desktop / Navegador)
-══════════════════════════════════════
+📱 CELULAR:
+1. Toque no nome do servidor
+2. Configurações → Integrações
+3. Webhooks → Novo Webhook
+4. Copie a URL
 
-1. Abra o Discord (app de PC ou pelo navegador em discord.com)
-2. Entre no servidor onde você quer receber as mensagens
-3. Clique no NOME DO SERVIDOR (canto superior esquerdo)
-4. Clique em "Configurações do Servidor"
-5. No menu da esquerda, clique em "Integrações"
-6. Clique em "Webhooks"
-7. Clique no botão "Novo Webhook" ou "Criar Webhook"
-8. Personalize:
-   • Nome do webhook (ex: CoolExec)
-   • Avatar (opcional)
-   • Canal onde as mensagens vão aparecer
-9. Clique em "Copiar URL do Webhook"
-10. Clique em "Salvar Alterações"
-
-Pronto! A URL começa com:
-https://discord.com/api/webhooks/...
-
-══════════════════════════════════════
-📱  COMO CRIAR NO CELULAR (App Oficial)
-══════════════════════════════════════
-
-Método mais fácil e recomendado (2026):
-
-1. Abra o aplicativo Discord no celular
-2. Toque no NOME DO SERVIDOR no topo da tela
-3. Toque em "Configurações" (ícone de engrenagem)
-4. Role até encontrar "Integrações"
-5. Toque em "Webhooks"
-6. Toque em "Novo Webhook" ou "Criar Webhook"
-7. Escolha o nome, o canal e toque em "Copiar URL do Webhook"
-8. Salve as alterações
-
-Se a opção de Webhooks não aparecer no app:
-→ Abra o navegador do celular (Chrome/Safari)
-→ Acesse discord.com
-→ Faça login
-→ Siga os mesmos passos do PC (versão web)
-
-══════════════════════════════════════
-✅  COMO USAR NO COOLEXEC
-══════════════════════════════════════
-
-1. Cole a URL na aba "WebHook" do CoolExec
-2. Clique em "Adicionar"
-3. Digite sua mensagem (pode usar as palavras-chave)
-4. Clique em "Enviar Mensagem"
-
-══════════════════════════════════════
-🔑  PALAVRAS-CHAVE DISPONÍVEIS
-══════════════════════════════════════
+🔑 PALAVRAS-CHAVE:
 
 👤 Jogador:
-{MyUserName}  {MyUserID}  {MyTeam}
-{MyHealth}  {MyMaxHealth}  {MyPosition}
-{MyWalkSpeed}  {MyJumpPower}  {MyFPS}  {MyPing}
+{MyUserName} {MyUserID} {MyTeam}
+{MyHealth} {MyMaxHealth} {MyPosition}
+{MyWalkSpeed} {MyJumpPower} {MyFPS} {MyPing}
 
 👥 Servidor:
-{PeopleCounter}  {PlayerCount}
-{UsernameListPlayers}  {RandomPlayer}
-{GameName}  {GameID}  {PlaceID}  {ServerRegion}
+{PeopleCounter} {PlayerCount}
+{UsernameListPlayers} {RandomPlayer}
+{GameName} {GameID} {PlaceID} {ServerRegion}
 
 ⏰ Data/Hora:
-{Date}  {Time}  {DateTime}  {Timestamp}
+{Date} {Time} {DateTime} {Timestamp}
 
 📊 CoolExec:
-{ScriptsExecuted}  {Uptime}
-
-══════════════════════════════════════
-⚠️  DICAS IMPORTANTES
-══════════════════════════════════════
-
-• Nunca compartilhe a URL do Webhook publicamente
-• Qualquer pessoa com a URL pode enviar mensagens no canal
-• Você pode criar vários webhooks (um para cada canal)
-• Para deletar: Configurações → Integrações → Webhooks → Delete
-
-Boa sorte! 🐺]]
+{ScriptsExecuted} {Uptime}]]
 TutorialContent.TextColor3 = Color3.fromRGB(220, 220, 220)
 TutorialContent.TextXAlignment = Enum.TextXAlignment.Left
 TutorialContent.TextYAlignment = Enum.TextYAlignment.Top
 TutorialContent.TextWrapped = true
-TutorialContent.TextScaled = false
 TutorialContent.Font = Enum.Font.Gotham
 TutorialContent.TextSize = 14
-TutorialContent.RichText = false
 TutorialContent.Parent = TutorialScroll
-TutorialContent.ZIndex = 1001
 
--- Função para atualizar o tamanho do canvas corretamente
 local function updateTutorialCanvas()
-    -- Força o TextLabel a calcular o tamanho real do texto
-    TutorialContent.Size = UDim2.new(1, -20, 0, 9999) -- altura temporária grande
-    task.wait() -- espera um frame para o TextBounds atualizar
-    local textHeight = TutorialContent.TextBounds.Y + 30
-    TutorialContent.Size = UDim2.new(1, -20, 0, textHeight)
-    TutorialScroll.CanvasSize = UDim2.new(0, 0, 0, textHeight + 20)
+    task.wait(0.1)
+    local h = TutorialContent.TextBounds.Y + 40
+    TutorialContent.Size = UDim2.new(1, -20, 0, h)
+    TutorialScroll.CanvasSize = UDim2.new(0, 0, 0, h + 20)
 end
 
-local function openTutorial()
+function openTutorial()
     TutorialGui.Enabled = true
-    TutorialFrame.BackgroundTransparency = 1
-    TutorialFrame.Size = UDim2.new(0, 420, 0, 340)
-    TutorialStroke.Transparency = 1
-    TutorialTitle.TextTransparency = 1
-    TutorialCloseBtn.TextTransparency = 1
-    TutorialScroll.Visible = true
-    TutorialScroll.CanvasPosition = Vector2.new(0, 0)
-    
-    TweenService:Create(TutorialFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {
-        Size = UDim2.new(0, 520, 0, 420),
-        BackgroundTransparency = 0
-    }):Play()
-    TweenService:Create(TutorialStroke, TweenInfo.new(0.3), {Transparency = 0}):Play()
-    TweenService:Create(TutorialTitle, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(TutorialCloseBtn, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    
-    -- Atualiza o canvas depois que a janela abre
+    TutorialFrame.BackgroundTransparency = 0
+    TutorialStroke.Transparency = 0
+    TutorialTitle.TextTransparency = 0
+    TutorialCloseBtn.TextTransparency = 0
     task.delay(0.15, updateTutorialCanvas)
 end
 
 local function closeTutorial()
-    TweenService:Create(TutorialFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
-        Size = UDim2.new(0, 420, 0, 340),
-        BackgroundTransparency = 1
-    }):Play()
-    TweenService:Create(TutorialStroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
-    TweenService:Create(TutorialTitle, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(TutorialCloseBtn, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    
-    task.wait(0.3)
     TutorialGui.Enabled = false
 end
 
@@ -941,12 +834,19 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = CoreGui
 setupGui(ScreenGui)
 
+-- FIX: getcustomasset com fallback
+local imageAsset = "rbxassetid://6031075931"
+if type(_getcustomasset) == "function" then
+    local ok, asset = pcall(_getcustomasset, IMAGE_PATH)
+    if ok and asset then imageAsset = asset end
+end
+
 local buttonSize = UserInputService.TouchEnabled and 65 or 55
 local FloatButton = Instance.new("ImageButton")
 FloatButton.Size = UDim2.new(0, buttonSize, 0, buttonSize)
 FloatButton.Position = UDim2.new(0.9, -buttonSize, 0.85, -buttonSize)
 FloatButton.BackgroundTransparency = 1
-FloatButton.Image = getcustomasset(IMAGE_PATH)
+FloatButton.Image = imageAsset
 FloatButton.Parent = ScreenGui
 FloatButton.Active = true
 FloatButton.Selectable = true
@@ -954,11 +854,11 @@ FloatButton.AutoButtonColor = false
 FloatButton.ImageTransparency = 0
 FloatButton.ZIndex = 100
 
-FloatButton.MouseEnter:Connect(function() 
-    TweenService:Create(FloatButton, TweenInfo.new(0.2), {Size = UDim2.new(0, buttonSize + 7, 0, buttonSize + 7)}):Play() 
+FloatButton.MouseEnter:Connect(function()
+    TweenService:Create(FloatButton, TweenInfo.new(0.2), {Size = UDim2.new(0, buttonSize + 7, 0, buttonSize + 7)}):Play()
 end)
-FloatButton.MouseLeave:Connect(function() 
-    TweenService:Create(FloatButton, TweenInfo.new(0.2), {Size = UDim2.new(0, buttonSize, 0, buttonSize)}):Play() 
+FloatButton.MouseLeave:Connect(function()
+    TweenService:Create(FloatButton, TweenInfo.new(0.2), {Size = UDim2.new(0, buttonSize, 0, buttonSize)}):Play()
 end)
 
 local guiWidth = UserInputService.TouchEnabled and 340 or 300
@@ -991,7 +891,6 @@ UIGradient.Color = ColorSequence.new{
 UIGradient.Rotation = 135
 UIGradient.Parent = MainGui
 
--- Title Bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundTransparency = 1
@@ -1018,8 +917,6 @@ ThemeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ThemeBtn.TextScaled = true
 ThemeBtn.Font = Enum.Font.GothamBold
 ThemeBtn.Parent = TitleBar
-ThemeBtn.Active = true
-ThemeBtn.Selectable = true
 Instance.new("UICorner", ThemeBtn).CornerRadius = UDim.new(0, 5)
 
 local MiniBtn = Instance.new("TextButton")
@@ -1031,8 +928,6 @@ MiniBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MiniBtn.TextScaled = true
 MiniBtn.Font = Enum.Font.GothamBold
 MiniBtn.Parent = TitleBar
-MiniBtn.Active = true
-MiniBtn.Selectable = true
 Instance.new("UICorner", MiniBtn).CornerRadius = UDim.new(0, 5)
 
 local CloseBtn = Instance.new("TextButton")
@@ -1045,10 +940,7 @@ CloseBtn.TextTransparency = 1
 CloseBtn.TextScaled = true
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Parent = TitleBar
-CloseBtn.Active = true
-CloseBtn.Selectable = true
 
--- Tabs
 local TabContainer = Instance.new("Frame")
 TabContainer.Size = UDim2.new(1, -20, 0, 35)
 TabContainer.Position = UDim2.new(0, 10, 0, 45)
@@ -1068,54 +960,23 @@ for i, name in ipairs(tabs) do
     btn.TextScaled = true
     btn.Font = Enum.Font.GothamSemibold
     btn.Parent = TabContainer
-    btn.Active = true
-    btn.Selectable = true
     btn.Name = name .. "Tab"
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     tabButtons[name] = btn
 end
 
--- ==================== CONTEÚDO ====================
 local ContentContainer = Instance.new("Frame")
 ContentContainer.Size = UDim2.new(1, -20, 1, -100)
 ContentContainer.Position = UDim2.new(0, 10, 0, 85)
 ContentContainer.BackgroundTransparency = 1
 ContentContainer.Parent = MainGui
 
--- ===== EXECUTOR CONTENT =====
+-- EXECUTOR
 local ExecutorContent = Instance.new("Frame")
 ExecutorContent.Size = UDim2.new(1, 0, 1, 0)
 ExecutorContent.BackgroundTransparency = 1
 ExecutorContent.Parent = ContentContainer
 
--- Header do editor
-local ExecHeader = Instance.new("Frame")
-ExecHeader.Size = UDim2.new(1, 0, 0, 28)
-ExecHeader.BackgroundTransparency = 1
-ExecHeader.Parent = ExecutorContent
-
-local ExecHeaderLabel = Instance.new("TextLabel")
-ExecHeaderLabel.Size = UDim2.new(0.6, 0, 1, 0)
-ExecHeaderLabel.BackgroundTransparency = 1
-ExecHeaderLabel.Text = "  ⚡ Script Editor"
-ExecHeaderLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-ExecHeaderLabel.TextScaled = true
-ExecHeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
-ExecHeaderLabel.Font = Enum.Font.GothamBold
-ExecHeaderLabel.Parent = ExecHeader
-
-local LineCountLabel = Instance.new("TextLabel")
-LineCountLabel.Size = UDim2.new(0.4, -4, 1, 0)
-LineCountLabel.Position = UDim2.new(0.6, 0, 0, 0)
-LineCountLabel.BackgroundTransparency = 1
-LineCountLabel.Text = "0 linhas"
-LineCountLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
-LineCountLabel.TextScaled = true
-LineCountLabel.TextXAlignment = Enum.TextXAlignment.Right
-LineCountLabel.Font = Enum.Font.Gotham
-LineCountLabel.Parent = ExecHeader
-
--- Caixa de script mais bonita
 local ScriptBoxFrame = Instance.new("Frame")
 ScriptBoxFrame.Size = UDim2.new(1, 0, 1, -108)
 ScriptBoxFrame.Position = UDim2.new(0, 0, 0, 30)
@@ -1124,169 +985,63 @@ ScriptBoxFrame.BackgroundTransparency = 0.15
 ScriptBoxFrame.Parent = ExecutorContent
 Instance.new("UICorner", ScriptBoxFrame).CornerRadius = UDim.new(0, 10)
 
-local ScriptBoxStroke = Instance.new("UIStroke", ScriptBoxFrame)
-ScriptBoxStroke.Color = Color3.fromRGB(50, 50, 55)
-ScriptBoxStroke.Thickness = 1.2
-ScriptBoxStroke.Transparency = 0.3
-
 local ScriptBox = Instance.new("TextBox")
 ScriptBox.Size = UDim2.new(1, -16, 1, -12)
 ScriptBox.Position = UDim2.new(0, 8, 0, 6)
 ScriptBox.BackgroundTransparency = 1
 ScriptBox.Text = ""
-ScriptBox.PlaceholderText = "-- Cole seu script aqui...\n\n-- Dica: use Ctrl+A para selecionar tudo"
+ScriptBox.PlaceholderText = "-- Cole seu script aqui..."
 ScriptBox.TextColor3 = Color3.fromRGB(0, 255, 140)
 ScriptBox.MultiLine = true
 ScriptBox.ClearTextOnFocus = false
 ScriptBox.Font = Enum.Font.Code
 ScriptBox.TextSize = 14
-ScriptBox.TextTransparency = 0
 ScriptBox.Parent = ScriptBoxFrame
-ScriptBox.Active = true
-ScriptBox.Selectable = true
 ScriptBox.TextWrapped = true
 ScriptBox.TextXAlignment = Enum.TextXAlignment.Left
 ScriptBox.TextYAlignment = Enum.TextYAlignment.Top
 ScriptBox.PlaceholderColor3 = Color3.fromRGB(70, 70, 75)
-ScriptBox.ClipsDescendants = true
-
-ScriptBox:GetPropertyChangedSignal("Text"):Connect(function()
-    local lines = 1
-    for _ in ScriptBox.Text:gmatch("\n") do
-        lines = lines + 1
-    end
-    if ScriptBox.Text == "" then lines = 0 end
-    LineCountLabel.Text = lines .. (lines == 1 and " linha" or " linhas")
-end)
-
--- Botões com visual mais premium
-local function styleExecButton(btn, bg, hoverBg)
-    local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = Color3.fromRGB(255, 255, 255)
-    stroke.Thickness = 1
-    stroke.Transparency = 0.85
-    
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.18), {
-            BackgroundColor3 = hoverBg,
-            Size = UDim2.new(btn.Size.X.Scale, btn.Size.X.Offset, 0, 38)
-        }):Play()
-        TweenService:Create(stroke, TweenInfo.new(0.18), {Transparency = 0.6}):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.18), {
-            BackgroundColor3 = bg,
-            Size = UDim2.new(btn.Size.X.Scale, btn.Size.X.Offset, 0, 36)
-        }):Play()
-        TweenService:Create(stroke, TweenInfo.new(0.18), {Transparency = 0.85}):Play()
-    end)
-end
 
 local ExecuteBtn = Instance.new("TextButton")
 ExecuteBtn.Size = UDim2.new(0.32, 0, 0, 36)
 ExecuteBtn.Position = UDim2.new(0, 0, 1, -40)
 ExecuteBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-ExecuteBtn.Text = "▶  EXECUTAR"
+ExecuteBtn.Text = "▶ EXECUTAR"
 ExecuteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ExecuteBtn.TextScaled = true
 ExecuteBtn.Font = Enum.Font.GothamBold
 ExecuteBtn.Parent = ExecutorContent
-ExecuteBtn.Active = true
-ExecuteBtn.Selectable = true
-ExecuteBtn.AutoButtonColor = false
 Instance.new("UICorner", ExecuteBtn).CornerRadius = UDim.new(0, 8)
-styleExecButton(ExecuteBtn, Color3.fromRGB(170, 0, 0), Color3.fromRGB(200, 20, 20))
 
 local SaveBtn = Instance.new("TextButton")
 SaveBtn.Size = UDim2.new(0.32, 0, 0, 36)
 SaveBtn.Position = UDim2.new(0.34, 4, 1, -40)
 SaveBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 190)
-SaveBtn.Text = "💾  SALVAR"
+SaveBtn.Text = "💾 SALVAR"
 SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SaveBtn.TextScaled = true
 SaveBtn.Font = Enum.Font.GothamBold
 SaveBtn.Parent = ExecutorContent
-SaveBtn.Active = true
-SaveBtn.Selectable = true
-SaveBtn.AutoButtonColor = false
 Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 8)
-styleExecButton(SaveBtn, Color3.fromRGB(0, 110, 190), Color3.fromRGB(0, 140, 230))
 
 local CopyBtn = Instance.new("TextButton")
 CopyBtn.Size = UDim2.new(0.32, 0, 0, 36)
 CopyBtn.Position = UDim2.new(0.68, 4, 1, -40)
 CopyBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-CopyBtn.Text = "📋  COPIAR"
+CopyBtn.Text = "📋 COPIAR"
 CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CopyBtn.TextScaled = true
 CopyBtn.Font = Enum.Font.GothamBold
 CopyBtn.Parent = ExecutorContent
-CopyBtn.Active = true
-CopyBtn.Selectable = true
-CopyBtn.AutoButtonColor = false
 Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 8)
-styleExecButton(CopyBtn, Color3.fromRGB(45, 45, 50), Color3.fromRGB(65, 65, 75))
 
--- ===== SNIPPETS RÁPIDOS =====
-local SnippetsBar = Instance.new("ScrollingFrame")
-SnippetsBar.Size = UDim2.new(1, 0, 0, 26)
-SnippetsBar.Position = UDim2.new(0, 0, 1, -70)
-SnippetsBar.BackgroundTransparency = 1
-SnippetsBar.ScrollBarThickness = 0
-SnippetsBar.ScrollingDirection = Enum.ScrollingDirection.X
-SnippetsBar.CanvasSize = UDim2.new(0, 520, 0, 26)
-SnippetsBar.Parent = ExecutorContent
-
-local SnipLayout = Instance.new("UIListLayout")
-SnipLayout.FillDirection = Enum.FillDirection.Horizontal
-SnipLayout.Padding = UDim.new(0, 4)
-SnipLayout.Parent = SnippetsBar
-
-local snippets = {
-    {name = "IY", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()"},
-    {name = "Dex", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/infyiff/backup/main/dex.lua'))()"},
-    {name = "ESP", code = "for _,p in pairs(game.Players:GetPlayers()) do if p~=game.Players.LocalPlayer and p.Character then local h=Instance.new('Highlight',p.Character) h.FillColor=Color3.new(1,0,0) h.OutlineColor=Color3.new(1,1,1) end end"},
-    {name = "Speed", code = "game.Players.LocalPlayer.Character.Humanoid.WalkSpeed=50"},
-    {name = "Jump", code = "game.Players.LocalPlayer.Character.Humanoid.JumpPower=100"},
-    {name = "Noclip", code = "local r=game:GetService('RunService') r.Stepped:Connect(function() if game.Players.LocalPlayer.Character then for _,p in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do if p:IsA('BasePart') then p.CanCollide=false end end end end)"},
-    {name = "Print", code = "print('CoolExec OK!')"},
-}
-
-for _, sn in ipairs(snippets) do
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(0, 58, 0, 24)
-    b.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-    b.Text = sn.name
-    b.TextColor3 = Color3.fromRGB(200, 200, 210)
-    b.TextScaled = true
-    b.Font = Enum.Font.GothamBold
-    b.Parent = SnippetsBar
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
-    b.MouseButton1Click:Connect(function()
-        ScriptBox.Text = sn.code
-        createNotification("Snippet: " .. sn.name, Color3.fromRGB(100, 200, 255))
-        playSound("click")
-    end)
-end
-
--- ===== HUB CONTENT =====
+-- HUB
 local HubContent = Instance.new("Frame")
 HubContent.Size = UDim2.new(1, 0, 1, 0)
 HubContent.BackgroundTransparency = 1
 HubContent.Visible = false
 HubContent.Parent = ContentContainer
 
-local HubList = Instance.new("ScrollingFrame")
-HubList.Size = UDim2.new(1, 0, 1, 0)
-HubList.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-HubList.BackgroundTransparency = 0.3
-HubList.Parent = HubContent
-HubList.Active = true
-HubList.ScrollBarThickness = 6
-HubList.ScrollBarImageColor3 = Color3.fromRGB(170, 0, 0)
-Instance.new("UICorner", HubList).CornerRadius = UDim.new(0, 6)
-
--- Hub Header (path + search + create folder)
 local HubHeader = Instance.new("Frame")
 HubHeader.Size = UDim2.new(1, 0, 0, 70)
 HubHeader.BackgroundTransparency = 1
@@ -1319,7 +1074,7 @@ HubSearchBox.Size = UDim2.new(1, -10, 0, 28)
 HubSearchBox.Position = UDim2.new(0, 5, 0, 28)
 HubSearchBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 HubSearchBox.Text = ""
-HubSearchBox.PlaceholderText = "🔍 Busca global (todas as pastas)..."
+HubSearchBox.PlaceholderText = "🔍 Busca global..."
 HubSearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 HubSearchBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
 HubSearchBox.TextScaled = true
@@ -1328,16 +1083,22 @@ HubSearchBox.ClearTextOnFocus = false
 HubSearchBox.Parent = HubHeader
 Instance.new("UICorner", HubSearchBox).CornerRadius = UDim.new(0, 6)
 
--- Adjust HubList to start below header
+local HubList = Instance.new("ScrollingFrame")
 HubList.Size = UDim2.new(1, 0, 1, -75)
 HubList.Position = UDim2.new(0, 0, 0, 75)
+HubList.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+HubList.BackgroundTransparency = 0.3
+HubList.ScrollBarThickness = 6
+HubList.ScrollBarImageColor3 = Color3.fromRGB(170, 0, 0)
+HubList.Parent = HubContent
+Instance.new("UICorner", HubList).CornerRadius = UDim.new(0, 6)
 
 local HubListLayout = Instance.new("UIListLayout")
 HubListLayout.Padding = UDim.new(0, 5)
 HubListLayout.Parent = HubList
 HubListLayout.SortOrder = Enum.SortOrder.Name
 
--- ===== CONSOLE CONTENT =====
+-- CONSOLE
 local ConsoleContent = Instance.new("Frame")
 ConsoleContent.Size = UDim2.new(1, 0, 1, 0)
 ConsoleContent.BackgroundTransparency = 1
@@ -1353,7 +1114,6 @@ ClearConsoleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ClearConsoleBtn.TextScaled = true
 ClearConsoleBtn.Font = Enum.Font.GothamBold
 ClearConsoleBtn.Parent = ConsoleContent
-ClearConsoleBtn.ZIndex = 10
 Instance.new("UICorner", ClearConsoleBtn).CornerRadius = UDim.new(0, 5)
 
 local ConsoleBox = Instance.new("ScrollingFrame")
@@ -1362,7 +1122,6 @@ ConsoleBox.Position = UDim2.new(0, 0, 0, 30)
 ConsoleBox.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 ConsoleBox.BackgroundTransparency = 0.3
 ConsoleBox.Parent = ConsoleContent
-ConsoleBox.Active = true
 ConsoleBox.ScrollBarThickness = 6
 ConsoleBox.ScrollBarImageColor3 = Color3.fromRGB(170, 0, 0)
 Instance.new("UICorner", ConsoleBox).CornerRadius = UDim.new(0, 6)
@@ -1376,19 +1135,18 @@ ConsoleText.TextColor3 = Color3.fromRGB(0, 255, 120)
 ConsoleText.TextXAlignment = Enum.TextXAlignment.Left
 ConsoleText.TextYAlignment = Enum.TextYAlignment.Top
 ConsoleText.TextWrapped = true
-ConsoleText.TextScaled = false
 ConsoleText.Font = Enum.Font.Code
 ConsoleText.TextSize = 12
 ConsoleText.Parent = ConsoleBox
 
--- ===== WEBHOOK CONTENT =====
+-- WEBHOOK
 local WebHookContent = Instance.new("Frame")
 WebHookContent.Size = UDim2.new(1, 0, 1, 0)
 WebHookContent.BackgroundTransparency = 1
 WebHookContent.Visible = false
 WebHookContent.Parent = ContentContainer
 
--- ===== PLAYERS CONTENT =====
+-- PLAYERS
 local PlayersContent = Instance.new("Frame")
 PlayersContent.Size = UDim2.new(1, 0, 1, 0)
 PlayersContent.BackgroundTransparency = 1
@@ -1403,7 +1161,7 @@ PlayersHeader.Parent = PlayersContent
 local PlayersTitle = Instance.new("TextLabel")
 PlayersTitle.Size = UDim2.new(0.6, 0, 1, 0)
 PlayersTitle.BackgroundTransparency = 1
-PlayersTitle.Text = "👥 Jogadores no Servidor"
+PlayersTitle.Text = "👥 Jogadores"
 PlayersTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 PlayersTitle.TextScaled = true
 PlayersTitle.Font = Enum.Font.GothamBold
@@ -1429,7 +1187,6 @@ PlayersList.BackgroundTransparency = 0.3
 PlayersList.ScrollBarThickness = 6
 PlayersList.ScrollBarImageColor3 = Color3.fromRGB(170, 0, 0)
 PlayersList.Parent = PlayersContent
-PlayersList.Active = true
 Instance.new("UICorner", PlayersList).CornerRadius = UDim.new(0, 6)
 
 local PlayersListLayout = Instance.new("UIListLayout")
@@ -1437,7 +1194,7 @@ PlayersListLayout.Padding = UDim.new(0, 5)
 PlayersListLayout.Parent = PlayersList
 PlayersListLayout.SortOrder = Enum.SortOrder.Name
 
--- ===== SETTINGS CONTENT =====
+-- SETTINGS
 local SettingsContent = Instance.new("Frame")
 SettingsContent.Size = UDim2.new(1, 0, 1, 0)
 SettingsContent.BackgroundTransparency = 1
@@ -1459,18 +1216,14 @@ SettingsLayout.Padding = UDim.new(0, 8)
 SettingsLayout.Parent = SettingsScroll
 SettingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- ==================== SETTINGS + AUTO UPDATE + PROTEÇÃO ====================
-local GITHUB_API = "https://api.github.com/repos/coolkidgaucho16-debug/CoolExec-Upgrades/contents/upgrades"
-local GITHUB_RAW_BASE = "https://raw.githubusercontent.com/coolkidgaucho16-debug/CoolExec-Upgrades/main/upgrades/"
-
--- Helper to create setting rows
+-- ==================== SETTINGS TOGGLES ====================
 local function addSettingToggle(text, key, callback)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, -10, 0, 36)
     row.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     row.Parent = SettingsScroll
     Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
-    
+
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(0.7, 0, 1, 0)
     lbl.Position = UDim2.new(0, 10, 0, 0)
@@ -1481,7 +1234,7 @@ local function addSettingToggle(text, key, callback)
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.Font = Enum.Font.Gotham
     lbl.Parent = row
-    
+
     local toggle = Instance.new("TextButton")
     toggle.Size = UDim2.new(0, 70, 0, 26)
     toggle.Position = UDim2.new(1, -80, 0.5, -13)
@@ -1492,7 +1245,7 @@ local function addSettingToggle(text, key, callback)
     toggle.Font = Enum.Font.GothamBold
     toggle.Parent = row
     Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 5)
-    
+
     toggle.MouseButton1Click:Connect(function()
         settings[key] = not settings[key]
         toggle.Text = settings[key] and "ON" or "OFF"
@@ -1502,7 +1255,6 @@ local function addSettingToggle(text, key, callback)
     end)
 end
 
--- Title
 local settingsTitle = Instance.new("TextLabel")
 settingsTitle.Size = UDim2.new(1, -10, 0, 30)
 settingsTitle.BackgroundTransparency = 1
@@ -1512,110 +1264,25 @@ settingsTitle.TextScaled = true
 settingsTitle.Font = Enum.Font.GothamBold
 settingsTitle.Parent = SettingsScroll
 
-addSettingToggle("🔔 Notificações", "notifications", function(val)
-    -- Quando liga de novo, força uma notificação de confirmação
-    if val then
-        -- Temporariamente ignora o check para mostrar a confirmação
-        local notif = Instance.new("Frame")
-        notif.Size = UDim2.new(0, 280, 0, 50)
-        notif.Position = UDim2.new(1, -300, 1, -80)
-        notif.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        notif.Parent = Notifications
-        notif.ZIndex = 1000
-        Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 10)
-        local label = Instance.new("TextLabel", notif)
-        label.Size = UDim2.new(1, -10, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Text = "🔔 Notificações ativadas"
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextScaled = true
-        label.Font = Enum.Font.GothamSemibold
-        label.ZIndex = 1000
-        task.delay(2.5, function() notif:Destroy() end)
-    end
-    -- Quando desliga, simplesmente para de mostrar (já é bloqueado dentro de createNotification)
-end)
-
+addSettingToggle("🔔 Notificações", "notifications", nil)
 addSettingToggle("👻 Esconder botão flutuante", "hideFloatButton", function(val)
-    if not FloatButton then return end
     if val then
-        -- Fica completamente transparente, mas continua clicável
         FloatButton.ImageTransparency = 1
         FloatButton.Visible = true
     else
-        -- Volta a ficar visível (só se a janela principal estiver fechada)
         if MainGui and not MainGui.Visible then
             FloatButton.ImageTransparency = 0
             FloatButton.Visible = true
         end
     end
 end)
-
-addSettingToggle("🔀 Nome aleatório do GUI (proteção)", "randomGuiName", nil)
+addSettingToggle("🔀 Nome aleatório GUI", "randomGuiName", nil)
 addSettingToggle("🔄 Verificar update ao abrir", "autoCheckUpdate", nil)
 addSettingToggle("🔊 Sons", "soundEnabled", function(val)
     if val then playSound("click") end
 end)
 
-local volLabel = Instance.new("TextLabel")
-volLabel.Size = UDim2.new(1, -10, 0, 22)
-volLabel.BackgroundTransparency = 1
-volLabel.Text = "Volume dos sons: " .. tostring(math.floor((settings.soundVolume or 0.5) * 100)) .. "%"
-volLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-volLabel.TextScaled = true
-volLabel.TextXAlignment = Enum.TextXAlignment.Left
-volLabel.Font = Enum.Font.Gotham
-volLabel.Parent = SettingsScroll
-
-local volRow = Instance.new("Frame")
-volRow.Size = UDim2.new(1, -10, 0, 28)
-volRow.BackgroundTransparency = 1
-volRow.Parent = SettingsScroll
-
-local volDown = Instance.new("TextButton")
-volDown.Size = UDim2.new(0.2, 0, 1, 0)
-volDown.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-volDown.Text = "−"
-volDown.TextColor3 = Color3.new(1,1,1)
-volDown.TextScaled = true
-volDown.Font = Enum.Font.GothamBold
-volDown.Parent = volRow
-Instance.new("UICorner", volDown).CornerRadius = UDim.new(0, 5)
-
-local volUp = Instance.new("TextButton")
-volUp.Size = UDim2.new(0.2, 0, 1, 0)
-volUp.Position = UDim2.new(0.8, 0, 0, 0)
-volUp.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-volUp.Text = "+"
-volUp.TextColor3 = Color3.new(1,1,1)
-volUp.TextScaled = true
-volUp.Font = Enum.Font.GothamBold
-volUp.Parent = volRow
-Instance.new("UICorner", volUp).CornerRadius = UDim.new(0, 5)
-
-volDown.MouseButton1Click:Connect(function()
-    settings.soundVolume = math.clamp((settings.soundVolume or 0.5) - 0.1, 0, 1)
-    saveSettings()
-    volLabel.Text = "Volume dos sons: " .. tostring(math.floor(settings.soundVolume * 100)) .. "%"
-    playSound("click")
-end)
-volUp.MouseButton1Click:Connect(function()
-    settings.soundVolume = math.clamp((settings.soundVolume or 0.5) + 0.1, 0, 1)
-    saveSettings()
-    volLabel.Text = "Volume dos sons: " .. tostring(math.floor(settings.soundVolume * 100)) .. "%"
-    playSound("click")
-end)
-
--- FPS + Ping ao vivo
-local statsTitle = Instance.new("TextLabel")
-statsTitle.Size = UDim2.new(1, -10, 0, 26)
-statsTitle.BackgroundTransparency = 1
-statsTitle.Text = "📊 Performance (ao vivo)"
-statsTitle.TextColor3 = Color3.fromRGB(100, 200, 255)
-statsTitle.TextScaled = true
-statsTitle.Font = Enum.Font.GothamBold
-statsTitle.Parent = SettingsScroll
-
+-- FPS/Ping label
 local fpsPingLabel = Instance.new("TextLabel")
 fpsPingLabel.Size = UDim2.new(1, -10, 0, 28)
 fpsPingLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
@@ -1628,11 +1295,9 @@ Instance.new("UICorner", fpsPingLabel).CornerRadius = UDim.new(0, 6)
 
 task.spawn(function()
     while true do
-        local fps = 0
+        local fps = 60
         local ping = 0
-        pcall(function()
-            fps = math.floor(1 / task.wait())
-        end)
+        pcall(function() fps = math.floor(1 / task.wait()) end)
         pcall(function()
             ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
         end)
@@ -1643,331 +1308,7 @@ task.spawn(function()
     end
 end)
 
--- Cor de destaque (accent)
-local accentTitle = Instance.new("TextLabel")
-accentTitle.Size = UDim2.new(1, -10, 0, 26)
-accentTitle.BackgroundTransparency = 1
-accentTitle.Text = "🎨 Cor de destaque"
-accentTitle.TextColor3 = Color3.fromRGB(255, 180, 100)
-accentTitle.TextScaled = true
-accentTitle.Font = Enum.Font.GothamBold
-accentTitle.Parent = SettingsScroll
-
-local accentColors = {
-    {name = "Vermelho", color = Color3.fromRGB(170, 0, 0)},
-    {name = "Azul", color = Color3.fromRGB(0, 100, 200)},
-    {name = "Verde", color = Color3.fromRGB(0, 140, 60)},
-    {name = "Roxo", color = Color3.fromRGB(120, 0, 180)},
-    {name = "Laranja", color = Color3.fromRGB(200, 100, 0)},
-    {name = "Rosa", color = Color3.fromRGB(200, 50, 120)},
-}
-
-local accentRow = Instance.new("Frame")
-accentRow.Size = UDim2.new(1, -10, 0, 36)
-accentRow.BackgroundTransparency = 1
-accentRow.Parent = SettingsScroll
-
-local accentLayout = Instance.new("UIListLayout")
-accentLayout.FillDirection = Enum.FillDirection.Horizontal
-accentLayout.Padding = UDim.new(0, 6)
-accentLayout.Parent = accentRow
-
-local currentAccent = Color3.fromRGB(170, 0, 0)
-if isfile("coolexec/accent.txt") then
-    local ok, c = pcall(function()
-        local t = readfile("coolexec/accent.txt"):split(",")
-        return Color3.fromRGB(tonumber(t[1]) or 170, tonumber(t[2]) or 0, tonumber(t[3]) or 0)
-    end)
-    if ok and c then currentAccent = c end
-end
-
-local function applyAccent(color)
-    currentAccent = color
-    writefile("coolexec/accent.txt", string.format("%d,%d,%d", math.floor(color.R*255), math.floor(color.G*255), math.floor(color.B*255)))
-    -- Aplica em elementos principais
-    pcall(function()
-        if tabButtons then
-            for name, btn in pairs(tabButtons) do
-                if currentTab == name then
-                    btn.BackgroundColor3 = color
-                end
-            end
-        end
-        if ExecuteBtn then ExecuteBtn.BackgroundColor3 = color end
-        if SendMsgBtn then SendMsgBtn.BackgroundColor3 = color end
-        if TutorialBtn then TutorialBtn.BackgroundColor3 = color end
-        if ConsoleBox then ConsoleBox.ScrollBarImageColor3 = color end
-        if HubList then HubList.ScrollBarImageColor3 = color end
-    end)
-    createNotification("🎨 Cor de destaque alterada!", color)
-end
-
-for _, ac in ipairs(accentColors) do
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(0, 52, 0, 30)
-    b.BackgroundColor3 = ac.color
-    b.Text = ac.name:sub(1, 3)
-    b.TextColor3 = Color3.fromRGB(255, 255, 255)
-    b.TextScaled = true
-    b.Font = Enum.Font.GothamBold
-    b.Parent = accentRow
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
-    b.MouseButton1Click:Connect(function()
-        applyAccent(ac.color)
-    end)
-end
-
--- Auto Update section
-local updateTitle = Instance.new("TextLabel")
-updateTitle.Size = UDim2.new(1, -10, 0, 28)
-updateTitle.BackgroundTransparency = 1
-updateTitle.Text = "🚀 Auto Update (GitHub)"
-updateTitle.TextColor3 = Color3.fromRGB(255, 200, 100)
-updateTitle.TextScaled = true
-updateTitle.Font = Enum.Font.GothamBold
-updateTitle.Parent = SettingsScroll
-
-local updateStatus = Instance.new("TextLabel")
-updateStatus.Size = UDim2.new(1, -10, 0, 22)
-updateStatus.BackgroundTransparency = 1
-updateStatus.Text = "Status: Aguardando verificação..."
-updateStatus.TextColor3 = Color3.fromRGB(180, 180, 180)
-updateStatus.TextScaled = true
-updateStatus.TextXAlignment = Enum.TextXAlignment.Left
-updateStatus.Font = Enum.Font.Gotham
-updateStatus.Parent = SettingsScroll
-
-local CheckUpdateBtn = Instance.new("TextButton")
-CheckUpdateBtn.Size = UDim2.new(1, -10, 0, 34)
-CheckUpdateBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-CheckUpdateBtn.Text = "🔍 Verificar Atualização Agora"
-CheckUpdateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CheckUpdateBtn.TextScaled = true
-CheckUpdateBtn.Font = Enum.Font.GothamBold
-CheckUpdateBtn.Parent = SettingsScroll
-Instance.new("UICorner", CheckUpdateBtn).CornerRadius = UDim.new(0, 6)
-
-local DoUpdateBtn = Instance.new("TextButton")
-DoUpdateBtn.Size = UDim2.new(1, -10, 0, 34)
-DoUpdateBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-DoUpdateBtn.Text = "⬇️ ATUALIZAR AGORA (fecha e reinicia)"
-DoUpdateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-DoUpdateBtn.TextScaled = true
-DoUpdateBtn.Font = Enum.Font.GothamBold
-DoUpdateBtn.Visible = false
-DoUpdateBtn.Parent = SettingsScroll
-Instance.new("UICorner", DoUpdateBtn).CornerRadius = UDim.new(0, 6)
-
-local latestUpdateCode = nil
-local latestSha = nil
-local latestName = nil
-
-local function checkForUpdate(silent)
-    updateStatus.Text = "Status: Verificando no GitHub..."
-    updateStatus.TextColor3 = Color3.fromRGB(255, 200, 100)
-    
-    local success, result = pcall(function()
-        local response
-        if request then
-            response = request({Url = GITHUB_API, Method = "GET"})
-            return response.Body
-        elseif syn and syn.request then
-            response = syn.request({Url = GITHUB_API, Method = "GET"})
-            return response.Body
-        else
-            return game:HttpGet(GITHUB_API)
-        end
-    end)
-    
-    if not success or not result then
-        updateStatus.Text = "Status: ❌ Erro ao conectar no GitHub"
-        updateStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
-        return
-    end
-    
-    local ok, files = pcall(function() return HttpService:JSONDecode(result) end)
-    if not ok or type(files) ~= "table" then
-        updateStatus.Text = "Status: ❌ Resposta inválida do GitHub"
-        updateStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
-        return
-    end
-    
-    -- Pega o script com maior número no nome (Script2 > Script1) ou o mais recente
-    local best = nil
-    local bestNum = -1
-    for _, f in ipairs(files) do
-        if f.type == "file" and f.name:match("%.lua$") then
-            local num = tonumber(f.name:match("(%d+)")) or 0
-            if num > bestNum then
-                bestNum = num
-                best = f
-            end
-        end
-    end
-    
-    if not best then
-        updateStatus.Text = "Status: Nenhum script encontrado na pasta upgrades"
-        return
-    end
-    
-    local lastSha = isfile(LAST_SHA_FILE) and readfile(LAST_SHA_FILE) or ""
-    
-    if best.sha == lastSha then
-        updateStatus.Text = "Status: ✅ Você já está na versão mais recente (" .. best.name .. ")"
-        updateStatus.TextColor3 = Color3.fromRGB(0, 255, 100)
-        DoUpdateBtn.Visible = false
-        if not silent then
-            createNotification("✅ CoolExec já está atualizado!", Color3.fromRGB(0, 255, 100))
-        end
-        return
-    end
-    
-    -- Tem update
-    latestSha = best.sha
-    latestName = best.name
-    updateStatus.Text = "Status: 🆕 Nova versão disponível → " .. best.name
-    updateStatus.TextColor3 = Color3.fromRGB(0, 255, 150)
-    DoUpdateBtn.Visible = true
-    
-    if not silent then
-        createNotification("🆕 Nova versão encontrada: " .. best.name, Color3.fromRGB(0, 255, 150))
-    end
-    
-    -- Pré-baixa o código
-    task.spawn(function()
-        local ok2, code = pcall(function()
-            if request then
-                local r = request({Url = best.download_url, Method = "GET"})
-                return r.Body
-            else
-                return game:HttpGet(best.download_url)
-            end
-        end)
-        if ok2 and code and #code > 50 then
-            latestUpdateCode = code
-        end
-    end)
-end
-
-CheckUpdateBtn.MouseButton1Click:Connect(function()
-    checkForUpdate(false)
-end)
-
-DoUpdateBtn.MouseButton1Click:Connect(function()
-    if not latestUpdateCode or #latestUpdateCode < 50 then
-        createNotification("⏳ Baixando atualização, aguarde 2 segundos e tente de novo...", Color3.fromRGB(255, 200, 0))
-        -- tenta baixar de novo na hora
-        if latestName then
-            local ok, code = pcall(function()
-                local url = GITHUB_RAW_BASE .. latestName
-                if request then
-                    local r = request({Url = url, Method = "GET"})
-                    return r.Body
-                else
-                    return game:HttpGet(url)
-                end
-            end)
-            if ok and code and #code > 50 then
-                latestUpdateCode = code
-            else
-                createNotification("❌ Falha ao baixar o script de atualização", Color3.fromRGB(255, 80, 80))
-                return
-            end
-        else
-            return
-        end
-    end
-    
-    createNotification("⬇️ Atualizando... Fechando CoolExec e executando nova versão", Color3.fromRGB(0, 200, 255))
-    
-    -- Salva o novo SHA
-    if latestSha then
-        pcall(writefile, LAST_SHA_FILE, latestSha)
-    end
-    
-    -- Guarda o código antes de destruir tudo
-    local codeToRun = latestUpdateCode
-    
-    -- Destrói TODAS as GUIs do CoolExec por referência (mais seguro)
-    pcall(function() if ScreenGui then ScreenGui:Destroy() end end)
-    pcall(function() if TutorialGui then TutorialGui:Destroy() end end)
-    pcall(function() if MsgDialogGui then MsgDialogGui:Destroy() end end)
-    pcall(function() if SaveDialogGui then SaveDialogGui:Destroy() end end)
-    pcall(function() if Notifications then Notifications:Destroy() end end)
-    pcall(function() if MiniConsole and MiniConsole.Parent then MiniConsole:Destroy() end end)
-    
-    -- Limpeza extra por nome (caso tenha sobrado algo)
-    pcall(function()
-        for _, gui in ipairs(CoreGui:GetChildren()) do
-            local n = gui.Name:lower()
-            if n:find("cool") or n:find("tutorial") or n:find("msgdialog") or n:find("savedialog") or n:find("notification") or n:find("ce_") or n:find("renameprompt") then
-                gui:Destroy()
-            end
-        end
-    end)
-    
-    task.wait(0.4)
-    
-    -- Executa o novo script
-    local success, err = pcall(function()
-        (function() local fn,e=safeLoadstring(codeToRun); if not fn then error(tostring(e or 'loadstring nil')) end; return fn() end)()
-    end)
-    
-    if not success then
-        warn("[CoolExec Update] Erro ao carregar nova versão:", err)
-        -- tenta de novo uma vez
-        pcall(function() (function() local fn,e=safeLoadstring(codeToRun); if not fn then error(tostring(e or 'loadstring nil')) end; return fn() end)() end)
-    end
-end)
-
--- Proteção avançada: nomes aleatórios em todas as GUIs
-if settings.randomGuiName then
-    local function rndName()
-        local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        local s = ""
-        for i = 1, 12 do
-            local idx = math.random(1, #chars)
-            s = s .. chars:sub(idx, idx)
-        end
-        return s
-    end
-    pcall(function() if ScreenGui then ScreenGui.Name = rndName() end end)
-    pcall(function() if Notifications then Notifications.Name = rndName() end end)
-    pcall(function() if TutorialGui then TutorialGui.Name = rndName() end end)
-    pcall(function() if MsgDialogGui then MsgDialogGui.Name = rndName() end end)
-    pcall(function() if SaveDialogGui then SaveDialogGui.Name = rndName() end end)
-    pcall(function()
-        if MiniConsole and MiniConsole.Parent and MiniConsole.Parent:IsA("ScreenGui") then
-            MiniConsole.Parent.Name = rndName()
-        elseif MiniConsole then
-            MiniConsole.Name = rndName()
-        end
-    end)
-    -- Re-randomiza periodicamente
-    task.spawn(function()
-        while ScreenGui and ScreenGui.Parent do
-            task.wait(30 + math.random(10, 40))
-            pcall(function()
-                if ScreenGui then ScreenGui.Name = rndName() end
-                if Notifications then Notifications.Name = rndName() end
-            end)
-        end
-    end)
-end
-
-if settings.hideFloatButton and FloatButton then
-    FloatButton.ImageTransparency = 1
-    FloatButton.Visible = true
-end
-
--- Verifica update automático ao iniciar
-task.delay(3, function()
-    if settings.autoCheckUpdate then
-        checkForUpdate(true)
-    end
-end)
-
--- Botão Tutorial
+-- Tutorial button na aba WebHook
 local TutorialBtn = Instance.new("TextButton")
 TutorialBtn.Size = UDim2.new(0.4, 0, 0, 35)
 TutorialBtn.Position = UDim2.new(0.3, 0, 0, 0)
@@ -1977,11 +1318,8 @@ TutorialBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TutorialBtn.TextScaled = true
 TutorialBtn.Font = Enum.Font.GothamBold
 TutorialBtn.Parent = WebHookContent
-TutorialBtn.Active = true
-TutorialBtn.Selectable = true
 Instance.new("UICorner", TutorialBtn).CornerRadius = UDim.new(0, 6)
 
--- ===== MÚLTIPLOS WEBHOOKS =====
 local UrlLabel = Instance.new("TextLabel")
 UrlLabel.Size = UDim2.new(1, -20, 0, 22)
 UrlLabel.Position = UDim2.new(0, 10, 0, 42)
@@ -1999,7 +1337,7 @@ NameInput.Position = UDim2.new(0, 10, 0, 66)
 NameInput.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 NameInput.BackgroundTransparency = 0.3
 NameInput.Text = ""
-NameInput.PlaceholderText = "Nome (ex: Staff)"
+NameInput.PlaceholderText = "Nome"
 NameInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 NameInput.Font = Enum.Font.Gotham
 NameInput.TextSize = 13
@@ -2055,12 +1393,10 @@ local WebhookListLayout = Instance.new("UIListLayout")
 WebhookListLayout.Padding = UDim.new(0, 4)
 WebhookListLayout.Parent = WebhookListFrame
 
-local function updateSavedUrlLabel()
-    -- Atualiza a lista visual de webhooks
+function updateSavedUrlLabel()
     for _, child in ipairs(WebhookListFrame:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
-    
     if #webhookList == 0 then
         local empty = Instance.new("TextLabel")
         empty.Size = UDim2.new(1, 0, 0, 30)
@@ -2072,14 +1408,13 @@ local function updateSavedUrlLabel()
         empty.Parent = WebhookListFrame
         return
     end
-    
     for i, wh in ipairs(webhookList) do
         local row = Instance.new("Frame")
         row.Size = UDim2.new(1, -8, 0, 32)
         row.BackgroundColor3 = (i == selectedWebhookIndex) and Color3.fromRGB(60, 20, 20) or Color3.fromRGB(30, 30, 30)
         row.Parent = WebhookListFrame
         Instance.new("UICorner", row).CornerRadius = UDim.new(0, 5)
-        
+
         local nameBtn = Instance.new("TextButton")
         nameBtn.Size = UDim2.new(0.7, 0, 1, 0)
         nameBtn.BackgroundTransparency = 1
@@ -2092,9 +1427,9 @@ local function updateSavedUrlLabel()
         nameBtn.MouseButton1Click:Connect(function()
             selectedWebhookIndex = i
             updateSavedUrlLabel()
-            createNotification("Webhook selecionado: " .. (wh.name or "Webhook"), Color3.fromRGB(0, 255, 100))
+            createNotification("Webhook: " .. (wh.name or "Webhook"), Color3.fromRGB(0, 255, 100))
         end)
-        
+
         local delBtn = Instance.new("TextButton")
         delBtn.Size = UDim2.new(0.25, 0, 0.8, 0)
         delBtn.Position = UDim2.new(0.72, 0, 0.1, 0)
@@ -2124,7 +1459,7 @@ AddUrlBtn.MouseButton1Click:Connect(function()
         return
     end
     if not url:match("^https?://") then
-        createNotification("❌ URL inválida! Use http:// ou https://", Color3.fromRGB(255, 80, 80))
+        createNotification("❌ URL inválida!", Color3.fromRGB(255, 80, 80))
         return
     end
     if not name or name:match("^%s*$") then
@@ -2133,13 +1468,13 @@ AddUrlBtn.MouseButton1Click:Connect(function()
     table.insert(webhookList, {name = name, url = url})
     selectedWebhookIndex = #webhookList
     saveWebhooks(webhookList)
-    createNotification("✅ WebHook adicionado: " .. name, Color3.fromRGB(0, 255, 100))
+    createNotification("✅ WebHook: " .. name, Color3.fromRGB(0, 255, 100))
     updateSavedUrlLabel()
     UrlInput.Text = ""
     NameInput.Text = ""
 end)
 
--- ===== DIÁLOGO DE ENVIO DE MENSAGEM =====
+-- ==================== DIÁLOGO MSG ====================
 local MsgDialogGui = Instance.new("ScreenGui")
 MsgDialogGui.Name = "MsgDialog"
 MsgDialogGui.ResetOnSpawn = false
@@ -2151,25 +1486,13 @@ local MsgDialog = Instance.new("Frame")
 MsgDialog.Size = UDim2.new(0, 350, 0, 180)
 MsgDialog.Position = UDim2.new(0.5, -175, 0.5, -90)
 MsgDialog.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MsgDialog.BackgroundTransparency = 1
+MsgDialog.BackgroundTransparency = 0
 MsgDialog.Parent = MsgDialogGui
-MsgDialog.Active = true
-MsgDialog.Selectable = true
-MsgDialog.ZIndex = 1000
 Instance.new("UICorner", MsgDialog).CornerRadius = UDim.new(0, 12)
-
-local MsgDialogGradient = Instance.new("UIGradient")
-MsgDialogGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 0, 0)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 0, 0))
-}
-MsgDialogGradient.Rotation = 90
-MsgDialogGradient.Parent = MsgDialog
 
 local MsgDialogStroke = Instance.new("UIStroke", MsgDialog)
 MsgDialogStroke.Color = Color3.fromRGB(170, 0, 0)
 MsgDialogStroke.Thickness = 1.5
-MsgDialogStroke.Transparency = 1
 
 local MsgDialogTitle = Instance.new("TextLabel")
 MsgDialogTitle.Size = UDim2.new(1, -50, 0, 35)
@@ -2177,11 +1500,9 @@ MsgDialogTitle.Position = UDim2.new(0, 10, 0, 5)
 MsgDialogTitle.BackgroundTransparency = 1
 MsgDialogTitle.Text = "💬 Enviar Mensagem"
 MsgDialogTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-MsgDialogTitle.TextTransparency = 1
 MsgDialogTitle.TextScaled = true
 MsgDialogTitle.Font = Enum.Font.GothamBold
 MsgDialogTitle.Parent = MsgDialog
-MsgDialogTitle.ZIndex = 1000
 
 local MsgDialogClose = Instance.new("TextButton")
 MsgDialogClose.Size = UDim2.new(0, 30, 0, 30)
@@ -2189,13 +1510,9 @@ MsgDialogClose.Position = UDim2.new(1, -35, 0, 5)
 MsgDialogClose.BackgroundTransparency = 1
 MsgDialogClose.Text = "✕"
 MsgDialogClose.TextColor3 = Color3.fromRGB(255, 80, 80)
-MsgDialogClose.TextTransparency = 1
 MsgDialogClose.TextScaled = true
 MsgDialogClose.Font = Enum.Font.GothamBold
 MsgDialogClose.Parent = MsgDialog
-MsgDialogClose.Active = true
-MsgDialogClose.Selectable = true
-MsgDialogClose.ZIndex = 1000
 
 local MsgInput = Instance.new("TextBox")
 MsgInput.Size = UDim2.new(0.9, 0, 0, 40)
@@ -2203,15 +1520,11 @@ MsgInput.Position = UDim2.new(0.05, 0, 0.3, 0)
 MsgInput.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MsgInput.BackgroundTransparency = 0.3
 MsgInput.Text = ""
-MsgInput.PlaceholderText = "digite sua mensagem (use palavras-chave)"
+MsgInput.PlaceholderText = "digite sua mensagem"
 MsgInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-MsgInput.TextTransparency = 1
 MsgInput.Font = Enum.Font.GothamSemibold
 MsgInput.TextSize = 14
 MsgInput.Parent = MsgDialog
-MsgInput.Active = true
-MsgInput.Selectable = true
-MsgInput.ZIndex = 1000
 MsgInput.ClearTextOnFocus = false
 Instance.new("UICorner", MsgInput).CornerRadius = UDim.new(0, 6)
 
@@ -2221,13 +1534,9 @@ MsgCancelBtn.Position = UDim2.new(0.05, 0, 0.7, 0)
 MsgCancelBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 MsgCancelBtn.Text = "Cancelar"
 MsgCancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MsgCancelBtn.TextTransparency = 1
 MsgCancelBtn.TextScaled = true
 MsgCancelBtn.Font = Enum.Font.GothamBold
 MsgCancelBtn.Parent = MsgDialog
-MsgCancelBtn.Active = true
-MsgCancelBtn.Selectable = true
-MsgCancelBtn.ZIndex = 1000
 Instance.new("UICorner", MsgCancelBtn).CornerRadius = UDim.new(0, 6)
 
 local MsgSendBtn = Instance.new("TextButton")
@@ -2236,59 +1545,20 @@ MsgSendBtn.Position = UDim2.new(0.6, 0, 0.7, 0)
 MsgSendBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 MsgSendBtn.Text = "Enviar"
 MsgSendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MsgSendBtn.TextTransparency = 1
 MsgSendBtn.TextScaled = true
 MsgSendBtn.Font = Enum.Font.GothamBold
 MsgSendBtn.Parent = MsgDialog
-MsgSendBtn.Active = true
-MsgSendBtn.Selectable = true
-MsgSendBtn.ZIndex = 1000
 Instance.new("UICorner", MsgSendBtn).CornerRadius = UDim.new(0, 6)
 
--- ===== FUNÇÕES DO DIÁLOGO DE MENSAGEM =====
-local function openMsgDialog()
+function openMsgDialog()
     MsgDialogGui.Enabled = true
-    MsgDialog.BackgroundTransparency = 1
-    MsgDialog.Size = UDim2.new(0, 280, 0, 150)
-    MsgDialogStroke.Transparency = 1
-    MsgDialogTitle.TextTransparency = 1
-    MsgDialogClose.TextTransparency = 1
-    MsgInput.TextTransparency = 1
-    MsgInput.BackgroundTransparency = 0.3
-    MsgCancelBtn.TextTransparency = 1
-    MsgSendBtn.TextTransparency = 1
-    
     MsgInput.Text = ""
-    
-    TweenService:Create(MsgDialog, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {
-        Size = UDim2.new(0, 350, 0, 180),
-        BackgroundTransparency = 0
-    }):Play()
-    TweenService:Create(MsgDialogStroke, TweenInfo.new(0.3), {Transparency = 0}):Play()
-    TweenService:Create(MsgDialogTitle, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(MsgDialogClose, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(MsgInput, TweenInfo.new(0.3), {TextTransparency = 0, BackgroundTransparency = 0.3}):Play()
-    TweenService:Create(MsgCancelBtn, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(MsgSendBtn, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    
-    MsgInput:CaptureFocus()
+    pcall(function() MsgInput:CaptureFocus() end)
 end
 
 local function closeMsgDialog()
-    TweenService:Create(MsgDialog, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
-        Size = UDim2.new(0, 280, 0, 150),
-        BackgroundTransparency = 1
-    }):Play()
-    TweenService:Create(MsgDialogStroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
-    TweenService:Create(MsgDialogTitle, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(MsgDialogClose, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(MsgInput, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(MsgCancelBtn, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(MsgSendBtn, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    
-    task.wait(0.3)
     MsgDialogGui.Enabled = false
-    MsgInput:ReleaseFocus()
+    pcall(function() MsgInput:ReleaseFocus() end)
 end
 
 local function sendMessage()
@@ -2297,7 +1567,6 @@ local function sendMessage()
         createNotification("❌ Digite uma mensagem!", Color3.fromRGB(255, 80, 80))
         return
     end
-    
     closeMsgDialog()
     sendWebhookMessage(msg)
 end
@@ -2305,28 +1574,22 @@ end
 MsgDialogClose.MouseButton1Click:Connect(closeMsgDialog)
 MsgCancelBtn.MouseButton1Click:Connect(closeMsgDialog)
 MsgSendBtn.MouseButton1Click:Connect(sendMessage)
-
-MsgInput.FocusLost:Connect(function(enterPressed)
-    if enterPressed then sendMessage() end
-end)
-
 SendMsgBtn.MouseButton1Click:Connect(openMsgDialog)
+TutorialBtn.MouseButton1Click:Connect(openTutorial)
 
--- ==================== FUNÇÕES ====================
+-- ==================== CONSOLE ====================
 local consoleLines = {}
 
-local function addConsoleLine(text, color)
+function addConsoleLine(text, color)
     color = color or Color3.fromRGB(0, 255, 120)
     table.insert(consoleLines, {text = text, color = color})
     if #consoleLines > 100 then table.remove(consoleLines, 1) end
-    
+
     local displayText = "📟 Console Output\n\n"
     for _, line in ipairs(consoleLines) do
         displayText = displayText .. line.text .. "\n"
     end
     ConsoleText.Text = displayText
-    task.wait(0.05)
-    ConsoleBox.CanvasPosition = Vector2.new(0, ConsoleBox.CanvasSize.Y.Offset - ConsoleBox.Size.Y.Offset + 20)
 end
 
 ClearConsoleBtn.MouseButton1Click:Connect(function()
@@ -2340,17 +1603,15 @@ local function refreshPlayersList()
     for _, child in ipairs(PlayersList:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
-    
     local players = Players:GetPlayers()
     table.sort(players, function(a, b) return a.Name:lower() < b.Name:lower() end)
-    
     for _, plr in ipairs(players) do
         local row = Instance.new("Frame")
         row.Size = UDim2.new(1, -10, 0, 36)
         row.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
         row.Parent = PlayersList
         Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
-        
+
         local nameLbl = Instance.new("TextLabel")
         nameLbl.Size = UDim2.new(0.42, 0, 1, 0)
         nameLbl.Position = UDim2.new(0, 8, 0, 0)
@@ -2361,7 +1622,7 @@ local function refreshPlayersList()
         nameLbl.TextXAlignment = Enum.TextXAlignment.Left
         nameLbl.Font = Enum.Font.GothamSemibold
         nameLbl.Parent = row
-        
+
         local function makeAction(text, color, pos, callback)
             local b = Instance.new("TextButton")
             b.Size = UDim2.new(0.13, -2, 0.7, 0)
@@ -2374,29 +1635,28 @@ local function refreshPlayersList()
             b.Parent = row
             Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
             b.MouseButton1Click:Connect(callback)
-            return b
         end
-        
+
         makeAction("TP", Color3.fromRGB(0, 140, 80), 0.45, function()
             if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and rootPart then
                 rootPart.CFrame = plr.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
-                createNotification("📍 Teleportado para " .. plr.Name, Color3.fromRGB(0, 255, 100))
+                createNotification("📍 TP " .. plr.Name, Color3.fromRGB(0, 255, 100))
             end
         end)
-        
+
         makeAction("Spec", Color3.fromRGB(80, 80, 180), 0.59, function()
             if plr.Character and plr.Character:FindFirstChild("Humanoid") then
                 workspace.CurrentCamera.CameraSubject = plr.Character.Humanoid
-                createNotification("👁 Espectando " .. plr.Name, Color3.fromRGB(100, 150, 255))
+                createNotification("👁 " .. plr.Name, Color3.fromRGB(100, 150, 255))
             end
         end)
-        
+
         makeAction("Copy", Color3.fromRGB(60, 60, 60), 0.73, function()
             if copyToClipboard(plr.Name) then
-                createNotification("📋 Nome copiado: " .. plr.Name, Color3.fromRGB(100, 200, 255))
+                createNotification("📋 " .. plr.Name, Color3.fromRGB(100, 200, 255))
             end
         end)
-        
+
         makeAction("ID", Color3.fromRGB(100, 60, 0), 0.87, function()
             if copyToClipboard(tostring(plr.UserId)) then
                 createNotification("📋 UserId copiado", Color3.fromRGB(100, 200, 255))
@@ -2407,44 +1667,7 @@ end
 
 RefreshPlayersBtn.MouseButton1Click:Connect(refreshPlayersList)
 
--- ===== SISTEMA DE FAVORITOS =====
-local function isFavorite(scriptName)
-    local favPath = FAVORITES_FOLDER .. "/" .. scriptName .. ".fav"
-    return isfile(favPath)
-end
-
-local function toggleFavorite(scriptName)
-    local favPath = FAVORITES_FOLDER .. "/" .. scriptName .. ".fav"
-    if isfile(favPath) then
-        delfile(favPath)
-        createNotification("⭐ Removido dos favoritos!", Color3.fromRGB(255, 200, 0))
-        return false
-    else
-        writefile(favPath, "favorite")
-        createNotification("⭐ Adicionado aos favoritos!", Color3.fromRGB(255, 200, 0))
-        return true
-    end
-end
-
-local function isAutoExec(scriptName)
-    local autoPath = AUTOEXEC_FOLDER .. "/" .. scriptName .. ".auto"
-    return isfile(autoPath)
-end
-
-local function toggleAutoExec(scriptName)
-    local autoPath = AUTOEXEC_FOLDER .. "/" .. scriptName .. ".auto"
-    if isfile(autoPath) then
-        delfile(autoPath)
-        createNotification("🔄 Auto-executar desativado!", Color3.fromRGB(200, 200, 100))
-        return false
-    else
-        writefile(autoPath, "autoexec")
-        createNotification("🔄 Auto-executar ativado!", Color3.fromRGB(0, 255, 100))
-        return true
-    end
-end
-
--- ===== AUTO-EXECUTAR SCRIPTS AO ENTRAR =====
+-- ==================== AUTO-EXECUTE ====================
 local function autoExecuteScripts()
     local autoScripts = {}
     for _, file in ipairs(listfiles(AUTOEXEC_FOLDER)) do
@@ -2453,7 +1676,6 @@ local function autoExecuteScripts()
             table.insert(autoScripts, name)
         end
     end
-    
     if #autoScripts > 0 then
         task.wait(2)
         for _, name in ipairs(autoScripts) do
@@ -2464,61 +1686,60 @@ local function autoExecuteScripts()
                     (function() local fn,e=safeLoadstring(content); if not fn then error(tostring(e or 'loadstring nil')) end; return fn() end)()
                 end)
                 if success then
-                    addConsoleLine("🔄 Auto-executou: " .. name, Color3.fromRGB(0, 255, 100))
-                    addMiniConsoleLine("🔄 Auto-executou: " .. name, Color3.fromRGB(0, 255, 100))
+                    addConsoleLine("🔄 Auto: " .. name, Color3.fromRGB(0, 255, 100))
+                    addMiniConsoleLine("🔄 Auto: " .. name, Color3.fromRGB(0, 255, 100))
                 else
-                    addConsoleLine("❌ Erro auto-exec: " .. name .. " - " .. tostring(err), Color3.fromRGB(255, 50, 50))
+                    addConsoleLine("❌ Auto: " .. name .. " - " .. tostring(err), Color3.fromRGB(255, 50, 50))
                 end
             end
         end
-        createNotification("🔄 " .. #autoScripts .. " scripts auto-executados!", Color3.fromRGB(0, 255, 100))
+        createNotification("🔄 " .. #autoScripts .. " auto-executados!", Color3.fromRGB(0, 255, 100))
     end
 end
 
--- ===== FUNÇÕES DO SCRIPT =====
+-- ==================== EXECUTE ====================
 local function executeScript(code)
     scriptCount = scriptCount + 1
-    
     if not code or code:match("^%s*$") then
         createNotification("⚠️ Digite um script!", Color3.fromRGB(255, 200, 0))
         playSound("error")
         return
     end
-    
-    addConsoleLine("▶️ Executando script...", Color3.fromRGB(100, 200, 255))
+    addConsoleLine("▶️ Executando...", Color3.fromRGB(100, 200, 255))
     addMiniConsoleLine("▶️ Executando...", Color3.fromRGB(100, 200, 255))
     playSound("click")
-    
+
     local success, err = pcall(function()
         (function() local fn,e=safeLoadstring(code); if not fn then error(tostring(e or 'loadstring nil')) end; return fn() end)()
     end)
-    
+
     if success then
         playSound("success")
         createNotification("✅ Script executado!", Color3.fromRGB(0, 255, 100))
-        addConsoleLine("✅ Script executado com sucesso!", Color3.fromRGB(0, 255, 100))
+        addConsoleLine("✅ Sucesso!", Color3.fromRGB(0, 255, 100))
         addMiniConsoleLine("✅ Sucesso!", Color3.fromRGB(0, 255, 100))
     else
         playSound("error")
-        createNotification("❌ Erro: " .. tostring(err), Color3.fromRGB(255, 80, 80))
-        addConsoleLine("❌ [ERROR] " .. tostring(err), Color3.fromRGB(255, 50, 50))
-        addMiniConsoleLine("❌ Erro: " .. tostring(err), Color3.fromRGB(255, 50, 50))
+        createNotification("❌ " .. tostring(err), Color3.fromRGB(255, 80, 80))
+        addConsoleLine("❌ " .. tostring(err), Color3.fromRGB(255, 50, 50))
+        addMiniConsoleLine("❌ " .. tostring(err), Color3.fromRGB(255, 50, 50))
     end
 end
 
--- ==================== HUB COM PASTAS + BUSCA ====================
+-- ==================== HUB ====================
 local currentHubPath = SAVE_FOLDER
 
 local function getRelativePath()
     local rel = currentHubPath:gsub("^" .. SAVE_FOLDER, "")
+    rel = rel:gsub("\\", "/")
     if rel == "" then return "/saved" end
-    return "/saved" .. rel:gsub("\\", "/")
+    return "/saved" .. rel
 end
 
 local function getHubEntries(searchQuery)
     local entries = {}
     searchQuery = (searchQuery or ""):lower()
-    
+
     local function scan(path, prefix)
         local ok, files = pcall(listfiles, path)
         if not ok then return end
@@ -2526,22 +1747,22 @@ local function getHubEntries(searchQuery)
             local name = file:match("([^/\\]+)$")
             if isfolder(file) then
                 local display = prefix ~= "" and (prefix .. "/" .. name) or name
-                if searchQuery == "" or name:lower():find(searchQuery, 1, true) then
-                    if searchQuery == "" and path == currentHubPath then
+                if searchQuery == "" then
+                    if path == currentHubPath then
                         table.insert(entries, {name = name, path = file, isFolder = true, display = name})
-                    elseif searchQuery ~= "" then
+                    end
+                    if path == currentHubPath then scan(file, display) end
+                else
+                    if name:lower():find(searchQuery, 1, true) then
                         table.insert(entries, {name = name, path = file, isFolder = true, display = display})
                     end
-                end
-                if searchQuery ~= "" or path == currentHubPath then
                     scan(file, display)
                 end
             elseif file:find("%.lua$") then
                 local sname = name:gsub("%.lua$", "")
                 local display = prefix ~= "" and (prefix .. "/" .. sname) or sname
-                local inCurrent = (path == currentHubPath)
                 if searchQuery == "" then
-                    if inCurrent then
+                    if path == currentHubPath then
                         table.insert(entries, {name = sname, path = file, isFolder = false, display = sname})
                     end
                 else
@@ -2552,13 +1773,13 @@ local function getHubEntries(searchQuery)
             end
         end
     end
-    
+
     if searchQuery ~= "" then
         scan(SAVE_FOLDER, "")
     else
         scan(currentHubPath, "")
     end
-    
+
     table.sort(entries, function(a, b)
         if a.isFolder ~= b.isFolder then return a.isFolder end
         return (a.display or a.name):lower() < (b.display or b.name):lower()
@@ -2566,26 +1787,25 @@ local function getHubEntries(searchQuery)
     return entries
 end
 
-local function refreshHub(filter)
+function refreshHub(filter)
     filter = filter or "all"
     local search = (HubSearchBox and HubSearchBox.Text or ""):lower()
-    
+
     for _, child in ipairs(HubList:GetChildren()) do
         if child:IsA("Frame") or child:IsA("TextButton") or child:IsA("TextLabel") then
             child:Destroy()
         end
     end
-    
+
     if HubPathLabel then
         HubPathLabel.Text = "📁 " .. getRelativePath()
     end
-    
-    -- Botão voltar se não estiver na raiz
+
     if currentHubPath ~= SAVE_FOLDER then
         local back = Instance.new("TextButton")
         back.Size = UDim2.new(1, -10, 0, 32)
         back.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-        back.Text = "⬅️  .. (Voltar)"
+        back.Text = "⬅️ .. (Voltar)"
         back.TextColor3 = Color3.fromRGB(200, 200, 255)
         back.TextScaled = true
         back.Font = Enum.Font.GothamBold
@@ -2596,281 +1816,94 @@ local function refreshHub(filter)
             refreshHub(filter)
         end)
     end
-    
+
     local entries = getHubEntries(search)
     local shown = 0
-    
+
     if search ~= "" and HubPathLabel then
-        HubPathLabel.Text = "🔍 Busca global: \"" .. search .. "\""
+        HubPathLabel.Text = "🔍 Busca: \"" .. search .. "\""
     end
-    
+
     for _, entry in ipairs(entries) do
-        if false then -- filtro já feito em getHubEntries
-            -- skip
-        else
-            shown = shown + 1
-            local container = Instance.new("Frame")
-            container.Size = UDim2.new(1, -10, 0, 34)
-            container.BackgroundColor3 = entry.isFolder and Color3.fromRGB(35, 35, 55) or Color3.fromRGB(30, 30, 30)
-            container.Parent = HubList
-            Instance.new("UICorner", container).CornerRadius = UDim.new(0, 5)
-            
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(0.55, 0, 1, 0)
-            btn.BackgroundTransparency = 1
-            btn.Text = (entry.isFolder and "📁 " or "📄 ") .. (entry.display or entry.name)
-            btn.TextColor3 = Color3.fromRGB(220, 220, 220)
-            btn.TextScaled = true
-            btn.TextXAlignment = Enum.TextXAlignment.Left
-            btn.Font = Enum.Font.GothamSemibold
-            btn.Parent = container
-            
-            -- Renomear
-            local renameBtn = Instance.new("TextButton")
-            renameBtn.Size = UDim2.new(0.1, 0, 0.8, 0)
-            renameBtn.Position = UDim2.new(0.55, 0, 0.1, 0)
-            renameBtn.BackgroundTransparency = 1
-            renameBtn.Text = "✏️"
-            renameBtn.TextColor3 = Color3.fromRGB(255, 200, 50)
-            renameBtn.TextScaled = true
-            renameBtn.Font = Enum.Font.GothamBold
-            renameBtn.Parent = container
-            renameBtn.MouseButton1Click:Connect(function()
-                local parentPath = entry.path:match("(.+)[/\\][^/\\]+$") or currentHubPath
-                local promptGui = Instance.new("ScreenGui", CoreGui)
-                promptGui.Name = "RenamePrompt"
-                local frame = Instance.new("Frame", promptGui)
-                frame.Size = UDim2.new(0, 280, 0, 120)
-                frame.Position = UDim2.new(0.5, -140, 0.5, -60)
-                frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-                Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
-                local title = Instance.new("TextLabel", frame)
-                title.Size = UDim2.new(1, 0, 0, 30)
-                title.BackgroundTransparency = 1
-                title.Text = "✏️ Renomear"
-                title.TextColor3 = Color3.new(1,1,1)
-                title.TextScaled = true
-                title.Font = Enum.Font.GothamBold
-                local input = Instance.new("TextBox", frame)
-                input.Size = UDim2.new(0.9, 0, 0, 30)
-                input.Position = UDim2.new(0.05, 0, 0.35, 0)
-                input.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-                input.Text = entry.name
-                input.TextColor3 = Color3.new(1,1,1)
-                input.TextScaled = true
-                input.Font = Enum.Font.Gotham
-                Instance.new("UICorner", input).CornerRadius = UDim.new(0, 5)
-                input:CaptureFocus()
-                local okBtn = Instance.new("TextButton", frame)
-                okBtn.Size = UDim2.new(0.4, 0, 0, 28)
-                okBtn.Position = UDim2.new(0.05, 0, 0.7, 0)
-                okBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 60)
-                okBtn.Text = "Salvar"
-                okBtn.TextColor3 = Color3.new(1,1,1)
-                okBtn.TextScaled = true
-                okBtn.Font = Enum.Font.GothamBold
-                Instance.new("UICorner", okBtn).CornerRadius = UDim.new(0, 5)
-                local cancelBtn = Instance.new("TextButton", frame)
-                cancelBtn.Size = UDim2.new(0.4, 0, 0, 28)
-                cancelBtn.Position = UDim2.new(0.55, 0, 0.7, 0)
-                cancelBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-                cancelBtn.Text = "Cancelar"
-                cancelBtn.TextColor3 = Color3.new(1,1,1)
-                cancelBtn.TextScaled = true
-                cancelBtn.Font = Enum.Font.GothamBold
-                Instance.new("UICorner", cancelBtn).CornerRadius = UDim.new(0, 5)
-                
-                local function doRename()
-                    local n = input.Text:gsub("[^%w%s_-]", "")
-                    if n == "" or n == entry.name then promptGui:Destroy() return end
-                    if entry.isFolder then
-                        local newPath = parentPath .. "/" .. n
-                        if isfolder(newPath) then createNotification("❌ Pasta já existe", Color3.fromRGB(255,80,80)) return end
-                        makefolder(newPath)
-                        local ok, files = pcall(listfiles, entry.path)
-                        if ok then
-                            for _, f in ipairs(files) do
-                                local fname = f:match("([^/\\]+)$")
-                                if isfile(f) then writefile(newPath.."/"..fname, readfile(f)) pcall(delfile, f) end
-                            end
-                        end
-                        pcall(function() if delfolder then delfolder(entry.path) end end)
-                    else
-                        local newPath = parentPath .. "/" .. n .. ".lua"
-                        if isfile(newPath) then createNotification("❌ Script já existe", Color3.fromRGB(255,80,80)) return end
-                        writefile(newPath, readfile(entry.path))
-                        delfile(entry.path)
-                    end
-                    createNotification("✅ Renomeado para "..n, Color3.fromRGB(0,255,100))
-                    promptGui:Destroy()
-                    refreshHub(filter)
-                end
-                okBtn.MouseButton1Click:Connect(doRename)
-                input.FocusLost:Connect(function(e) if e then doRename() end end)
-                cancelBtn.MouseButton1Click:Connect(function() promptGui:Destroy() end)
+        shown = shown + 1
+        local container = Instance.new("Frame")
+        container.Size = UDim2.new(1, -10, 0, 34)
+        container.BackgroundColor3 = entry.isFolder and Color3.fromRGB(35, 35, 55) or Color3.fromRGB(30, 30, 30)
+        container.Parent = HubList
+        Instance.new("UICorner", container).CornerRadius = UDim.new(0, 5)
+
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0.6, 0, 1, 0)
+        btn.BackgroundTransparency = 1
+        btn.Text = (entry.isFolder and "📁 " or "📄 ") .. (entry.display or entry.name)
+        btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+        btn.TextScaled = true
+        btn.TextXAlignment = Enum.TextXAlignment.Left
+        btn.Font = Enum.Font.GothamSemibold
+        btn.Parent = container
+
+        if entry.isFolder then
+            btn.MouseButton1Click:Connect(function()
+                currentHubPath = entry.path
+                refreshHub(filter)
             end)
-            
-            if entry.isFolder then
-                btn.MouseButton1Click:Connect(function()
-                    currentHubPath = entry.path
+            local delBtn = Instance.new("TextButton")
+            delBtn.Size = UDim2.new(0.15, 0, 0.8, 0)
+            delBtn.Position = UDim2.new(0.85, 0, 0.1, 0)
+            delBtn.BackgroundTransparency = 1
+            delBtn.Text = "✕"
+            delBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+            delBtn.TextScaled = true
+            delBtn.Font = Enum.Font.GothamBold
+            delBtn.Parent = container
+            delBtn.MouseButton1Click:Connect(function()
+                confirmDialog("🗑️ Deletar pasta?", "Apagar \"" .. entry.name .. "\"?", function()
+                    pcall(function() if delfolder then delfolder(entry.path) end end)
+                    createNotification("🗑️ Pasta removida", Color3.fromRGB(255,100,100))
                     refreshHub(filter)
                 end)
-                local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0.1, 0, 0.8, 0)
-                delBtn.Position = UDim2.new(0.88, 0, 0.1, 0)
-                delBtn.BackgroundTransparency = 1
-                delBtn.Text = "✕"
-                delBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-                delBtn.TextScaled = true
-                delBtn.Font = Enum.Font.GothamBold
-                delBtn.Parent = container
-                delBtn.MouseButton1Click:Connect(function()
-                    confirmDialog("🗑️ Deletar pasta?", "Tem certeza que quer apagar \"" .. entry.name .. "\"?", function()
-                        pcall(function() if delfolder then delfolder(entry.path) end end)
-                        createNotification("🗑️ Pasta removida", Color3.fromRGB(255,100,100))
-                        refreshHub(filter)
-                    end)
+            end)
+        else
+            btn.MouseButton1Click:Connect(function()
+                ScriptBox.Text = readfile(entry.path) or ""
+                createNotification("📂 Carregado!", Color3.fromRGB(100, 200, 255))
+                switchTab("Executor")
+            end)
+            local runBtn = Instance.new("TextButton")
+            runBtn.Size = UDim2.new(0.13, 0, 0.8, 0)
+            runBtn.Position = UDim2.new(0.62, 0, 0.1, 0)
+            runBtn.BackgroundTransparency = 1
+            runBtn.Text = "▶"
+            runBtn.TextColor3 = Color3.fromRGB(0, 255, 100)
+            runBtn.TextScaled = true
+            runBtn.Font = Enum.Font.GothamBold
+            runBtn.Parent = container
+            runBtn.MouseButton1Click:Connect(function()
+                local content = readfile(entry.path)
+                ScriptBox.Text = content or ""
+                executeScript(content)
+                switchTab("Console")
+            end)
+
+            local delBtn = Instance.new("TextButton")
+            delBtn.Size = UDim2.new(0.13, 0, 0.8, 0)
+            delBtn.Position = UDim2.new(0.85, 0, 0.1, 0)
+            delBtn.BackgroundTransparency = 1
+            delBtn.Text = "✕"
+            delBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+            delBtn.TextScaled = true
+            delBtn.Font = Enum.Font.GothamBold
+            delBtn.Parent = container
+            delBtn.MouseButton1Click:Connect(function()
+                confirmDialog("🗑️ Deletar script?", "Apagar \"" .. entry.name .. "\"?", function()
+                    delfile(entry.path)
+                    createNotification("🗑️ Deletado!", Color3.fromRGB(255, 100, 100))
+                    refreshHub(filter)
                 end)
-            else
-                btn.MouseButton1Click:Connect(function()
-                    ScriptBox.Text = readfile(entry.path)
-                    createNotification("📂 Script carregado!", Color3.fromRGB(100, 200, 255))
-                    switchTab("Executor")
-                end)
-                local runBtn = Instance.new("TextButton")
-                runBtn.Size = UDim2.new(0.08, 0, 0.8, 0)
-                runBtn.Position = UDim2.new(0.66, 0, 0.1, 0)
-                runBtn.BackgroundTransparency = 1
-                runBtn.Text = "▶"
-                runBtn.TextColor3 = Color3.fromRGB(0, 255, 100)
-                runBtn.TextScaled = true
-                runBtn.Font = Enum.Font.GothamBold
-                runBtn.Parent = container
-                runBtn.MouseButton1Click:Connect(function()
-                    local content = readfile(entry.path)
-                    ScriptBox.Text = content
-                    executeScript(content)
-                    switchTab("Console")
-                end)
-                
-                -- Mover script para outra pasta
-                local moveBtn = Instance.new("TextButton")
-                moveBtn.Size = UDim2.new(0.08, 0, 0.8, 0)
-                moveBtn.Position = UDim2.new(0.75, 0, 0.1, 0)
-                moveBtn.BackgroundTransparency = 1
-                moveBtn.Text = "📁"
-                moveBtn.TextColor3 = Color3.fromRGB(100, 180, 255)
-                moveBtn.TextScaled = true
-                moveBtn.Font = Enum.Font.GothamBold
-                moveBtn.Parent = container
-                moveBtn.MouseButton1Click:Connect(function()
-                    local folders = {}
-                    local function scan(path, prefix)
-                        local ok, files = pcall(listfiles, path)
-                        if not ok then return end
-                        for _, f in ipairs(files) do
-                            if isfolder(f) then
-                                local n = f:match("([^/\\]+)$")
-                                table.insert(folders, {name = (prefix or "") .. n, path = f})
-                                scan(f, (prefix or "") .. n .. "/")
-                            end
-                        end
-                    end
-                    scan(SAVE_FOLDER, "")
-                    if #folders == 0 then
-                        createNotification("Nenhuma pasta pra mover. Crie uma primeiro.", Color3.fromRGB(255, 200, 0))
-                        return
-                    end
-                    local moveGui = Instance.new("ScreenGui", CoreGui)
-                    moveGui.Name = "CE_Move"
-                    moveGui.DisplayOrder = 2000
-                    local mf = Instance.new("Frame", moveGui)
-                    mf.Size = UDim2.new(0, 260, 0, 200)
-                    mf.Position = UDim2.new(0.5, -130, 0.5, -100)
-                    mf.BackgroundColor3 = Color3.fromRGB(20, 20, 22)
-                    Instance.new("UICorner", mf).CornerRadius = UDim.new(0, 10)
-                    local mt = Instance.new("TextLabel", mf)
-                    mt.Size = UDim2.new(1, 0, 0, 28)
-                    mt.BackgroundTransparency = 1
-                    mt.Text = "Mover para pasta"
-                    mt.TextColor3 = Color3.new(1,1,1)
-                    mt.TextScaled = true
-                    mt.Font = Enum.Font.GothamBold
-                    local list = Instance.new("ScrollingFrame", mf)
-                    list.Size = UDim2.new(1, -12, 1, -40)
-                    list.Position = UDim2.new(0, 6, 0, 32)
-                    list.BackgroundTransparency = 1
-                    list.ScrollBarThickness = 4
-                    local lay = Instance.new("UIListLayout", list)
-                    lay.Padding = UDim.new(0, 4)
-                    -- opção raiz
-                    local rootBtn = Instance.new("TextButton", list)
-                    rootBtn.Size = UDim2.new(1, 0, 0, 28)
-                    rootBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-                    rootBtn.Text = "📁 /saved (raiz)"
-                    rootBtn.TextColor3 = Color3.new(1,1,1)
-                    rootBtn.TextScaled = true
-                    rootBtn.Font = Enum.Font.Gotham
-                    Instance.new("UICorner", rootBtn).CornerRadius = UDim.new(0, 4)
-                    rootBtn.MouseButton1Click:Connect(function()
-                        local dest = SAVE_FOLDER .. "/" .. entry.name .. ".lua"
-                        if isfile(dest) then createNotification("Já existe na raiz", Color3.fromRGB(255,80,80)) return end
-                        writefile(dest, readfile(entry.path))
-                        delfile(entry.path)
-                        createNotification("Movido para /saved", Color3.fromRGB(0,255,100))
-                        moveGui:Destroy()
-                        refreshHub(filter)
-                    end)
-                    for _, fol in ipairs(folders) do
-                        local fb = Instance.new("TextButton", list)
-                        fb.Size = UDim2.new(1, 0, 0, 28)
-                        fb.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-                        fb.Text = "📁 " .. fol.name
-                        fb.TextColor3 = Color3.new(1,1,1)
-                        fb.TextScaled = true
-                        fb.Font = Enum.Font.Gotham
-                        Instance.new("UICorner", fb).CornerRadius = UDim.new(0, 4)
-                        fb.MouseButton1Click:Connect(function()
-                            local dest = fol.path .. "/" .. entry.name .. ".lua"
-                            if isfile(dest) then createNotification("Já existe nessa pasta", Color3.fromRGB(255,80,80)) return end
-                            writefile(dest, readfile(entry.path))
-                            delfile(entry.path)
-                            createNotification("Movido para " .. fol.name, Color3.fromRGB(0,255,100))
-                            moveGui:Destroy()
-                            refreshHub(filter)
-                        end)
-                    end
-                    local closeM = Instance.new("TextButton", mf)
-                    closeM.Size = UDim2.new(0, 24, 0, 24)
-                    closeM.Position = UDim2.new(1, -28, 0, 4)
-                    closeM.BackgroundTransparency = 1
-                    closeM.Text = "✕"
-                    closeM.TextColor3 = Color3.fromRGB(255, 80, 80)
-                    closeM.TextScaled = true
-                    closeM.Font = Enum.Font.GothamBold
-                    closeM.MouseButton1Click:Connect(function() moveGui:Destroy() end)
-                end)
-                
-                local delBtn = Instance.new("TextButton")
-                delBtn.Size = UDim2.new(0.08, 0, 0.8, 0)
-                delBtn.Position = UDim2.new(0.88, 0, 0.1, 0)
-                delBtn.BackgroundTransparency = 1
-                delBtn.Text = "✕"
-                delBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-                delBtn.TextScaled = true
-                delBtn.Font = Enum.Font.GothamBold
-                delBtn.Parent = container
-                delBtn.MouseButton1Click:Connect(function()
-                    confirmDialog("🗑️ Deletar script?", "Tem certeza que quer apagar \"" .. entry.name .. "\"?", function()
-                        delfile(entry.path)
-                        createNotification("🗑️ Script deletado!", Color3.fromRGB(255, 100, 100))
-                        refreshHub(filter)
-                    end)
-                end)
-            end
+            end)
         end
     end
-    
+
     if shown == 0 then
         local empty = Instance.new("TextLabel")
         empty.Size = UDim2.new(1, 0, 0, 35)
@@ -2883,25 +1916,21 @@ local function refreshHub(filter)
     end
 end
 
--- Search live
-if HubSearchBox then
-    HubSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-        refreshHub("all")
-    end)
-end
+HubSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    refreshHub("all")
+end)
 
--- Create folder
 CreateFolderBtn.MouseButton1Click:Connect(function()
     local name = "NovaPasta_" .. tostring(math.random(100,999))
-    -- simple prompt using notification for now
     local folderPath = currentHubPath .. "/" .. name
     if not isfolder(folderPath) then
         makefolder(folderPath)
-        createNotification("📁 Pasta criada: " .. name, Color3.fromRGB(0, 255, 100))
+        createNotification("📁 " .. name, Color3.fromRGB(0, 255, 100))
         refreshHub("all")
     end
 end)
--- ==================== JANELA DE SALVAR ====================
+
+-- ==================== SAVE DIALOG ====================
 local SaveDialogGui = Instance.new("ScreenGui")
 SaveDialogGui.Name = "SaveDialog"
 SaveDialogGui.ResetOnSpawn = false
@@ -2913,17 +1942,12 @@ local SaveDialog = Instance.new("Frame")
 SaveDialog.Size = UDim2.new(0, 300, 0, 150)
 SaveDialog.Position = UDim2.new(0.5, -150, 0.5, -75)
 SaveDialog.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-SaveDialog.BackgroundTransparency = 1
 SaveDialog.Parent = SaveDialogGui
-SaveDialog.Active = true
-SaveDialog.Selectable = true
-SaveDialog.ZIndex = 1000
 Instance.new("UICorner", SaveDialog).CornerRadius = UDim.new(0, 10)
 
 local DialogStroke = Instance.new("UIStroke", SaveDialog)
 DialogStroke.Color = Color3.fromRGB(170, 0, 0)
 DialogStroke.Thickness = 1.5
-DialogStroke.Transparency = 1
 
 local DialogTitle = Instance.new("TextLabel")
 DialogTitle.Size = UDim2.new(1, -20, 0, 35)
@@ -2931,25 +1955,9 @@ DialogTitle.Position = UDim2.new(0, 10, 0, 5)
 DialogTitle.BackgroundTransparency = 1
 DialogTitle.Text = "💾 Salvar Script"
 DialogTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-DialogTitle.TextTransparency = 1
 DialogTitle.TextScaled = true
 DialogTitle.Font = Enum.Font.GothamBold
 DialogTitle.Parent = SaveDialog
-DialogTitle.ZIndex = 1000
-
-local DialogCloseBtn = Instance.new("TextButton")
-DialogCloseBtn.Size = UDim2.new(0, 28, 0, 28)
-DialogCloseBtn.Position = UDim2.new(1, -33, 0, 5)
-DialogCloseBtn.BackgroundTransparency = 1
-DialogCloseBtn.Text = "✕"
-DialogCloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-DialogCloseBtn.TextTransparency = 1
-DialogCloseBtn.TextScaled = true
-DialogCloseBtn.Font = Enum.Font.GothamBold
-DialogCloseBtn.Parent = SaveDialog
-DialogCloseBtn.Active = true
-DialogCloseBtn.Selectable = true
-DialogCloseBtn.ZIndex = 1000
 
 local DialogInput = Instance.new("TextBox")
 DialogInput.Size = UDim2.new(0.9, 0, 0, 35)
@@ -2959,13 +1967,9 @@ DialogInput.BackgroundTransparency = 0.3
 DialogInput.Text = ""
 DialogInput.PlaceholderText = "Nome do script"
 DialogInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-DialogInput.TextTransparency = 1
 DialogInput.Font = Enum.Font.GothamSemibold
 DialogInput.TextSize = 14
 DialogInput.Parent = SaveDialog
-DialogInput.Active = true
-DialogInput.Selectable = true
-DialogInput.ZIndex = 1000
 DialogInput.ClearTextOnFocus = false
 Instance.new("UICorner", DialogInput).CornerRadius = UDim.new(0, 6)
 
@@ -2975,13 +1979,9 @@ DialogCancel.Position = UDim2.new(0.05, 0, 0.7, 0)
 DialogCancel.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 DialogCancel.Text = "Cancelar"
 DialogCancel.TextColor3 = Color3.fromRGB(255, 255, 255)
-DialogCancel.TextTransparency = 1
 DialogCancel.TextScaled = true
 DialogCancel.Font = Enum.Font.GothamBold
 DialogCancel.Parent = SaveDialog
-DialogCancel.Active = true
-DialogCancel.Selectable = true
-DialogCancel.ZIndex = 1000
 Instance.new("UICorner", DialogCancel).CornerRadius = UDim.new(0, 6)
 
 local DialogSave = Instance.new("TextButton")
@@ -2990,58 +1990,20 @@ DialogSave.Position = UDim2.new(0.6, 0, 0.7, 0)
 DialogSave.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 DialogSave.Text = "Salvar"
 DialogSave.TextColor3 = Color3.fromRGB(255, 255, 255)
-DialogSave.TextTransparency = 1
 DialogSave.TextScaled = true
 DialogSave.Font = Enum.Font.GothamBold
 DialogSave.Parent = SaveDialog
-DialogSave.Active = true
-DialogSave.Selectable = true
-DialogSave.ZIndex = 1000
 Instance.new("UICorner", DialogSave).CornerRadius = UDim.new(0, 6)
 
-local function openSaveDialog()
+function openSaveDialog()
     SaveDialogGui.Enabled = true
-    SaveDialog.BackgroundTransparency = 1
-    SaveDialog.Size = UDim2.new(0, 260, 0, 130)
-    DialogStroke.Transparency = 1
-    DialogTitle.TextTransparency = 1
-    DialogCloseBtn.TextTransparency = 1
-    DialogInput.TextTransparency = 1
-    DialogInput.BackgroundTransparency = 0.3
-    DialogCancel.TextTransparency = 1
-    DialogSave.TextTransparency = 1
-    
     DialogInput.Text = ""
-    
-    TweenService:Create(SaveDialog, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {
-        Size = UDim2.new(0, 300, 0, 150),
-        BackgroundTransparency = 0
-    }):Play()
-    TweenService:Create(DialogStroke, TweenInfo.new(0.3), {Transparency = 0}):Play()
-    TweenService:Create(DialogTitle, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(DialogCloseBtn, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(DialogInput, TweenInfo.new(0.3), {TextTransparency = 0, BackgroundTransparency = 0.3}):Play()
-    TweenService:Create(DialogCancel, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(DialogSave, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    
-    DialogInput:CaptureFocus()
+    pcall(function() DialogInput:CaptureFocus() end)
 end
 
 local function closeSaveDialog()
-    TweenService:Create(SaveDialog, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
-        Size = UDim2.new(0, 260, 0, 130),
-        BackgroundTransparency = 1
-    }):Play()
-    TweenService:Create(DialogStroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
-    TweenService:Create(DialogTitle, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(DialogCloseBtn, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(DialogInput, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(DialogCancel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(DialogSave, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    
-    task.wait(0.3)
     SaveDialogGui.Enabled = false
-    DialogInput:ReleaseFocus()
+    pcall(function() DialogInput:ReleaseFocus() end)
 end
 
 local function saveScript()
@@ -3050,50 +2012,52 @@ local function saveScript()
         createNotification("❌ Nome inválido!", Color3.fromRGB(255, 80, 80))
         return
     end
-    
     name = name:gsub("[^%w%s_-]", "")
     if name:match("^%s*$") then
         createNotification("❌ Nome inválido!", Color3.fromRGB(255, 80, 80))
         return
     end
-    
     local code = ScriptBox.Text
     if code:match("^%s*$") then
         createNotification("❌ Nada para salvar!", Color3.fromRGB(255, 80, 80))
         return
     end
-    
     local filePath = currentHubPath .. "/" .. name .. ".lua"
     if isfile(filePath) then
-        createNotification("⚠️ Script já existe nesta pasta!", Color3.fromRGB(255, 200, 0))
+        createNotification("⚠️ Já existe!", Color3.fromRGB(255, 200, 0))
         return
     end
-    
     writefile(filePath, code)
-    createNotification("✅ Script '" .. name .. "' salvo em " .. getRelativePath(), Color3.fromRGB(0, 255, 100))
+    createNotification("✅ '" .. name .. "' salvo!", Color3.fromRGB(0, 255, 100))
     refreshHub("all")
     closeSaveDialog()
 end
 
--- ==================== TROCA DE ABAS ====================
+DialogCancel.MouseButton1Click:Connect(closeSaveDialog)
+DialogSave.MouseButton1Click:Connect(saveScript)
+DialogInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed then saveScript() end
+end)
+
+-- ==================== SWITCH TAB (agora com forward declaration preenchida) ====================
 local currentTab = "Executor"
 local currentFilter = "all"
 
-local function switchTab(tabName)
+function switchTab(tabName)
     if currentTab == tabName then return end
-    
+
     ExecutorContent.Visible = false
     HubContent.Visible = false
     PlayersContent.Visible = false
     ConsoleContent.Visible = false
     WebHookContent.Visible = false
     SettingsContent.Visible = false
-    
+
     for name, btn in pairs(tabButtons) do
         btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         btn.TextColor3 = Color3.fromRGB(180, 180, 180)
     end
-    
+
     if tabName == "Executor" then
         ExecutorContent.Visible = true
         tabButtons.Executor.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
@@ -3130,115 +2094,30 @@ local function switchTab(tabName)
     end
 end
 
--- ==================== CONEXÕES DAS ABAS ====================
 for name, btn in pairs(tabButtons) do
-    btn.MouseButton1Click:Connect(function()
-        switchTab(name)
-    end)
+    btn.MouseButton1Click:Connect(function() switchTab(name) end)
 end
 
 -- ==================== ANIMAÇÕES ====================
 local function openExecutor()
     MainGui.Visible = true
-    
-    -- Estado inicial da animação de entrada
-    MainGui.Size = UDim2.new(0, guiWidth * 0.75, 0, guiHeight * 0.75)
-    MainGui.Position = UDim2.new(0.5, -(guiWidth * 0.75)/2, 0.55, -(guiHeight * 0.75)/2)
-    MainGui.BackgroundTransparency = 1
-    Title.TextTransparency = 1
-    CloseBtn.TextTransparency = 1
-    ThemeBtn.BackgroundTransparency = 1
-    ThemeBtn.TextTransparency = 1
-    MiniBtn.BackgroundTransparency = 1
-    MiniBtn.TextTransparency = 1
-    TabContainer.Position = UDim2.new(0, 10, 0, 55)
-    ContentContainer.Position = UDim2.new(0, 10, 0, 100)
-    
-    -- Esconde o botão flutuante
-    FloatButton.Visible = false
-    
-    -- Animação principal: escala + sobe + fade (efeito "pop" suave)
-    TweenService:Create(MainGui, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, guiWidth, 0, guiHeight),
-        Position = UDim2.new(0.5, -guiWidth/2, 0.5, -guiHeight/2),
+    TweenService:Create(MainGui, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {
         BackgroundTransparency = 0
     }):Play()
-    
-    -- Título e botões da barra (fade escalonado)
-    task.delay(0.12, function()
-        TweenService:Create(Title, TweenInfo.new(0.35, Enum.EasingStyle.Quint), {TextTransparency = 0}):Play()
-        TweenService:Create(CloseBtn, TweenInfo.new(0.35, Enum.EasingStyle.Quint), {TextTransparency = 0}):Play()
-    end)
-    
-    task.delay(0.18, function()
-        TweenService:Create(ThemeBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
-            BackgroundTransparency = 0,
-            TextTransparency = 0
-        }):Play()
-        TweenService:Create(MiniBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
-            BackgroundTransparency = 0,
-            TextTransparency = 0
-        }):Play()
-    end)
-    
-    -- Tabs deslizam pra cima
-    task.delay(0.15, function()
-        TweenService:Create(TabContainer, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 10, 0, 45)
-        }):Play()
-    end)
-    
-    -- Conteúdo sobe suavemente
-    task.delay(0.2, function()
-        TweenService:Create(ContentContainer, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0, 10, 0, 85)
-        }):Play()
-    end)
-    
+    TweenService:Create(Title, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+    TweenService:Create(CloseBtn, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+    FloatButton.Visible = false
     switchTab("Executor")
 end
 
 local function closeExecutor()
-    -- Animação de saída: encolhe + desce + fade
-    TweenService:Create(MainGui, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, guiWidth * 0.85, 0, guiHeight * 0.85),
-        Position = UDim2.new(0.5, -(guiWidth * 0.85)/2, 0.55, -(guiHeight * 0.85)/2),
-        BackgroundTransparency = 1
-    }):Play()
-    
-    TweenService:Create(Title, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
-    TweenService:Create(CloseBtn, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
-    TweenService:Create(ThemeBtn, TweenInfo.new(0.25), {
-        BackgroundTransparency = 1,
-        TextTransparency = 1
-    }):Play()
-    TweenService:Create(MiniBtn, TweenInfo.new(0.25), {
-        BackgroundTransparency = 1,
-        TextTransparency = 1
-    }):Play()
-
-    task.wait(0.32)
     MainGui.Visible = false
-    
-    -- Respeita a configuração de esconder o botão
     if settings and settings.hideFloatButton then
         FloatButton.ImageTransparency = 1
-        FloatButton.Visible = true
     else
         FloatButton.ImageTransparency = 0
-        FloatButton.Visible = true
     end
-end
-
--- ==================== APLICAR TEMA ====================
-function applyTheme(themeName)
-    local theme = Themes[themeName]
-    if not theme then return end
-    
-    MainGui.BackgroundColor3 = theme.bg
-    Title.TextColor3 = theme.text
-    ScriptBox.TextColor3 = theme.text
-    ScriptBox.PlaceholderColor3 = theme.text
+    FloatButton.Visible = true
 end
 
 -- ==================== DRAG ====================
@@ -3246,7 +2125,7 @@ local function makeDraggable(gui, isFloatButton)
     local dragging = false
     local dragStart = nil
     local startPos = nil
-    
+
     gui.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -3254,29 +2133,25 @@ local function makeDraggable(gui, isFloatButton)
             startPos = Vector2.new(gui.AbsolutePosition.X, gui.AbsolutePosition.Y)
         end
     end)
-    
+
     UserInputService.InputChanged:Connect(function(input)
         if not dragging then return end
-        
         local screenSize = workspace.CurrentCamera.ViewportSize
         local guiSize = gui.AbsoluteSize
-        
         local delta = input.Position - dragStart
         local newX = startPos.X + delta.X
         local newY = startPos.Y + delta.Y
-        
         if isFloatButton then
             local margin = 5
             newX = math.max(margin, math.min(newX, screenSize.X - guiSize.X - margin))
             newY = math.max(margin, math.min(newY, screenSize.Y - guiSize.Y - margin))
         end
-        
         gui.Position = UDim2.new(0, newX, 0, newY)
     end)
-    
+
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
-            dragging = false 
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
         end
     end)
 end
@@ -3327,7 +2202,7 @@ end)
 
 CopyBtn.MouseButton1Click:Connect(function()
     if copyToClipboard(ScriptBox.Text) then
-        createNotification("📋 Script copiado!", Color3.fromRGB(100, 200, 255))
+        createNotification("📋 Copiado!", Color3.fromRGB(100, 200, 255))
     else
         createNotification("❌ Falha ao copiar!", Color3.fromRGB(255, 80, 80))
     end
@@ -3341,21 +2216,10 @@ ThemeBtn.MouseButton1Click:Connect(function()
     end
     idx = idx % #themeNames + 1
     currentTheme = themeNames[idx]
-    applyTheme(currentTheme)
     createNotification("🎨 Tema: " .. currentTheme, Color3.fromRGB(100, 200, 255))
 end)
 
 MiniBtn.MouseButton1Click:Connect(toggleMiniConsole)
-
-TutorialBtn.MouseButton1Click:Connect(openTutorial)
-
-DialogCloseBtn.MouseButton1Click:Connect(closeSaveDialog)
-DialogCancel.MouseButton1Click:Connect(closeSaveDialog)
-DialogSave.MouseButton1Click:Connect(saveScript)
-
-DialogInput.FocusLost:Connect(function(enterPressed)
-    if enterPressed then saveScript() end
-end)
 
 makeDraggable(FloatButton, true)
 makeDraggable(MainGui, false)
@@ -3364,42 +2228,37 @@ makeDraggable(MiniConsole, false)
 makeDraggable(TutorialFrame, false)
 makeDraggable(MsgDialog, false)
 
--- ==================== EXECUTAR AUTO-SCRIPTS AO INICIAR ====================
+-- ==================== PROTEÇÃO (nome aleatório) ====================
+if settings.randomGuiName then
+    local function rndName()
+        local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        local s = ""
+        for i = 1, 12 do
+            local idx = math.random(1, #chars)
+            s = s .. chars:sub(idx, idx)
+        end
+        return s
+    end
+    pcall(function() if ScreenGui then ScreenGui.Name = rndName() end end)
+    pcall(function() if Notifications then Notifications.Name = rndName() end end)
+    pcall(function() if TutorialGui then TutorialGui.Name = rndName() end end)
+    pcall(function() if MsgDialogGui then MsgDialogGui.Name = rndName() end end)
+    pcall(function() if SaveDialogGui then SaveDialogGui.Name = rndName() end end)
+end
+
+if settings.hideFloatButton and FloatButton then
+    FloatButton.ImageTransparency = 1
+    FloatButton.Visible = true
+end
+
+-- ==================== AUTO-EXECUTE AO INICIAR ====================
 autoExecuteScripts()
 
 -- ==================== INICIALIZAR ====================
-applyTheme(currentTheme)
-createNotification("🎉 CoolExec Ultimate (Mobile) carregado!", Color3.fromRGB(100, 200, 255))
+createNotification("🎉 CoolExec Ultimate (Arceus X) carregado!", Color3.fromRGB(100, 200, 255))
 
 if UserInputService.TouchEnabled then
     createNotification("📱 Modo Celular ativado!", Color3.fromRGB(100, 200, 255))
 end
 
 print("🐺 CoolExec Ultimate carregado!")
-print("📱 Suporte para Celular ativado!")
-print("🔗 Aba WebHook com tutorial automático!")
-print("📊 Palavras-chave disponíveis:")
-print("👤 {MyUserName} - Seu nome")
-print("👤 {MyUserID} - Seu ID")
-print("👤 {MyTeam} - Seu time")
-print("👤 {MyHealth} - Sua vida")
-print("👤 {MyMaxHealth} - Vida máxima")
-print("👤 {MyPosition} - Sua posição")
-print("👤 {MyWalkSpeed} - Velocidade")
-print("👤 {MyJumpPower} - Pulo")
-print("👤 {MyFPS} - FPS")
-print("👤 {MyPing} - Ping")
-print("👥 {PeopleCounter} - Total de jogadores")
-print("👥 {UsernameListPlayers} - Lista de jogadores")
-print("👥 {PlayerCount} - Total de jogadores")
-print("👥 {GameName} - Nome do jogo")
-print("👥 {GameID} - ID do jogo")
-print("👥 {PlaceID} - ID do lugar")
-print("👥 {ServerRegion} - Região")
-print("👥 {RandomPlayer} - Jogador aleatório")
-print("⏰ {Date} - Data")
-print("⏰ {Time} - Hora")
-print("⏰ {DateTime} - Data e hora")
-print("⏰ {Timestamp} - Timestamp")
-print("📊 {ScriptsExecuted} - Scripts executados")
-print("📊 {Uptime} - Tempo ativo")
