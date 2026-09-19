@@ -1,0 +1,684 @@
+--// HD ADMIN FLY - MOBILE EDITION
+--// Baseado no código-fonte oficial do HD Admin v2 (nanoblox/hd-admin)
+--// Interface redesenhada
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+--// ==================== CONFIGURAÇÕES ====================
+local DEFAULT_SPEED = 50
+local MAX_SPEED = 200
+local TILT_MAX = 25
+local TILT_INCREMENT = 1
+local FLY_HEIGHT_OFFSET = 4
+
+--// ==================== PALETA DE CORES ====================
+local C = {
+    Bg           = Color3.fromRGB(16, 16, 22),
+    Surface      = Color3.fromRGB(24, 24, 32),
+    SurfaceHi    = Color3.fromRGB(34, 34, 46),
+    Primary      = Color3.fromRGB(0, 170, 255),
+    PrimaryDark  = Color3.fromRGB(0, 110, 190),
+    Success      = Color3.fromRGB(0, 200, 120),
+    SuccessDark  = Color3.fromRGB(0, 150, 90),
+    Danger       = Color3.fromRGB(240, 70, 90),
+    DangerDark   = Color3.fromRGB(190, 50, 70),
+    TextMain     = Color3.fromRGB(240, 242, 250),
+    TextSub      = Color3.fromRGB(150, 155, 175),
+    Border       = Color3.fromRGB(48, 48, 62),
+}
+
+--// ==================== ESTADO ====================
+local flying = false
+local speed = DEFAULT_SPEED
+local flyForce, bodyGyro
+local flyConnection
+local upPressed, downPressed = false, false
+local tiltAmount = 0
+
+--// ==================== LIMPAR GUI ANTIGA ====================
+pcall(function()
+    if game.CoreGui:FindFirstChild("HDAdminFlyMobile") then
+        game.CoreGui.HDAdminFlyMobile:Destroy()
+    end
+end)
+
+--// ==================== HELPERS ====================
+local function round(obj, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r or 8)
+    c.Parent = obj
+    return c
+end
+
+local function circle(obj)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(1, 0)
+    c.Parent = obj
+    return c
+end
+
+local function stroke(obj, color, thickness, transparency)
+    local s = Instance.new("UIStroke")
+    s.Color = color or C.Border
+    s.Thickness = thickness or 1
+    s.Transparency = transparency or 0.3
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = obj
+    return s
+end
+
+local function gradient(obj, c1, c2, rot)
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new(c1, c2)
+    g.Rotation = rot or 90
+    g.Parent = obj
+    return g
+end
+
+local function tween(obj, time, props, style, dir)
+    local info = TweenInfo.new(
+        time or 0.25,
+        style or Enum.EasingStyle.Quad,
+        dir or Enum.EasingDirection.Out
+    )
+    local t = TweenService:Create(obj, info, props)
+    t:Play()
+    return t
+end
+
+--// ==================== GUI PRINCIPAL ====================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "HDAdminFlyMobile"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = game.CoreGui
+
+-- Botão flutuante (Toggle)
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Size = UDim2.new(0, 58, 0, 58)
+ToggleBtn.Position = UDim2.new(0, 18, 0.5, -29)
+ToggleBtn.BackgroundColor3 = C.Surface
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Text = ""
+ToggleBtn.AutoButtonColor = false
+ToggleBtn.Parent = ScreenGui
+
+circle(ToggleBtn)
+stroke(ToggleBtn, C.Primary, 1.5, 0.2)
+gradient(ToggleBtn, C.SurfaceHi, C.Surface, 45)
+
+local ToggleIcon = Instance.new("TextLabel")
+ToggleIcon.Size = UDim2.new(1, 0, 1, 0)
+ToggleIcon.BackgroundTransparency = 1
+ToggleIcon.Text = "FLY"
+ToggleIcon.TextColor3 = C.Primary
+ToggleIcon.TextSize = 15
+ToggleIcon.Font = Enum.Font.GothamBold
+ToggleIcon.Parent = ToggleBtn
+
+-- Pulso do botão
+task.spawn(function()
+    while ToggleBtn.Parent do
+        tween(ToggleBtn, 1.5, {BackgroundColor3 = C.SurfaceHi})
+        task.wait(1.5)
+        tween(ToggleBtn, 1.5, {BackgroundColor3 = C.Surface})
+        task.wait(1.5)
+    end
+end)
+
+-- Frame Principal
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 280, 0, 340)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -170)
+MainFrame.BackgroundColor3 = C.Bg
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+round(MainFrame, 14)
+stroke(MainFrame, C.Primary, 1.5, 0.55)
+gradient(MainFrame, C.Surface, C.Bg, 90)
+
+-- Header com gradiente
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 46)
+Header.BackgroundColor3 = C.Primary
+Header.BorderSizePixel = 0
+Header.Parent = MainFrame
+
+round(Header, 14)
+gradient(Header, C.Primary, C.PrimaryDark, 90)
+
+-- Corrige cantos inferiores do header (para o round não vazar)
+local HeaderFix = Instance.new("Frame")
+HeaderFix.Size = UDim2.new(1, 0, 0, 14)
+HeaderFix.Position = UDim2.new(0, 0, 1, -14)
+HeaderFix.BackgroundColor3 = C.PrimaryDark
+HeaderFix.BorderSizePixel = 0
+HeaderFix.ZIndex = 0
+HeaderFix.Parent = Header
+
+local HeaderTitle = Instance.new("TextLabel")
+HeaderTitle.Size = UDim2.new(1, -110, 1, 0)
+HeaderTitle.Position = UDim2.new(0, 16, 0, 0)
+HeaderTitle.BackgroundTransparency = 1
+HeaderTitle.Text = "HD ADMIN  •  FLY"
+HeaderTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+HeaderTitle.TextSize = 16
+HeaderTitle.Font = Enum.Font.GothamBold
+HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+HeaderTitle.ZIndex = 2
+HeaderTitle.Parent = Header
+
+-- Botão Minimizar (—)
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 28, 0, 28)
+MinBtn.Position = UDim2.new(1, -66, 0, 9)
+MinBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.BackgroundTransparency = 0.85
+MinBtn.BorderSizePixel = 0
+MinBtn.Text = "—"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.TextSize = 18
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.AutoButtonColor = false
+MinBtn.ZIndex = 3
+MinBtn.Parent = Header
+
+circle(MinBtn)
+
+-- Botão Fechar (X)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(1, -34, 0, 9)
+CloseBtn.BackgroundColor3 = C.Danger
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Text = "×"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 22
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.AutoButtonColor = false
+CloseBtn.ZIndex = 3
+CloseBtn.Parent = Header
+
+circle(CloseBtn)
+
+-- Card de Velocidade
+local SpeedCard = Instance.new("Frame")
+SpeedCard.Size = UDim2.new(1, -24, 0, 78)
+SpeedCard.Position = UDim2.new(0, 12, 0, 58)
+SpeedCard.BackgroundColor3 = C.Surface
+SpeedCard.BorderSizePixel = 0
+SpeedCard.Parent = MainFrame
+
+round(SpeedCard, 10)
+stroke(SpeedCard, C.Border, 1, 0.5)
+
+local SpeedTitle = Instance.new("TextLabel")
+SpeedTitle.Size = UDim2.new(1, -24, 0, 20)
+SpeedTitle.Position = UDim2.new(0, 14, 0, 10)
+SpeedTitle.BackgroundTransparency = 1
+SpeedTitle.Text = "VELOCIDADE"
+SpeedTitle.TextColor3 = C.TextSub
+SpeedTitle.TextSize = 11
+SpeedTitle.Font = Enum.Font.GothamBold
+SpeedTitle.TextXAlignment = Enum.TextXAlignment.Left
+SpeedTitle.Parent = SpeedCard
+
+local SpeedValue = Instance.new("TextLabel")
+SpeedValue.Size = UDim2.new(0, 100, 0, 26)
+SpeedValue.Position = UDim2.new(1, -114, 0, 8)
+SpeedValue.BackgroundTransparency = 1
+SpeedValue.Text = tostring(DEFAULT_SPEED)
+SpeedValue.TextColor3 = C.Primary
+SpeedValue.TextSize = 22
+SpeedValue.Font = Enum.Font.GothamBold
+SpeedValue.TextXAlignment = Enum.TextXAlignment.Right
+SpeedValue.Parent = SpeedCard
+
+-- Slider barra
+local SliderBg = Instance.new("Frame")
+SliderBg.Size = UDim2.new(1, -28, 0, 8)
+SliderBg.Position = UDim2.new(0, 14, 0, 50)
+SliderBg.BackgroundColor3 = C.SurfaceHi
+SliderBg.BorderSizePixel = 0
+SliderBg.Parent = SpeedCard
+
+round(SliderBg, 4)
+
+local SliderFill = Instance.new("Frame")
+SliderFill.Size = UDim2.new(DEFAULT_SPEED / MAX_SPEED, 0, 1, 0)
+SliderFill.BackgroundColor3 = C.Primary
+SliderFill.BorderSizePixel = 0
+SliderFill.Parent = SliderBg
+
+round(SliderFill, 4)
+gradient(SliderFill, C.Primary, Color3.fromRGB(120, 220, 255), 0)
+
+-- Botão de Ação (Ativar/Desativar Fly)
+local FlyBtn = Instance.new("TextButton")
+FlyBtn.Size = UDim2.new(1, -24, 0, 52)
+FlyBtn.Position = UDim2.new(0, 12, 0, 146)
+FlyBtn.BackgroundColor3 = C.Success
+FlyBtn.BorderSizePixel = 0
+FlyBtn.Text = "ATIVAR FLY"
+FlyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FlyBtn.TextSize = 15
+FlyBtn.Font = Enum.Font.GothamBold
+FlyBtn.AutoButtonColor = false
+FlyBtn.Parent = MainFrame
+
+round(FlyBtn, 10)
+gradient(FlyBtn, C.Success, C.SuccessDark, 90)
+
+-- Linha de Velocidades Rápidas
+local SpeedLabelRow = Instance.new("TextLabel")
+SpeedLabelRow.Size = UDim2.new(1, -28, 0, 16)
+SpeedLabelRow.Position = UDim2.new(0, 14, 0, 206)
+SpeedLabelRow.BackgroundTransparency = 1
+SpeedLabelRow.Text = "PRESETS"
+SpeedLabelRow.TextColor3 = C.TextSub
+SpeedLabelRow.TextSize = 10
+SpeedLabelRow.Font = Enum.Font.GothamBold
+SpeedLabelRow.TextXAlignment = Enum.TextXAlignment.Left
+SpeedLabelRow.Parent = MainFrame
+
+local btnRow = Instance.new("Frame")
+btnRow.Size = UDim2.new(1, -24, 0, 34)
+btnRow.Position = UDim2.new(0, 12, 0, 224)
+btnRow.BackgroundTransparency = 1
+btnRow.Parent = MainFrame
+
+local btnLayout = Instance.new("UIListLayout")
+btnLayout.FillDirection = Enum.FillDirection.Horizontal
+btnLayout.Padding = UDim.new(0, 6)
+btnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+btnLayout.Parent = btnRow
+
+local speeds = {25, 50, 100, 150}
+local speedBtns = {}
+
+for _, spd in ipairs(speeds) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.24, -4, 1, 0)
+    btn.BackgroundColor3 = C.SurfaceHi
+    btn.BorderSizePixel = 0
+    btn.Text = tostring(spd)
+    btn.TextColor3 = C.TextSub
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamBold
+    btn.AutoButtonColor = false
+    btn.Parent = btnRow
+
+    round(btn, 8)
+    stroke(btn, C.Border, 1, 0.5)
+
+    -- Hover
+    btn.MouseEnter:Connect(function()
+        tween(btn, 0.15, {BackgroundColor3 = C.Primary, TextColor3 = Color3.fromRGB(255,255,255)})
+    end)
+    btn.MouseLeave:Connect(function()
+        if speed ~= spd then
+            tween(btn, 0.15, {BackgroundColor3 = C.SurfaceHi, TextColor3 = C.TextSub})
+        end
+    end)
+
+    btn.MouseButton1Click:Connect(function()
+        speed = spd
+        SpeedValue.Text = tostring(spd)
+        tween(SliderFill, 0.25, {Size = UDim2.new(spd / MAX_SPEED, 0, 1, 0)})
+        for _, b in ipairs(speedBtns) do
+            tween(b, 0.15, {BackgroundColor3 = C.SurfaceHi, TextColor3 = C.TextSub})
+        end
+        tween(btn, 0.15, {BackgroundColor3 = C.Primary, TextColor3 = Color3.fromRGB(255,255,255)})
+    end)
+    table.insert(speedBtns, btn)
+end
+
+-- Info panel
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Size = UDim2.new(1, -24, 0, 64)
+InfoLabel.Position = UDim2.new(0, 12, 0, 266)
+InfoLabel.BackgroundColor3 = C.Surface
+InfoLabel.BorderSizePixel = 0
+InfoLabel.Text = "Joystick = direção   •   Câmera = direção\n▲ Subir     ▼ Descer"
+InfoLabel.TextColor3 = C.TextSub
+InfoLabel.TextSize = 11
+InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.TextWrapped = true
+InfoLabel.Parent = MainFrame
+
+round(InfoLabel, 8)
+stroke(InfoLabel, C.Border, 1, 0.6)
+
+--// ==================== BOTÕES SUBIR / DESCER ====================
+local UpBtn = Instance.new("TextButton")
+UpBtn.Size = UDim2.new(0, 62, 0, 62)
+UpBtn.Position = UDim2.new(1, -180, 0.5, -72)
+UpBtn.BackgroundColor3 = C.Primary
+UpBtn.BackgroundTransparency = 0.15
+UpBtn.BorderSizePixel = 0
+UpBtn.Text = "▲"
+UpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+UpBtn.TextSize = 24
+UpBtn.Font = Enum.Font.GothamBold
+UpBtn.AutoButtonColor = false
+UpBtn.Visible = false
+UpBtn.Parent = ScreenGui
+
+circle(UpBtn)
+stroke(UpBtn, C.Primary, 2, 0.3)
+
+local DownBtn = Instance.new("TextButton")
+DownBtn.Size = UDim2.new(0, 62, 0, 62)
+DownBtn.Position = UDim2.new(1, -180, 0.5, 10)
+DownBtn.BackgroundColor3 = C.Primary
+DownBtn.BackgroundTransparency = 0.15
+DownBtn.BorderSizePixel = 0
+DownBtn.Text = "▼"
+DownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DownBtn.TextSize = 24
+DownBtn.Font = Enum.Font.GothamBold
+DownBtn.AutoButtonColor = false
+DownBtn.Visible = false
+DownBtn.Parent = ScreenGui
+
+circle(DownBtn)
+stroke(DownBtn, C.Primary, 2, 0.3)
+
+--// ==================== MECÂNICA DE FLY ====================
+local function getHRP()
+    local char = LocalPlayer.Character
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function getHumanoid()
+    local char = LocalPlayer.Character
+    return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+local DIRECTIONS = {
+    Left = Vector3.new(-1, 0, 0),
+    Right = Vector3.new(1, 0, 0),
+    Forwards = Vector3.new(0, 0, -1),
+    Backwards = Vector3.new(0, 0, 1),
+    Up = Vector3.new(0, 1, 0),
+    Down = Vector3.new(0, -1, 0)
+}
+
+local function getCF(part, isFor)
+    local cframe = part.CFrame
+    local noRot = CFrame.new(cframe.p)
+    local x, y, z = (Camera.CFrame - Camera.CFrame.p):toEulerAnglesXYZ()
+    return noRot * CFrame.Angles(isFor and z or x, y, z)
+end
+
+local function getNextMovement(deltaTime, spd)
+    local nextMove = Vector3.new()
+    local humanoid = getHumanoid()
+    local hrp = getHRP()
+    if not humanoid or not hrp then return CFrame.new(), nextMove end
+
+    local md = humanoid.MoveDirection
+
+    for dirName, vector in pairs(DIRECTIONS) do
+        local isFor = (dirName == "Forwards" or dirName == "Backwards")
+        local worldVector = ((getCF(hrp, isFor) * CFrame.new(vector)) - hrp.CFrame.p).p
+        if (worldVector - md).magnitude <= 1.05 and md ~= Vector3.new(0, 0, 0) then
+            nextMove = nextMove + vector
+        end
+    end
+
+    if upPressed then nextMove = nextMove + Vector3.new(0, 1, 0) end
+    if downPressed then nextMove = nextMove + Vector3.new(0, -1, 0) end
+
+    return CFrame.new(nextMove * spd * deltaTime), nextMove
+end
+
+local function startFly()
+    local hrp = getHRP()
+    local humanoid = getHumanoid()
+    if not hrp or not humanoid then return end
+
+    flying = true
+    tiltAmount = 0
+
+    flyForce = Instance.new("BodyPosition")
+    flyForce.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    flyForce.Position = hrp.Position + Vector3.new(0, FLY_HEIGHT_OFFSET, 0)
+    flyForce.Name = "HDAdminFlyForce"
+    flyForce.Parent = hrp
+
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.D = 50
+    bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    bodyGyro.P = 200
+    bodyGyro.Name = "HDAdminFlyGyro"
+    bodyGyro.CFrame = hrp.CFrame
+    bodyGyro.Parent = hrp
+
+    local lastUpdate = tick()
+    local lastPosition = hrp.Position
+    local static = 0
+
+    flyConnection = RunService.RenderStepped:Connect(function()
+        if not flying then return end
+
+        local currentHrp = getHRP()
+        local currentHumanoid = getHumanoid()
+        if not currentHrp or not currentHumanoid then return end
+
+        local delta = tick() - lastUpdate
+        local look = (Camera.Focus.p - Camera.CFrame.p).unit
+        local move, directionalVector = getNextMovement(delta, speed * 10)
+
+        local pos = currentHrp.Position
+        local targetCFrame = CFrame.new(pos, pos + look) * move
+        local targetD = 750 + (speed * 0.2)
+
+        if move.p ~= Vector3.new() then
+            static = 0
+            flyForce.D = targetD
+            tiltAmount = tiltAmount + TILT_INCREMENT
+            flyForce.Position = targetCFrame.p
+        else
+            static = static + 1
+            tiltAmount = 1
+            local mag = (currentHrp.Position - lastPosition).magnitude
+            if mag > 6 and static >= 4 then
+                flyForce.Position = currentHrp.Position
+            end
+        end
+
+        if math.abs(tiltAmount) > TILT_MAX then
+            tiltAmount = TILT_MAX
+        end
+
+        if flyForce.D == targetD then
+            local tiltZ = tiltAmount * directionalVector.Z
+            bodyGyro.CFrame = targetCFrame * CFrame.Angles(math.rad(tiltZ), 0, 0)
+        end
+
+        lastUpdate = tick()
+        lastPosition = currentHrp.Position
+        currentHumanoid.PlatformStand = true
+    end)
+end
+
+local function stopFly()
+    flying = false
+
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
+    end
+
+    if flyForce then flyForce:Destroy(); flyForce = nil end
+    if bodyGyro then bodyGyro:Destroy(); bodyGyro = nil end
+
+    local humanoid = getHumanoid()
+    if humanoid then
+        humanoid.PlatformStand = false
+    end
+
+    upPressed = false
+    downPressed = false
+end
+
+--// ==================== CONTROLES ====================
+FlyBtn.MouseButton1Click:Connect(function()
+    if flying then
+        stopFly()
+        FlyBtn.Text = "ATIVAR FLY"
+        tween(FlyBtn, 0.2, {BackgroundColor3 = C.Success})
+        task.delay(0.05, function()
+            gradient(FlyBtn, C.Success, C.SuccessDark, 90)
+        end)
+        UpBtn.Visible = false
+        DownBtn.Visible = false
+    else
+        startFly()
+        FlyBtn.Text = "DESATIVAR FLY"
+        tween(FlyBtn, 0.2, {BackgroundColor3 = C.Danger})
+        task.delay(0.05, function()
+            gradient(FlyBtn, C.Danger, C.DangerDark, 90)
+        end)
+        UpBtn.Visible = true
+        DownBtn.Visible = true
+    end
+end)
+
+-- Hover do botão Fly
+FlyBtn.MouseEnter:Connect(function()
+    tween(FlyBtn, 0.15, {BackgroundTransparency = 0.1})
+end)
+FlyBtn.MouseLeave:Connect(function()
+    tween(FlyBtn, 0.15, {BackgroundTransparency = 0})
+end)
+
+-- Subir / Descer
+UpBtn.MouseButton1Down:Connect(function()
+    upPressed = true
+    tween(UpBtn, 0.1, {BackgroundTransparency = 0})
+end)
+UpBtn.MouseButton1Up:Connect(function()
+    upPressed = false
+    tween(UpBtn, 0.15, {BackgroundTransparency = 0.15})
+end)
+UpBtn.MouseLeave:Connect(function()
+    upPressed = false
+    tween(UpBtn, 0.15, {BackgroundTransparency = 0.15})
+end)
+
+DownBtn.MouseButton1Down:Connect(function()
+    downPressed = true
+    tween(DownBtn, 0.1, {BackgroundTransparency = 0})
+end)
+DownBtn.MouseButton1Up:Connect(function()
+    downPressed = false
+    tween(DownBtn, 0.15, {BackgroundTransparency = 0.15})
+end)
+DownBtn.MouseLeave:Connect(function()
+    downPressed = false
+    tween(DownBtn, 0.15, {BackgroundTransparency = 0.15})
+end)
+
+-- Abrir / Fechar GUI
+local function openPanel()
+    MainFrame.Visible = true
+    MainFrame.Size = UDim2.new(0, 0, 0, 0)
+    MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    MainFrame.BackgroundTransparency = 1
+    tween(MainFrame, 0.35, {
+        Size = UDim2.new(0, 280, 0, 340),
+        Position = UDim2.new(0.5, -140, 0.5, -170),
+        BackgroundTransparency = 0
+    }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+end
+
+local function closePanel()
+    tween(MainFrame, 0.25, {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        BackgroundTransparency = 1
+    }, Enum.EasingStyle.Quad, Enum.EasingDirection.In).Completed:Connect(function()
+        MainFrame.Visible = false
+    end)
+end
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    if MainFrame.Visible then
+        closePanel()
+    else
+        openPanel()
+    end
+    tween(ToggleBtn, 0.15, {Size = UDim2.new(0, 50, 0, 50)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    task.delay(0.15, function()
+        tween(ToggleBtn, 0.15, {Size = UDim2.new(0, 58, 0, 58)}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    end)
+end)
+
+MinBtn.MouseButton1Click:Connect(function()
+    closePanel()
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    if flying then stopFly() end
+    tween(CloseBtn, 0.1, {BackgroundColor3 = C.DangerDark})
+    task.wait(0.1)
+    ScreenGui:Destroy()
+end)
+
+-- Arrastar GUI (Mobile + Desktop)
+local dragging, dragStart, startPos
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- Reset ao morrer
+LocalPlayer.CharacterAdded:Connect(function()
+    if flying then
+        stopFly()
+        FlyBtn.Text = "ATIVAR FLY"
+        tween(FlyBtn, 0.2, {BackgroundColor3 = C.Success})
+        task.delay(0.05, function()
+            gradient(FlyBtn, C.Success, C.SuccessDark, 90)
+        end)
+        UpBtn.Visible = false
+        DownBtn.Visible = false
+    end
+end)
+
+-- Abrir painel inicialmente
+task.wait(0.3)
+openPanel()
