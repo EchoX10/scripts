@@ -1,0 +1,867 @@
+-- =========================================================
+-- PAINEL FINAL v30 - COMPLETO (ARMADILHA + COMANDOS + MÚSICAS)
+-- =========================================================
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+local plr = Players.LocalPlayer
+local playerGui = plr:WaitForChild("PlayerGui")
+
+local TEXTURE_ID   = 117638534679966
+local PART_SIZE    = Vector3.new(1.5, 1.5, 0.001)
+local SPAWN_DELAY  = 0.01
+
+-- ============== COORDENADAS DA ARMADILHA ==============
+local TRAP_POSITION = Vector3.new(-11565.53, 12984.85, -5125.60)
+local TRAP_SIZE = Vector3.new(10, 10, 10)
+
+-- ============== LISTA DE COMANDOS RÁPIDOS ==============
+local COMANDOS_RAPIDOS = {
+    {nome = "Heal (Curar)", cmd = ";heal"},
+    {nome = "Kill (Matar)", cmd = ";kill"},
+    {nome = "Jail (Prender)", cmd = ";jail"},
+    {nome = "Ice (Congelar)", cmd = ";ice"},
+    {nome = "Blur (Desfocar)", cmd = ";blur"},
+    {nome = "Warp (Teleportar)", cmd = ";warp"},
+    {nome = "Freeze (Parar)", cmd = ";freeze"},
+    {nome = "Dmg (Dano)", cmd = ";dmg"}
+}
+
+-- ============== WRAPPER ==============
+local F3X = loadstring(game:HttpGet("https://raw.githubusercontent.com/bqmb3/f3x-wrapper/main/loader.lua", true))()
+if not F3X then return end
+task.wait(2)
+
+-- ============== SERVERENDPOINT ==============
+local function getSE()
+    if plr.Character then
+        for _, c in ipairs(plr.Character:GetChildren()) do
+            if c:FindFirstChild("SyncAPI") then
+                return c.SyncAPI:FindFirstChild("ServerEndpoint")
+            end
+        end
+    end
+    local bp = plr:FindFirstChild("Backpack")
+    if bp then
+        for _, c in ipairs(bp:GetChildren()) do
+            if c:FindFirstChild("SyncAPI") then
+                return c.SyncAPI:FindFirstChild("ServerEndpoint")
+            end
+        end
+    end
+end
+
+local se = getSE()
+if not se then warn("Sem ServerEndpoint") return end
+
+-- ============== FACES E TEXTURA ==============
+local TODAS_FACES = {
+    Enum.NormalId.Front, Enum.NormalId.Back,
+    Enum.NormalId.Left,  Enum.NormalId.Right,
+    Enum.NormalId.Top,   Enum.NormalId.Bottom
+}
+local FACES_SPAM = {Enum.NormalId.Front, Enum.NormalId.Back}
+
+local function texturizarUmaFace(parte, face)
+    pcall(function()
+        se:InvokeServer("CreateTextures", {{
+            Part = parte, Face = face, TextureType = "Decal"
+        }})
+    end)
+    pcall(function()
+        se:InvokeServer("SyncTexture", {{
+            Part = parte, Face = face, TextureType = "Decal",
+            Texture = "rbxassetid://" .. TEXTURE_ID
+        }})
+    end)
+end
+
+local function texturizar(parte, todasFaces)
+    local faces = todasFaces and TODAS_FACES or FACES_SPAM
+    for _, face in ipairs(faces) do
+        texturizarUmaFace(parte, face)
+    end
+end
+
+-- ============== BUSCAR PARTE REAL ==============
+local function acharParteReal(posicao, tamanho)
+    local parteReal, menorDist = nil, math.huge
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("BasePart") then
+            local d = (obj.Position - posicao).Magnitude
+            local tamDiff = (obj.Size - tamanho).Magnitude
+            if d < 3 and tamDiff < 0.5 and d < menorDist then
+                menorDist = d
+                parteReal = obj
+            end
+        end
+    end
+    return parteReal
+end
+
+-- ============== HD ADMIN ==============
+local function getRC()
+    local hdc = ReplicatedStorage:FindFirstChild("HDAdminHDClient")
+    if hdc then
+        local sig = hdc:FindFirstChild("Signals")
+        if sig then return sig:FindFirstChild("RequestCommand") end
+    end
+end
+local rc = getRC()
+
+local function cmdHD(c)
+    if not rc then return end
+    pcall(function() rc:InvokeServer(c) end)
+    task.wait(0.3)
+end
+
+-- ============== SPAM DE PARTES ==============
+local partesCriadas = {}
+local spamLigado = false
+
+local function criarParteTexturizada(posicao)
+    local parteWrapper = F3X:CreatePart("Normal", CFrame.new(posicao), workspace)
+    if not parteWrapper then return nil end
+    F3X:Resize(parteWrapper, PART_SIZE)
+    task.wait(0.001)
+    local parteReal = acharParteReal(posicao, PART_SIZE) or parteWrapper
+    table.insert(partesCriadas, parteReal)
+    task.spawn(function() texturizar(parteReal, false) end)
+    return parteReal
+end
+
+local function iniciarSpam()
+    if spamLigado then return end
+    spamLigado = true
+    task.spawn(function()
+        while spamLigado do
+            for _, p in ipairs(Players:GetPlayers()) do
+                if not spamLigado then break end
+                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = p.Character.HumanoidRootPart
+                    local pos = hrp.Position + Vector3.new(math.random(-6,6), math.random(3,10), math.random(-6,6))
+                    criarParteTexturizada(pos)
+                end
+                task.wait(SPAWN_DELAY)
+            end
+            task.wait(0.001)
+        end
+    end)
+end
+
+local function pararSpam()
+    spamLigado = false
+    if #partesCriadas > 0 then
+        pcall(function() F3X:RemoveParts(partesCriadas) end)
+        partesCriadas = {}
+    end
+end
+
+-- ============== MÚSICA COM PRESETS ==============
+local MUSIC_PRESETS = {
+    {id = 1839246711,     vol = 10, pitch = 0.9, nome = "Jumpsytle"},
+    {id = 95156028272944, vol = 10, pitch = 0.2, nome = "Padrão"},
+    {id = 75485931767123, vol = 10, pitch = 0.9, nome = "Alone"},
+    {id = 86317637164248, vol = 10, pitch = 1.0, nome = "misery"},
+}
+local presetIndex = 2
+
+local musicaLigada = false
+local musicaTask = nil
+local currentId    = MUSIC_PRESETS[presetIndex].id
+local currentVol   = MUSIC_PRESETS[presetIndex].vol
+local currentPitch = MUSIC_PRESETS[presetIndex].pitch
+local currentName  = MUSIC_PRESETS[presetIndex].nome
+local MUSIC_ID_STR = tostring(currentId)
+
+local musicToggleBtn = nil
+local presetBtn = nil
+
+local function atualizarTextoToggle()
+    if musicToggleBtn then
+        local estado = musicaLigada and "\n[ LIGADO ]" or "\n[ DESLIGADO ]"
+        musicToggleBtn.Text = "🎵 Música IMORTAL [" .. currentName .. "]" .. estado
+    end
+end
+
+local function encontrarMusicaAtual()
+    local locais = {workspace, SoundService, plr}
+    if plr:FindFirstChild("PlayerGui") then table.insert(locais, plr.PlayerGui) end
+    if plr:FindFirstChild("PlayerScripts") then table.insert(locais, plr.PlayerScripts) end
+    if plr:FindFirstChild("Backpack") then table.insert(locais, plr.Backpack) end
+    if plr.Character then table.insert(locais, plr.Character) end
+
+    for _, local_ in ipairs(locais) do
+        for _, obj in ipairs(local_:GetDescendants()) do
+            if obj:IsA("Sound") then
+                local sid = tostring(obj.SoundId)
+                if string.find(sid, MUSIC_ID_STR, 1, true) then
+                    return obj
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function tocarMusica()
+    cmdHD(";music " .. currentId)
+    task.wait(0.5)
+    cmdHD(";volume " .. currentVol)
+    task.wait(0.3)
+    cmdHD(";pitch " .. currentPitch)
+end
+
+local function ligarMusica()
+    if musicaLigada then return end
+    musicaLigada = true
+    atualizarTextoToggle()
+    tocarMusica()
+
+    musicaTask = task.spawn(function()
+        local ultimoAviso = 0
+        local ultimoEstado = nil
+        while musicaLigada do
+            task.wait(0.5)
+            if not musicaLigada then break end
+
+            local som = encontrarMusicaAtual()
+            local agora = tick()
+            local estado
+            if not som then estado = "ausente"
+            elseif not som.Playing then estado = "parado"
+            elseif som.TimeLength > 0 and som.TimePosition >= som.TimeLength - 0.5 then estado = "terminando"
+            else estado = "tocando" end
+
+            if estado ~= ultimoEstado then
+                print("[Guardião] Estado:", estado)
+                ultimoEstado = estado
+            end
+
+            if (estado == "ausente" or estado == "parado" or estado == "terminando") then
+                if (agora - ultimoAviso) > 2 then
+                    ultimoAviso = agora
+                    task.spawn(function() tocarMusica() end)
+                end
+            else
+                pcall(function() som.Looped = true end)
+            end
+        end
+    end)
+end
+
+local function desligarMusica()
+    musicaLigada = false
+    atualizarTextoToggle()
+    if musicaTask then pcall(function() task.cancel(musicaTask) end) musicaTask = nil end
+    cmdHD(";unmusic")
+    task.wait(0.4)
+    cmdHD(";pitch 1")
+    task.wait(0.3)
+    cmdHD(";volume 1")
+end
+
+local function trocarPreset()
+    presetIndex = presetIndex + 1
+    if presetIndex > #MUSIC_PRESETS then presetIndex = 1 end
+
+    local p = MUSIC_PRESETS[presetIndex]
+    currentId    = p.id
+    currentVol   = p.vol
+    currentPitch = p.pitch
+    currentName  = p.nome
+    MUSIC_ID_STR = tostring(currentId)
+
+    print("[Preset] Trocado para:", currentName, "(ID: " .. currentId .. ")")
+    atualizarTextoToggle()
+
+    if musicaLigada then
+        cmdHD(";unmusic")
+        task.wait(0.3)
+        task.spawn(function() tocarMusica() end)
+    end
+end
+
+-- ============== HIDE GUIS + MUTE ==============
+local hideLigado = false
+
+local function ligarHideGuis()
+    if hideLigado then return end
+    hideLigado = true
+    cmdHD(";hideGuis others")
+    task.wait(0.3)
+    cmdHD(";uncmdbar2 others")
+    task.wait(0.3)
+    cmdHD(";mute others")
+end
+
+local function desligarHideGuis()
+    hideLigado = false
+    cmdHD(";showGuis others")
+    task.wait(0.3)
+    cmdHD(";cmdbar2 others")
+    task.wait(0.3)
+    cmdHD(";unmute others")
+end
+
+-- ============== LIMPAR EFEITOS ==============
+local limparLigado = false
+local limparTask = nil
+
+local COMANDOS_LIMPEZA = {
+    ";unice", ";unjail", ";unblur", ";untitle", ";unpunish",
+    ";unmute", ";showGuis"
+}
+
+local function ligarLimpar()
+    if limparLigado then return end
+    limparLigado = true
+    limparTask = task.spawn(function()
+        while limparLigado do
+            for _, cmd in ipairs(COMANDOS_LIMPEZA) do
+                if not limparLigado then break end
+                cmdHD(cmd)
+                task.wait(0.2)
+            end
+            task.wait(3)
+        end
+    end)
+end
+
+local function desligarLimpar()
+    limparLigado = false
+    if limparTask then pcall(function() task.cancel(limparTask) end) limparTask = nil end
+end
+
+-- ============== DISCO + FOG + TIME ==============
+local function botaoDiscoFog()
+    cmdHD(";disco")
+    task.wait(0.25)
+    cmdHD(";fog")
+    task.wait(0.25)
+    cmdHD(";time 0")
+end
+
+-- ============== MESH GLITCH ==============
+local function botaoMeshGlitch()
+    print("[Mesh] Iniciando mesh glitch...")
+    local parteWrapper = F3X:CreatePart("Normal", CFrame.new(0, 0, 0), workspace)
+    if not parteWrapper then
+        warn("[Mesh] Falha ao criar parte")
+        return
+    end
+    F3X:Resize(parteWrapper, Vector3.new(1, 1, 1))
+    task.wait(0.5)
+    local parteReal = acharParteReal(Vector3.new(0, 0, 0), Vector3.new(0.001, 0.001, 0.001)) or parteWrapper
+    print("[Mesh] Parte:", parteReal:GetFullName())
+    pcall(function()
+        se:InvokeServer("CreateMeshes", {{Part = parteReal}})
+    end)
+    task.wait(0.3)
+    pcall(function()
+        se:InvokeServer("SyncMesh", {{
+            Part = parteReal,
+            MeshType = "FileMesh",
+            Mesh = 16169707,
+            TextureId = 117638534679966,
+            Scale = Vector3.new(-10000, -10000, -10000)
+        }})
+    end)
+    task.wait(0.1)
+    task.spawn(function() texturizar(parteReal, true) end)
+    print("[Mesh] Concluído!")
+end
+
+-- ============== TEXTURIZAR TUDO ==============
+local texturizandoTudo = false
+
+local function botaoTexturizarTudo()
+    if texturizandoTudo then return end
+    texturizandoTudo = true
+    task.spawn(function()
+        local todasPartes = {}
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                table.insert(todasPartes, obj)
+            end
+        end
+        print("[Texturizar Tudo] Total:", #todasPartes)
+        for i, parte in ipairs(todasPartes) do
+            if not texturizandoTudo then return end
+            task.spawn(function() texturizar(parte, true) end)
+            if i % 30 == 0 then
+                task.wait(0.05)
+            end
+        end
+        task.wait(3)
+        texturizandoTudo = false
+    end)
+end
+
+-- ============== LISTA DE JOGADORES ==============
+local function criarListaJogadores(callback)
+    local listaGui = Instance.new("ScreenGui")
+    listaGui.Name = "ListaJogadores"
+    listaGui.ResetOnSpawn = false
+    listaGui.Parent = playerGui
+
+    local listaFrame = Instance.new("Frame")
+    listaFrame.Size = UDim2.new(0, 250, 0, 400)
+    listaFrame.Position = UDim2.new(0.5, -125, 0.5, -200)
+    listaFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    listaFrame.BorderSizePixel = 0
+    listaFrame.Active = true
+    listaFrame.Draggable = true
+    listaFrame.Parent = listaGui
+    Instance.new("UICorner", listaFrame).CornerRadius = UDim.new(0, 8)
+
+    local titulo = Instance.new("TextLabel")
+    titulo.Size = UDim2.new(1, 0, 0, 30)
+    titulo.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    titulo.Text = "Selecione um Jogador"
+    titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titulo.Font = Enum.Font.GothamBold
+    titulo.TextSize = 14
+    titulo.Parent = listaFrame
+    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -10, 1, -40)
+    scroll.Position = UDim2.new(0, 5, 0, 35)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 6
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = listaFrame
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 4)
+    layout.Parent = scroll
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= plr then
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -10, 0, 35)
+            btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+            btn.Text = p.Name
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.Font = Enum.Font.GothamMedium
+            btn.TextSize = 13
+            btn.Parent = scroll
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+            btn.MouseButton1Click:Connect(function()
+                listaGui:Destroy()
+                if callback then callback(p) end
+            end)
+        end
+    end
+
+    local fecharBtn = Instance.new("TextButton")
+    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
+    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
+    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    fecharBtn.Text = "X"
+    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fecharBtn.Font = Enum.Font.GothamBold
+    fecharBtn.TextSize = 12
+    fecharBtn.Parent = listaFrame
+    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
+
+    fecharBtn.MouseButton1Click:Connect(function()
+        listaGui:Destroy()
+    end)
+end
+
+-- ============== LISTA DE COMANDOS ==============
+local function criarListaComandos(jogadorAlvo)
+    local listaGui = Instance.new("ScreenGui")
+    listaGui.Name = "ListaComandos"
+    listaGui.ResetOnSpawn = false
+    listaGui.Parent = playerGui
+
+    local listaFrame = Instance.new("Frame")
+    listaFrame.Size = UDim2.new(0, 250, 0, 350)
+    listaFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
+    listaFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    listaFrame.BorderSizePixel = 0
+    listaFrame.Active = true
+    listaFrame.Draggable = true
+    listaFrame.Parent = listaGui
+    Instance.new("UICorner", listaFrame).CornerRadius = UDim.new(0, 8)
+
+    local titulo = Instance.new("TextLabel")
+    titulo.Size = UDim2.new(1, 0, 0, 30)
+    titulo.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    titulo.Text = "Comandos em: " .. (jogadorAlvo and jogadorAlvo.Name or "?")
+    titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titulo.Font = Enum.Font.GothamBold
+    titulo.TextSize = 14
+    titulo.Parent = listaFrame
+    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -10, 1, -40)
+    scroll.Position = UDim2.new(0, 5, 0, 35)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 6
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = listaFrame
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 4)
+    layout.Parent = scroll
+
+    for _, cmdInfo in ipairs(COMANDOS_RAPIDOS) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -10, 0, 35)
+        btn.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+        btn.Text = cmdInfo.nome
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.GothamMedium
+        btn.TextSize = 13
+        btn.Parent = scroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+        btn.MouseButton1Click:Connect(function()
+            if jogadorAlvo then
+                cmdHD(cmdInfo.cmd .. " " .. jogadorAlvo.Name)
+                print("[Comando] Executado:", cmdInfo.cmd .. " " .. jogadorAlvo.Name)
+            end
+            listaGui:Destroy()
+        end)
+    end
+
+    local fecharBtn = Instance.new("TextButton")
+    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
+    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
+    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    fecharBtn.Text = "X"
+    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fecharBtn.Font = Enum.Font.GothamBold
+    fecharBtn.TextSize = 12
+    fecharBtn.Parent = listaFrame
+    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
+
+    fecharBtn.MouseButton1Click:Connect(function()
+        listaGui:Destroy()
+    end)
+end
+
+-- ============== ARMADILHA DE JOGADOR ==============
+local function armarArmadilha(jogadorAlvo)
+    if not jogadorAlvo or not jogadorAlvo.Character then
+        warn("[Armadilha] Jogador inválido")
+        return
+    end
+    if not F3X then
+        warn("[Armadilha] F3X não carregado")
+        return
+    end
+
+    print("[Armadilha] Iniciando para:", jogadorAlvo.Name)
+
+    local posicaoOriginal = nil
+    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        posicaoOriginal = plr.Character.HumanoidRootPart.CFrame
+    end
+
+    cmdHD(";teleport me " .. TRAP_POSITION.X .. "," .. TRAP_POSITION.Y .. "," .. TRAP_POSITION.Z)
+    task.wait(0.8)
+
+    pcall(function()
+        local chao = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X, TRAP_POSITION.Y - TRAP_SIZE.Y/2, TRAP_POSITION.Z), workspace)
+        if chao then F3X:Resize(chao, Vector3.new(TRAP_SIZE.X, 0.5, TRAP_SIZE.Z)) end
+    end)
+    task.wait(0.1)
+
+    pcall(function()
+        local teto = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X, TRAP_POSITION.Y + TRAP_SIZE.Y/2, TRAP_POSITION.Z), workspace)
+        if teto then F3X:Resize(teto, Vector3.new(TRAP_SIZE.X, 0.5, TRAP_SIZE.Z)) end
+    end)
+    task.wait(0.1)
+
+    pcall(function()
+        local frente = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X, TRAP_POSITION.Y, TRAP_POSITION.Z + TRAP_SIZE.Z/2), workspace)
+        if frente then F3X:Resize(frente, Vector3.new(TRAP_SIZE.X, TRAP_SIZE.Y, 0.5)) end
+    end)
+    task.wait(0.1)
+
+    pcall(function()
+        local tras = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X, TRAP_POSITION.Y, TRAP_POSITION.Z - TRAP_SIZE.Z/2), workspace)
+        if tras then F3X:Resize(tras, Vector3.new(TRAP_SIZE.X, TRAP_SIZE.Y, 0.5)) end
+    end)
+    task.wait(0.1)
+
+    pcall(function()
+        local esquerda = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X - TRAP_SIZE.X/2, TRAP_POSITION.Y, TRAP_POSITION.Z), workspace)
+        if esquerda then F3X:Resize(esquerda, Vector3.new(0.5, TRAP_SIZE.Y, TRAP_SIZE.Z)) end
+    end)
+    task.wait(0.1)
+
+    pcall(function()
+        local direita = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X + TRAP_SIZE.X/2, TRAP_POSITION.Y, TRAP_POSITION.Z), workspace)
+        if direita then F3X:Resize(direita, Vector3.new(0.5, TRAP_SIZE.Y, TRAP_SIZE.Z)) end
+    end)
+    task.wait(0.5)
+
+    cmdHD(";teleport " .. jogadorAlvo.Name)
+    task.wait(0.5)
+
+    if posicaoOriginal then
+        cmdHD(";teleport me " .. posicaoOriginal.Position.X .. "," .. posicaoOriginal.Position.Y .. "," .. posicaoOriginal.Position.Z)
+    end
+
+    print("[Armadilha] Concluída!")
+end
+
+-- ============== GUI ==============
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PainelV30"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 520)
+mainFrame.Position = UDim2.new(0.05, 0, 0.1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 34)
+titleBar.BackgroundColor3 = Color3.fromRGB(38, 38, 46)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -80, 1, 0)
+titleLabel.Position = UDim2.new(0, 12, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Painel F3X + Admin v30"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 13
+titleLabel.Parent = titleBar
+
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 28, 0, 28)
+minBtn.Position = UDim2.new(1, -64, 0, 3)
+minBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 68)
+minBtn.Text = "—"
+minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextSize = 16
+minBtn.Parent = titleBar
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 6)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -32, 0, 3)
+closeBtn.BackgroundColor3 = Color3.fromRGB(160, 45, 45)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 13
+closeBtn.Parent = titleBar
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+
+local content = Instance.new("ScrollingFrame")
+content.Size = UDim2.new(1, -12, 1, -48)
+content.Position = UDim2.new(0, 6, 0, 42)
+content.BackgroundTransparency = 1
+content.BorderSizePixel = 0
+content.ScrollBarThickness = 6
+content.ScrollBarImageColor3 = Color3.fromRGB(90, 90, 130)
+content.CanvasSize = UDim2.new(0, 0, 0, 0)
+content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+content.ScrollingDirection = Enum.ScrollingDirection.Y
+content.Parent = mainFrame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = content
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 4)
+padding.PaddingBottom = UDim.new(0, 8)
+padding.Parent = content
+
+local function criarToggle(texto, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 48)
+    btn.BackgroundColor3 = Color3.fromRGB(48, 48, 56)
+    btn.Text = texto .. "\n[ DESLIGADO ]"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 12
+    btn.Parent = content
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    local estado = false
+    btn.MouseButton1Click:Connect(function()
+        estado = not estado
+        btn.Text = texto .. (estado and "\n[ LIGADO ]" or "\n[ DESLIGADO ]")
+        btn.BackgroundColor3 = estado and Color3.fromRGB(45, 125, 60) or Color3.fromRGB(48, 48, 56)
+        callback(estado)
+    end)
+    return btn
+end
+
+local function criarBotao(texto, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 48)
+    btn.BackgroundColor3 = Color3.fromRGB(55, 55, 90)
+    btn.Text = texto
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.Parent = content
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.MouseButton1Click:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(90, 90, 160)
+        task.wait(0.15)
+        btn.BackgroundColor3 = Color3.fromRGB(55, 55, 90)
+        callback()
+    end)
+    return btn
+end
+
+-- ============== LINHA DA MÚSICA ==============
+local musicRow = Instance.new("Frame")
+musicRow.Size = UDim2.new(1, -10, 0, 48)
+musicRow.BackgroundTransparency = 1
+musicRow.Parent = content
+
+local musicRowLayout = Instance.new("UIListLayout")
+musicRowLayout.FillDirection = Enum.FillDirection.Horizontal
+musicRowLayout.Padding = UDim.new(0, 4)
+musicRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+musicRowLayout.Parent = musicRow
+
+musicToggleBtn = Instance.new("TextButton")
+musicToggleBtn.Size = UDim2.new(1, -44, 1, 0)
+musicToggleBtn.BackgroundColor3 = Color3.fromRGB(48, 48, 56)
+musicToggleBtn.Text = "🎵 Música IMORTAL [" .. currentName .. "]\n[ DESLIGADO ]"
+musicToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+musicToggleBtn.Font = Enum.Font.GothamMedium
+musicToggleBtn.TextSize = 12
+musicToggleBtn.Parent = musicRow
+Instance.new("UICorner", musicToggleBtn).CornerRadius = UDim.new(0, 6)
+
+local musicEstado = false
+musicToggleBtn.MouseButton1Click:Connect(function()
+    musicEstado = not musicEstado
+    if musicEstado then ligarMusica() else desligarMusica() end
+end)
+
+presetBtn = Instance.new("TextButton")
+presetBtn.Size = UDim2.new(0, 40, 1, 0)
+presetBtn.BackgroundColor3 = Color3.fromRGB(85, 60, 120)
+presetBtn.Text = "🔄"
+presetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+presetBtn.Font = Enum.Font.GothamBold
+presetBtn.TextSize = 18
+presetBtn.Parent = musicRow
+Instance.new("UICorner", presetBtn).CornerRadius = UDim.new(0, 6)
+
+presetBtn.MouseButton1Click:Connect(function()
+    presetBtn.BackgroundColor3 = Color3.fromRGB(130, 90, 180)
+    task.wait(0.15)
+    presetBtn.BackgroundColor3 = Color3.fromRGB(85, 60, 120)
+    trocarPreset()
+end)
+
+-- ============== BOTÕES DO PAINEL ==============
+criarToggle("📦 Spam de Partes Texturizadas", function(e)
+    if e then iniciarSpam() else pararSpam() end
+end)
+criarToggle("🙈 Esconder GUIs + Mutar Outros", function(e)
+    if e then ligarHideGuis() else desligarHideGuis() end
+end)
+criarToggle("🧹 Limpar Efeitos Ruins (loop)", function(e)
+    if e then ligarLimpar() else desligarLimpar() end
+end)
+
+criarBotao("🕺 DISCO + FOG + TIME 0", function()
+    botaoDiscoFog()
+end)
+criarBotao("🌀 Mesh Glitch (0,0,0)", function()
+    botaoMeshGlitch()
+end)
+criarBotao("🎨 TEXTURIZAR MAPA INTEIRO", function()
+    botaoTexturizarTudo()
+end)
+
+-- ============== NOVOS BOTÕES ==============
+criarBotao("🎯 ARMADILHA DE JOGADOR", function()
+    criarListaJogadores(function(jogador)
+        task.spawn(function() armarArmadilha(jogador) end)
+    end)
+end)
+
+criarBotao("⚡ COMANDOS EM JOGADOR", function()
+    criarListaJogadores(function(jogador)
+        criarListaComandos(jogador)
+    end)
+end)
+
+-- ============== TEXTBOX SERVERMESSAGE ==============
+local msgBox = Instance.new("TextBox")
+msgBox.Size = UDim2.new(1, -10, 0, 40)
+msgBox.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+msgBox.BorderSizePixel = 0
+msgBox.Text = ""
+msgBox.PlaceholderText = "texto"
+msgBox.PlaceholderColor3 = Color3.fromRGB(140, 140, 150)
+msgBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+msgBox.Font = Enum.Font.GothamMedium
+msgBox.TextSize = 13
+msgBox.ClearTextOnFocus = false
+msgBox.Parent = content
+Instance.new("UICorner", msgBox).CornerRadius = UDim.new(0, 6)
+
+local sendBtn = Instance.new("TextButton")
+sendBtn.Size = UDim2.new(1, -10, 0, 44)
+sendBtn.BackgroundColor3 = Color3.fromRGB(70, 110, 70)
+sendBtn.Text = "📢 Enviar serverMessage"
+sendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+sendBtn.Font = Enum.Font.GothamBold
+sendBtn.TextSize = 13
+sendBtn.Parent = content
+Instance.new("UICorner", sendBtn).CornerRadius = UDim.new(0, 6)
+sendBtn.MouseButton1Click:Connect(function()
+    local txt = msgBox.Text
+    if txt and txt ~= "" then
+        cmdHD(";serverMessage " .. txt)
+    end
+end)
+
+-- ============== JANELA ==============
+local minimizado = false
+local tamanhoOriginal = mainFrame.Size
+minBtn.MouseButton1Click:Connect(function()
+    minimizado = not minimizado
+    content.Visible = not minimizado
+    mainFrame.Size = minimizado and UDim2.new(0, 300, 0, 34) or tamanhoOriginal
+    minBtn.Text = minimizado and "+" or "—"
+end)
+closeBtn.MouseButton1Click:Connect(function()
+    spamLigado = false
+    texturizandoTudo = false
+    desligarMusica()
+    desligarHideGuis()
+    desligarLimpar()
+    pararSpam()
+    screenGui:Destroy()
+end)
+
+print("[Painel v30] Carregado! Armadilha + Comandos em jogador adicionados.")
