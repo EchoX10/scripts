@@ -1,5 +1,5 @@
 -- =========================================================
--- PAINEL FINAL v30 - COMPLETO (ARMADILHA + COMANDOS + MÚSICAS)
+-- PAINEL FINAL v31 - COMPLETO (PARTÍCULAS HACKER + ARMADILHA + COMANDOS)
 -- =========================================================
 
 local Players = game:GetService("Players")
@@ -399,6 +399,103 @@ local function botaoTexturizarTudo()
     end)
 end
 
+-- ============== PARTÍCULAS HACKER EM JOGADORES ==============
+local particulasLigado = false
+local particulasTask = nil
+
+local function adicionarParticulasHacker(jogador)
+    if not jogador or not jogador.Character then return end
+    
+    local character = jogador.Character
+    for _, parte in ipairs(character:GetDescendants()) do
+        if parte:IsA("BasePart") then
+            pcall(function()
+                se:InvokeServer("CreateParticles", {{
+                    Part = parte,
+                    ParticleType = "ParticleEmitter"
+                }})
+            end)
+            task.wait(0.05)
+            pcall(function()
+                se:InvokeServer("SyncParticle", {{
+                    Part = parte,
+                    ParticleType = "ParticleEmitter",
+                    Texture = "rbxassetid://" .. TEXTURE_ID,
+                    Rate = 50,
+                    Lifetime = NumberRange.new(2, 4),
+                    Speed = NumberRange.new(5, 15),
+                    SpreadAngle = Vector2.new(180, 180),
+                    RotSpeed = NumberRange.new(-180, 180),
+                    Rotation = NumberRange.new(0, 360),
+                    Size = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0.5),
+                        NumberSequenceKeypoint.new(1, 0)
+                    }),
+                    Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0),
+                        NumberSequenceKeypoint.new(0.5, 0.3),
+                        NumberSequenceKeypoint.new(1, 1)
+                    }),
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 0)),
+                        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 200, 0)),
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 150, 0))
+                    }),
+                    EmissionDirection = Enum.NormalId.Top,
+                    Acceleration = Vector3.new(0, 0, 0),
+                    LightEmission = 0.8,
+                    LightInfluence = 0
+                }})
+            end)
+        end
+    end
+end
+
+local function iniciarParticulas()
+    if particulasLigado then return end
+    particulasLigado = true
+    print("[Partículas] Iniciando partículas hacker em todos os jogadores...")
+    
+    particulasTask = task.spawn(function()
+        while particulasLigado do
+            for _, p in ipairs(Players:GetPlayers()) do
+                if not particulasLigado then break end
+                if p ~= plr and p.Character then
+                    task.spawn(function()
+                        adicionarParticulasHacker(p)
+                    end)
+                    task.wait(0.5)
+                end
+            end
+            task.wait(5)
+        end
+    end)
+end
+
+local function pararParticulas()
+    particulasLigado = false
+    if particulasTask then
+        pcall(function() task.cancel(particulasTask) end)
+        particulasTask = nil
+    end
+    
+    -- Remove as partículas de todos os jogadores
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Character then
+            for _, parte in ipairs(p.Character:GetDescendants()) do
+                if parte:IsA("BasePart") then
+                    for _, child in ipairs(parte:GetChildren()) do
+                        if child:IsA("ParticleEmitter") then
+                            pcall(function() child:Destroy() end)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    print("[Partículas] Parado e removido!")
+end
+
 -- ============== LISTA DE JOGADORES ==============
 local function criarListaJogadores(callback)
     local listaGui = Instance.new("ScreenGui")
@@ -619,7 +716,7 @@ end
 
 -- ============== GUI ==============
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "PainelV30"
+screenGui.Name = "PainelV31"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
@@ -644,7 +741,7 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -80, 1, 0)
 titleLabel.Position = UDim2.new(0, 12, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "Painel F3X + Admin v30"
+titleLabel.Text = "Painel F3X + Admin v31"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Font = Enum.Font.GothamBold
@@ -790,6 +887,9 @@ end)
 criarToggle("🧹 Limpar Efeitos Ruins (loop)", function(e)
     if e then ligarLimpar() else desligarLimpar() end
 end)
+criarToggle("👾 Partículas Hacker (todos)", function(e)
+    if e then iniciarParticulas() else pararParticulas() end
+end)
 
 criarBotao("🕺 DISCO + FOG + TIME 0", function()
     botaoDiscoFog()
@@ -857,11 +957,13 @@ end)
 closeBtn.MouseButton1Click:Connect(function()
     spamLigado = false
     texturizandoTudo = false
+    particulasLigado = false
     desligarMusica()
     desligarHideGuis()
     desligarLimpar()
     pararSpam()
+    pararParticulas()
     screenGui:Destroy()
 end)
 
-print("[Painel v30] Carregado! Armadilha + Comandos em jogador adicionados.")
+print("[Painel v31] Carregado! Partículas hacker adicionadas.")
