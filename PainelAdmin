@@ -479,15 +479,11 @@ local function botaoBandeira()
     print("[Bandeira] Construção concluída!")
 end
 
--- ============== CONSTRUTOR DE MAPA COM CFRAME COMPLETO ==============
+-- ============== CONSTRUTOR DE MAPA COM DEBUG COMPLETO ==============
 local function botaoConstruirMapaRapido()
-    print("[MapaRápido] 🏗️ Iniciando construção com CFrame completo...")
+    print("[DEBUG] 🚀 FUNÇÃO INICIADA!")
     
-    -- ============== CONSTRUTOR DE MAPA COM CFRAME COMPLETO ==============
-local function botaoConstruirMapaRapido()
-    print("[MapaRápido] 🏗️ Iniciando construção com CFrame completo...")
-    
-       local MEU_BLUEPRINT = {
+ local MEU_BLUEPRINT = {
   {n="Terrain", cf={0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(2044.00,252.00,2044.00), c=Color3.fromRGB(163,162,165), m="Plastic"},
   {n="Part3", cf={0.6000,10.8911,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.03,2.93), c=Color3.fromRGB(255,236,141), m="Plastic"},
   {n="Part5", cf={0.6000,7.9578,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.03,2.93), c=Color3.fromRGB(255,236,141), m="Plastic"},
@@ -496,7 +492,7 @@ local function botaoConstruirMapaRapido()
   {n="Part2", cf={0.6000,11.9178,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.17,2.93), c=Color3.fromRGB(129,186,255), m="Plastic"},
   {n="Part7", cf={0.6000,5.7578,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.32,2.93), c=Color3.fromRGB(255,59,162), m="Plastic"},
   {n="Part", cf={0.6000,12.9444,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.17,2.93), c=Color3.fromRGB(101,114,255), m="Plastic"},
-  {n="Floor", cf={2.0000,-1.3520,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(100.00,1.00,100.00), c=Color3.fromRGB(163,162,165), m="Asphalt"},
+  {n="Part", cf={2.0000,-1.3520,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(100.00,1.00,100.00), c=Color3.fromRGB(163,162,165), m="Asphalt"},
   {n="Part3", cf={0.5896,1.1339,-1.0244,-0.9962,-0.0226,0.0842,-0.0000,0.9659,0.2588,-0.0872,0.2578,-0.9623}, s=Vector3.new(0.62,0.62,0.62), c=Color3.fromRGB(255,191,127), m="Plastic"},
   {n="Part5", cf={0.6046,0.2466,-1.1954,-0.9962,0.0000,0.0872,0.0000,1.0000,0.0000,-0.0872,0.0000,-0.9962}, s=Vector3.new(1.24,1.24,0.62), c=Color3.fromRGB(255,191,127), m="Plastic"},
   {n="Part6", cf={1.1853,-0.6571,-1.7268,-0.9064,-0.4213,0.0293,0.0299,0.0052,0.9995,-0.4213,0.9069,0.0079}, s=Vector3.new(0.62,1.24,0.62), c=Color3.fromRGB(255,191,127), m="Plastic"},
@@ -618,7 +614,34 @@ local function botaoConstruirMapaRapido()
   {n="Center", cf={-25.3529,9.0906,-0.2509,-0.9642,-0.2585,-0.0597,0.2617,-0.9637,-0.0526,-0.0439,-0.0663,0.9968}, s=Vector3.new(0.96,1.09,1.44), c=Color3.fromRGB(0,0,0), m="Plastic"},
   {n="Part6", cf={-25.1003,10.4178,-0.1658,-0.9642,-0.2585,-0.0597,0.2617,-0.9637,-0.0526,-0.0439,-0.0663,0.9968}, s=Vector3.new(1.16,3.39,1.44), c=Color3.fromRGB(0,0,0), m="Plastic"},
 }
-
+    
+    print("[DEBUG] 📋 Blueprint carregado com " .. #MEU_BLUEPRINT .. " partes")
+    
+    if #MEU_BLUEPRINT == 0 then
+        warn("[DEBUG] ❌ BLUEPRINT VAZIO!")
+        return
+    end
+    
+    -- Verifica se o F3X está carregado
+    print("[DEBUG] 🔍 Verificando F3X...")
+    if not F3X then
+        warn("[DEBUG] ❌ F3X NÃO ESTÁ CARREGADO!")
+        return
+    end
+    print("[DEBUG] ✅ F3X está OK")
+    
+    -- Testa criar uma parte simples
+    print("[DEBUG] 🧪 Testando criação de parte...")
+    local testeParte = F3X:CreatePart("Normal", CFrame.new(0, 10, 0), workspace)
+    if testeParte then
+        print("[DEBUG] ✅ F3X:CreatePart FUNCIONA!")
+        pcall(function() testeParte:Destroy() end)
+    else
+        warn("[DEBUG] ❌ F3X:CreatePart FALHOU!")
+        return
+    end
+    
+    -- Função para criar parte com CFrame completo
     local function criarParteComCFrame(dados)
         local cf = CFrame.new(
             dados.cf[1], dados.cf[2], dados.cf[3],
@@ -639,97 +662,84 @@ local function botaoConstruirMapaRapido()
         
         return parte
     end
-
+    
+    print("[DEBUG] 📦 Coletando partes antigas...")
     local partesAntigas = {}
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and not obj:IsDescendantOf(plr.Character) then
             table.insert(partesAntigas, obj)
         end
     end
-    print("[MapaRápido] 📦 " .. #partesAntigas .. " partes antigas.")
-
-    print("[MapaRápido] 🛡️ Criando chão de proteção...")
+    print("[DEBUG] 📦 " .. #partesAntigas .. " partes antigas encontradas")
+    
+    print("[DEBUG] 🛡️ Criando chão de proteção...")
     local partesProtecao = {}
+    local floorCount = 0
     for _, dados in ipairs(MEU_BLUEPRINT) do
         if dados.n == "Floor" or dados.n == "Terrain" then
+            floorCount = floorCount + 1
+            print("[DEBUG] 🛡️ Criando " .. dados.n .. "...")
             local parte = criarParteComCFrame(dados)
             if parte then
                 table.insert(partesProtecao, parte)
+                print("[DEBUG] ✅ " .. dados.n .. " criado!")
+            else
+                warn("[DEBUG] ❌ Falha ao criar " .. dados.n)
             end
         end
     end
+    print("[DEBUG] 🛡️ " .. floorCount .. " partes de chão criadas")
+    
+    if #partesProtecao == 0 then
+        warn("[DEBUG] ⚠️ NENHUM CHÃO FOI CRIADO!")
+    end
+    
+    print("[DEBUG] ⏳ Esperando 1.5 segundos...")
     task.wait(1.5)
-    print("[MapaRápido] ✅ Chão criado!")
-
-    print("[MapaRápido] 🗑️ Deletando mapa antigo...")
+    print("[DEBUG] ✅ Espera concluída")
+    
+    print("[DEBUG] 🗑️ Deletando mapa antigo...")
     task.spawn(function()
+        local deletadas = 0
         for _, obj in ipairs(partesAntigas) do
             if obj and obj.Parent then
                 pcall(function() obj:Destroy() end)
+                deletadas = deletadas + 1
             end
         end
-        print("[MapaRápido] ✅ Mapa antigo limpo!")
+        print("[DEBUG] 🗑️ " .. deletadas .. " partes deletadas")
     end)
-
-    print("[MapaRápido] 🏗️ Construindo resto do mapa...")
+    
+    print("[DEBUG] 🏗️ Construindo resto do mapa...")
     task.spawn(function()
         local construidas = 0
-        for _, dados in ipairs(MEU_BLUEPRINT) do
+        local total = #MEU_BLUEPRINT
+        
+        for i, dados in ipairs(MEU_BLUEPRINT) do
             if dados.n ~= "Floor" and dados.n ~= "Terrain" then
-                criarParteComCFrame(dados)
-                construidas = construidas + 1
-                if construidas % 20 == 0 then task.wait(0.01) end
+                local parte = criarParteComCFrame(dados)
+                if parte then
+                    construidas = construidas + 1
+                end
+                
+                if i % 20 == 0 then
+                    print("[DEBUG] 🏗️ Progresso: " .. i .. "/" .. total)
+                    task.wait(0.01)
+                end
             end
         end
-        print("[MapaRápido] ✅ Mapa construído!")
         
-        print("[MapaRápido] 🧹 Removendo chão de proteção...")
+        print("[DEBUG] ✅ " .. construidas .. " partes construídas!")
+        
+        print("[DEBUG] 🧹 Removendo chão de proteção...")
         task.wait(2)
         for _, parte in ipairs(partesProtecao) do
             if parte and parte.Parent then
                 pcall(function() parte:Destroy() end)
             end
         end
-        print("[MapaRápido] 🎉 Concluído!")
+        print("[DEBUG] 🎉 CONCLUÍDO!")
     end)
-end
-
--- ============== ACESSÓRIO DE CINTURA (CORRIGIDO: APONTANDO PRA FRENTE) ==============
-local function botaoAcessorioCintura()
-    local char = plr.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    local torso = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
-    local corPersonagem = torso and torso.Color or Color3.fromRGB(100, 100, 100)
-
-    local function criarESoldar(forma, tamanho, cframeRelativo)
-        local cfAbsoluto = hrp.CFrame * cframeRelativo
-        local parte = F3X:CreatePart(forma, cfAbsoluto, workspace)
-        if parte then
-            F3X:Resize(parte, tamanho)
-            F3X:SetColor(parte, corPersonagem)
-            F3X:SetCollision(parte, false)
-            
-            local solda = Instance.new("WeldConstraint")
-            solda.Part0 = hrp
-            solda.Part1 = parte
-            solda.Parent = hrp
-        end
-        return parte
-    end
-
-    -- Bolas na cintura (frente)
-    criarESoldar("Ball", Vector3.new(1.2, 1.2, 1.2), CFrame.new(-1.3, -1.8, 1.2))
-    criarESoldar("Ball", Vector3.new(1.2, 1.2, 1.2), CFrame.new(1.3, -1.8, 1.2))
-    
-    -- Cilindro no meio: 
-    -- math.rad(90) no eixo Y faz ele apontar para FRENTE (Z) em vez de ficar de lado.
-    -- math.rad(35) no eixo X inclina ele 35 graus para CIMA.
-    criarESoldar("Cylinder", Vector3.new(0.8, 1.5, 0.8), CFrame.new(0, -1.8, 1.2) * CFrame.Angles(math.rad(35), math.rad(90), 0))
-
-    print("[Acessório] Criado na frente da cintura apontando para frente!")
 end
 
 -- ============== TOOL HACKER (100% SERVER-SIDE) ==============
