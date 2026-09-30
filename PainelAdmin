@@ -27,9 +27,17 @@ local COMANDOS_RAPIDOS = {
 }
 
 -- ============== WRAPPER ==============
-local F3X = loadstring(game:HttpGet("https://raw.githubusercontent.com/bqmb3/f3x-wrapper/main/loader.lua", true))()
-if not F3X then return end
-task.wait(2)
+local F3X = nil
+local success, result = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/bqmb3/f3x-wrapper/main/loader.lua", true))()
+end)
+if success and result then
+    F3X = result
+    print("✅ F3X carregado com sucesso!")
+else
+    warn("⚠️ F3X falhou ao carregar! O painel vai abrir, mas funções de construir mapa podem falhar.")
+end
+task.wait(1)
 
 -- ============== SERVERENDPOINT ==============
 local function getSE()
@@ -51,7 +59,9 @@ local function getSE()
 end
 
 local se = getSE()
-if not se then warn("Sem ServerEndpoint") return end
+if not se then 
+    warn("⚠️ ServerEndpoint não encontrado! O painel vai abrir normalmente.")
+end
 
 -- ============== FACES E TEXTURA ==============
 local TODAS_FACES = {
@@ -105,14 +115,14 @@ local rc = getRC()
 
 local function cmdHD(c)
     if not rc then return end
+    -- Execução instantânea e direta (o mais silencioso possível)
     pcall(function() rc:InvokeServer(c) end)
-    task.wait(0.15) -- Reduzido para o loop tóxico ser mais rápido
 end
 
 -- ============== ANIMAÇÃO DE PARTES (SUBIR + FADE OUT) ==============
 local function animarParte(parte)
     if not parte then return end
-    pcall(function() F3X:SetName(parte, "partículas fakes") end)
+    pcall(function() F3X:SetName(parte, "Particule") end)
     pcall(function() F3X:Anchor(parte) end)
     
     task.spawn(function()
@@ -182,14 +192,85 @@ local function pararSpam()
     end
 end
 
+-- ============== BLOQUEADOR DE BALÃO DE CHAT (À PROVA DE FALHAS) ==============
+local bloqueadorAtivo = false
+local bloqueadorTask = nil
+
+local function bloquearBaloes()
+    if not plr.Character then return end
+    
+    -- Verifica a cabeça
+    local head = plr.Character:FindFirstChild("Head")
+    if head then
+        for _, obj in ipairs(head:GetChildren()) do
+            if obj:IsA("BillboardGui") then
+                pcall(function() 
+                    -- Tenta F3X. Se falhar, destrói client-side (some na hora pra você)
+                    if F3X and type(F3X.Remove) == "function" then
+                        F3X:Remove(obj)
+                    else
+                        obj:Destroy() 
+                    end
+                end)
+            end
+        end
+    end
+    
+    -- Verifica o character inteiro por segurança
+    for _, obj in ipairs(plr.Character:GetChildren()) do
+        if obj:IsA("BillboardGui") or obj.Name:lower():find("BubbleChat") then
+            pcall(function() 
+                if F3X and type(F3X.Remove) == "function" then
+                    F3X:Remove(obj)
+                else
+                    obj:Destroy()
+                end
+            end)
+        end
+    end
+end
+
+local function iniciarBloqueador()
+    if bloqueadorAtivo then return end
+    bloqueadorAtivo = true
+    
+    bloqueadorTask = task.spawn(function()
+        while bloqueadorAtivo do
+            pcall(bloquearBaloes)
+            task.wait(0.03) -- 30ms (super rápido, o balão nem chega a renderizar)
+        end
+    end)
+    print("[Bloqueador] ✅ Ativado! Balões somem instantaneamente.")
+end
+
+local function pararBloqueador()
+    bloqueadorAtivo = false
+    if bloqueadorTask then
+        task.cancel(bloqueadorTask)
+        bloqueadorTask = nil
+    end
+    print("[Bloqueador] ❌ Desativado.")
+end
+
 -- ============== MÚSICA COM PRESETS ==============
 local MUSIC_PRESETS = {
     {id = 1839246711,     vol = 9999, pitch = 0.9, nome = "Jumpsytle"},
     {id = 95156028272944, vol = 9999, pitch = 0.2, nome = "Padrão"},
     {id = 75485931767123, vol = 9999, pitch = 0.9, nome = "Alone"},
-    {id = 86317637164248, vol = 9999, pitch = 1.0, nome = "misery"},
+    {id = 88914658183319,  vol = 9999, pitch = 0.8, nome = "China Music"}, 
+    {id = 87989952166968,  vol = 9999, pitch = 0.2, nome = "Keemstar Music"},     
+    {id = 78973045684083,  vol = 9999, pitch = 0.3, nome = "Sirmeme"},         
+    {id = 86317637164248, vol = 9999, pitch = 1.0, nome = "Misery"},
     {id = 138981629726601, vol = 9999, pitch = 0.8, nome = "Phonk Slowed Real"},
+    {id = 105000479529169, vol = 9999, pitch = 0.9, nome = "Hey, It's Me, Verity"},
+    {id = 92843733974363,  vol = 9999, pitch = 0.95, nome = "Washing Machine Heart"},
+    {id = 109288461793825, vol = 9999, pitch = 0.8, nome = "JET 2 HOLIDAY FUNK"},
+    {id = 110919391228823, vol = 9999, pitch = 1.0, nome = "Low Cortisol"},
+    {id = 82188333380385, vol = 9999, pitch = 0.10, nome = "Miguel Phonk"},    
+    {id = 82746224492420,  vol = 9999, pitch = 0.8, nome = "Terranova"},
+    {id = 82696338249251,  vol = 9999, pitch = 0.8, nome = "Rampage"}
 }
+
 local presetIndex = 2
 
 local musicaLigada = false
@@ -231,11 +312,12 @@ local function encontrarMusicaAtual()
 end
 
 local function tocarMusica()
-    cmdHD(";music " .. currentId)
-    task.wait(0.5)
-    cmdHD(";volume " .. currentVol)
-    task.wait(0.3)
-    cmdHD(";pitch " .. currentPitch)
+    if not rc then return end
+    
+    -- Executa na ordem exata e sem delay (instantâneo)
+    pcall(function() rc:InvokeServer(";music " .. currentId) end)
+    pcall(function() rc:InvokeServer(";pitch " .. currentPitch) end)
+    pcall(function() rc:InvokeServer(";volume " .. currentVol) end)
 end
 
 local function ligarMusica()
@@ -281,9 +363,9 @@ local function desligarMusica()
     atualizarTextoToggle()
     if musicaTask then pcall(function() task.cancel(musicaTask) end) musicaTask = nil end
     cmdHD(";unmusic")
-    task.wait(0.4)
+    task.wait(0.01)
     cmdHD(";pitch 1")
-    task.wait(0.3)
+    task.wait(0.01)
     cmdHD(";volume 1")
 end
 
@@ -327,7 +409,7 @@ end
 -- ============== LIMPAR EFEITOS ==============
 local limparLigado = false
 local limparTask = nil
-local COMANDOS_LIMPEZA = {";unice", ";unjail", ";unblur", ";untitle", ";unpunish", ";unmute", ";showGuis"}
+local COMANDOS_LIMPEZA = {";unice", ";unjail", ";unblur", ";untitle", ";unpunish", ";unmute", ";showGuis", ";refresh"}
 
 local function ligarLimpar()
     if limparLigado then return end
@@ -337,7 +419,7 @@ local function ligarLimpar()
             for _, cmd in ipairs(COMANDOS_LIMPEZA) do
                 if not limparLigado then break end
                 cmdHD(cmd)
-                task.wait(0.2)
+                task.wait(0.01)
             end
             task.wait(3)
         end
@@ -360,10 +442,10 @@ local function botaoMeshGlitch()
     local parteWrapper = F3X:CreatePart("Normal", CFrame.new(0, 0, 0), workspace)
     if not parteWrapper then return end
     F3X:Resize(parteWrapper, Vector3.new(1, 1, 1))
-    task.wait(0.5)
+    task.wait(0.01)
     local parteReal = acharParteReal(Vector3.new(0, 0, 0), Vector3.new(0.001, 0.001, 0.001)) or parteWrapper
     pcall(function() se:InvokeServer("CreateMeshes", {{Part = parteReal}}) end)
-    task.wait(0.3)
+    task.wait(0.01)
     pcall(function()
         se:InvokeServer("SyncMesh", {{
             Part = parteReal, MeshType = "FileMesh", Mesh = 16169707,
@@ -445,6 +527,919 @@ local function botaoMeteorito()
     end)
 end
 
+-- ============== NPC CONTROLÁVEL COM DETECÇÃO DE CHÃO ==============
+
+local npcParts = {}
+local npcPivot = nil
+local isWalking = false
+local walkFrame = 0
+local walkTask = nil
+local jumpTask = nil
+local controlGui = nil
+local alturaOriginal = nil
+
+-- Blueprint do NPC
+local NPC_BLUEPRINT = {
+  {n="Arm", cf={-10.3823,2.1216,-6.0560,0.9965,0.0559,0.0622,-0.0526,0.9972,-0.0540,-0.0650,0.0505,0.9966}, s=Vector3.new(1.00,2.00,1.00), c=Color3.fromRGB(255,191,127), m="Plastic"},
+  {n="Shirt", cf={-10.3717,2.7089,-6.0192,0.9984,0.0410,0.0377,-0.0411,0.9991,0.0029,-0.0375,-0.0045,0.9993}, s=Vector3.new(1.20,1.10,1.20), c=Color3.fromRGB(0,0,0), m="Plastic"},
+  {n="Head", cf={-8.9000,3.7054,-5.9804,1.0000,-0.0000,0.0000,0.0000,0.9994,0.0349,-0.0000,-0.0349,0.9994}, s=Vector3.new(1.00,1.00,1.00), c=Color3.fromRGB(255,191,127), m="Plastic"},
+  {n="Torso", cf={-8.9000,2.1971,-6.0474,1.0000,-0.0000,0.0000,0.0000,0.9994,0.0349,-0.0000,-0.0349,0.9994}, s=Vector3.new(2.00,2.00,1.00), c=Color3.fromRGB(0,0,0), m="Plastic"},
+  {n="Right Leg", cf={-9.4000,0.1983,-5.9777,1.0000,-0.0000,0.0000,0.0000,0.9994,0.0349,-0.0000,-0.0349,0.9994}, s=Vector3.new(1.00,2.00,1.00), c=Color3.fromRGB(0,0,0), m="Plastic"},
+  {n="Arm", cf={-7.2853,2.0025,-6.1336,0.9960,-0.0810,0.0377,0.0809,0.9967,0.0029,-0.0378,0.0002,0.9993}, s=Vector3.new(1.00,2.00,1.00), c=Color3.fromRGB(255,191,127), m="Plastic"},
+  {n="Shirt", cf={-7.3380,2.6493,-6.1343,0.9960,-0.0810,0.0377,0.0809,0.9967,0.0029,-0.0378,0.0002,0.9993}, s=Vector3.new(1.20,1.10,1.20), c=Color3.fromRGB(0,0,0), m="Plastic"},
+  {n="Left Leg", cf={-8.4000,0.1983,-5.9777,1.0000,-0.0000,0.0000,0.0000,0.9994,0.0349,-0.0000,-0.0349,0.9994}, s=Vector3.new(1.00,2.00,1.00), c=Color3.fromRGB(0,0,0), m="Plastic"},
+}
+
+local partOffsets = {}
+
+local animationGroups = {
+    bracoEsq = {},
+    bracoDir = {},
+    pernaEsq = {},
+    pernaDir = {},
+    head = {},
+    torso = {}
+}
+
+local walkFrames = {
+    {bracoEsq = {rotX = 0}, bracoDir = {rotX = 0}, pernaEsq = {rotX = 0}, pernaDir = {rotX = 0}},
+    {bracoEsq = {rotX = -30}, bracoDir = {rotX = 30}, pernaEsq = {rotX = 30}, pernaDir = {rotX = -30}},
+    {bracoEsq = {rotX = 0}, bracoDir = {rotX = 0}, pernaEsq = {rotX = 0}, pernaDir = {rotX = 0}},
+    {bracoEsq = {rotX = 30}, bracoDir = {rotX = -30}, pernaEsq = {rotX = -30}, pernaDir = {rotX = 30}},
+    {bracoEsq = {rotX = 0}, bracoDir = {rotX = 0}, pernaEsq = {rotX = 0}, pernaDir = {rotX = 0}}
+}
+
+local function aplicarAnimacaoGrupo(grupo, rotX, rotZ)
+    if not grupo then return end
+    
+    for _, parte in ipairs(grupo) do
+        local cfAtual = parte.CFrame
+        local rotacaoExtra = CFrame.Angles(math.rad(rotX or 0), 0, math.rad(rotZ or 0))
+        local pivotParte = cfAtual
+        local novoCF = pivotParte * rotacaoExtra
+        F3X:Move(parte, novoCF)
+    end
+end
+
+local function resetarGrupo(grupo)
+    if not grupo then return end
+    
+    for _, parte in ipairs(grupo) do
+        local dados = partOffsets[parte]
+        if dados then
+            F3X:Move(parte, dados.originalCF)
+        end
+    end
+end
+
+local function moverNPC(direcao)
+    if not npcPivot then return end
+    
+    local velocidade = 0.5
+    local direcaoVector = Vector3.new(0, 0, 0)
+    
+    if direcao == "frente" then
+        direcaoVector = Vector3.new(0, 0, -velocidade)
+    elseif direcao == "tras" then
+        direcaoVector = Vector3.new(0, 0, velocidade)
+    elseif direcao == "esquerda" then
+        direcaoVector = Vector3.new(-velocidade, 0, 0)
+    elseif direcao == "direita" then
+        direcaoVector = Vector3.new(velocidade, 0, 0)
+    end
+    
+    local novaPosPivot = npcPivot.Position + direcaoVector
+    F3X:Move(npcPivot, CFrame.new(novaPosPivot))
+    
+    for parte, dados in pairs(partOffsets) do
+        local novaPos = novaPosPivot + dados.offset
+        local cfAtual = parte.CFrame
+        local novoCF = CFrame.new(novaPos) * (cfAtual - cfAtual.Position)
+        F3X:Move(parte, novoCF)
+    end
+end
+
+local function rotacionarNPC(direcao)
+    if not npcPivot then return end
+    
+    local anguloRotacao = math.rad(15)
+    local angulo = direcao == "esquerda" and anguloRotacao or -anguloRotacao
+    
+    -- Rotacionar o pivot
+    local cfPivotAtual = npcPivot.CFrame
+    local novaCfPivot = cfPivotAtual * CFrame.Angles(0, angulo, 0)
+    F3X:Move(npcPivot, novaCfPivot)
+    
+    -- Rotacionar cada parte EM TORNO DO PIVOT (não no próprio eixo)
+    for parte, dados in pairs(partOffsets) do
+        local cfAtual = parte.CFrame
+        
+        -- Calcular offset da parte em relação ao pivot
+        local offset = cfAtual.Position - npcPivot.Position
+        
+        -- Rotacionar esse offset pelo ângulo desejado
+        local rotacao = CFrame.Angles(0, angulo, 0)
+        local rotatedOffset = rotacao:VectorToWorldSpace(offset)
+        
+        -- Nova posição = pivot + offset rotacionado
+        local novaPos = npcPivot.Position + rotatedOffset
+        
+        -- Nova rotação da parte = rotação atual + rotação adicional
+        local novaCf = CFrame.new(novaPos) * (cfAtual - cfAtual.Position) * rotacao
+        
+        F3X:Move(parte, novaCf)
+    end
+end
+
+local function iniciarCaminhada()
+    if isWalking then return end
+    isWalking = true
+    
+    walkTask = task.spawn(function()
+        while isWalking do
+            walkFrame = walkFrame + 1
+            if walkFrame > 5 then walkFrame = 1 end
+            
+            local frame = walkFrames[walkFrame]
+            
+            aplicarAnimacaoGrupo(animationGroups.bracoEsq, frame.bracoEsq.rotX or 0, frame.bracoEsq.rotZ or 0)
+            aplicarAnimacaoGrupo(animationGroups.bracoDir, frame.bracoDir.rotX or 0, frame.bracoDir.rotZ or 0)
+            aplicarAnimacaoGrupo(animationGroups.pernaEsq, frame.pernaEsq.rotX or 0, frame.pernaEsq.rotZ or 0)
+            aplicarAnimacaoGrupo(animationGroups.pernaDir, frame.pernaDir.rotX or 0, frame.pernaDir.rotZ or 0)
+            
+            task.wait(0.1)
+        end
+    end)
+end
+
+local function pararCaminhada()
+    isWalking = false
+    if walkTask then
+        task.cancel(walkTask)
+        walkTask = nil
+    end
+    
+    resetarGrupo(animationGroups.bracoEsq)
+    resetarGrupo(animationGroups.bracoDir)
+    resetarGrupo(animationGroups.pernaEsq)
+    resetarGrupo(animationGroups.pernaDir)
+end
+
+local function pular()
+    if not npcPivot or jumpTask then return end
+    
+    print("[NPC] 🦘 Pulando...")
+    
+    jumpTask = task.spawn(function()
+        aplicarAnimacaoGrupo(animationGroups.bracoEsq, -90, 0)
+        aplicarAnimacaoGrupo(animationGroups.bracoDir, -90, 0)
+        
+        local alturaPulo = 5
+        local passos = 20
+        local incremento = alturaPulo / passos
+        
+        -- Subir
+        for i = 1, passos do
+            if not npcPivot then break end
+            
+            local posAtual = npcPivot.Position
+            local novaPos = posAtual + Vector3.new(0, incremento, 0)
+            F3X:Move(npcPivot, CFrame.new(novaPos))
+            
+            for parte, dados in pairs(partOffsets) do
+                local novaPosParte = novaPos + dados.offset
+                local cfAtual = parte.CFrame
+                local novoCF = CFrame.new(novaPosParte) * (cfAtual - cfAtual.Position)
+                F3X:Move(parte, novoCF)
+            end
+            
+            task.wait(0.05)
+        end
+        
+        -- Descer até alturaOriginal
+        local velocidadeDescida = 0.3
+        
+        while true do
+            if not npcPivot then break end
+            
+            local posAtual = npcPivot.Position
+            
+            if posAtual.Y <= alturaOriginal then
+                print("[NPC] ✅ Altura original atingida!")
+                break
+            end
+            
+            local novaPos = posAtual - Vector3.new(0, velocidadeDescida, 0)
+            F3X:Move(npcPivot, CFrame.new(novaPos))
+            
+            for parte, dados in pairs(partOffsets) do
+                local novaPosParte = novaPos + dados.offset
+                local cfAtual = parte.CFrame
+                local novoCF = CFrame.new(novaPosParte) * (cfAtual - cfAtual.Position)
+                F3X:Move(parte, novoCF)
+            end
+            
+            task.wait(0.05)
+        end
+        
+        resetarGrupo(animationGroups.bracoEsq)
+        resetarGrupo(animationGroups.bracoDir)
+        
+        print("[NPC] ✅ Pulo concluído!")
+        jumpTask = nil
+    end)
+end
+
+local function deletarNPC()
+    if not npcPivot then return end
+    
+    print("[NPC] 🗑️ Deletando NPC (server-side)...")
+    
+    for _, parte in ipairs(npcParts) do
+        if parte and parte.Parent then
+            pcall(function() F3X:Remove(parte) end)
+        end
+    end
+    
+    if npcPivot and npcPivot.Parent then
+        pcall(function() F3X:Remove(npcPivot) end)
+    end
+    
+    npcParts = {}
+    npcPivot = nil
+    partOffsets = {}
+    alturaOriginal = nil
+    animationGroups = {
+        bracoEsq = {},
+        bracoDir = {},
+        pernaEsq = {},
+        pernaDir = {},
+        head = {},
+        torso = {}
+    }
+    
+    print("[NPC] ✅ NPC deletado! Pode criar outro agora.")
+end
+
+local function criarNPC()
+    if npcPivot then
+        warn("[NPC] Já existe um NPC criado!")
+        return
+    end
+    
+    print("[NPC] 🤖 Criando NPC...")
+    
+    -- Criar pivot invisível em altura ALTA (vai cair até o chão)
+    local pivotPos = Vector3.new(0, 20, 0)
+    npcPivot = F3X:CreatePart("Normal", CFrame.new(pivotPos), workspace)
+    if not npcPivot then
+        warn("[NPC] ❌ Falha ao criar pivot!")
+        return
+    end
+    F3X:Resize(npcPivot, Vector3.new(0.1, 0.1, 0.1))
+    F3X:SetTransparency(npcPivot, 1)
+    F3X:Anchor(npcPivot)
+    F3X:SetCollision(npcPivot, false)
+    
+    local armCount = 0
+    local shirtCount = 0
+    
+    -- Criar cada parte do NPC
+    for i, dados in ipairs(NPC_BLUEPRINT) do
+        local cf = CFrame.new(
+            dados.cf[1], dados.cf[2], dados.cf[3],
+            dados.cf[4], dados.cf[5], dados.cf[6],
+            dados.cf[7], dados.cf[8], dados.cf[9],
+            dados.cf[10], dados.cf[11], dados.cf[12]
+        )
+        
+        local parte = F3X:CreatePart("Normal", cf, workspace)
+        if parte then
+            F3X:Resize(parte, dados.s)
+            F3X:SetColor(parte, dados.c)
+            F3X:Anchor(parte)
+            F3X:SetCollision(parte, true)
+            parte.CFrame = cf
+            
+            local offset = cf.Position - pivotPos
+            partOffsets[parte] = {
+                offset = offset,
+                originalCF = cf,
+                nome = dados.n
+            }
+            
+            local nomeParte = dados.n
+            
+            if nomeParte == "Arm" then
+                armCount = armCount + 1
+                if armCount == 1 then
+                    table.insert(animationGroups.bracoEsq, parte)
+                else
+                    table.insert(animationGroups.bracoDir, parte)
+                end
+            elseif nomeParte == "Shirt" then
+                shirtCount = shirtCount + 1
+                if shirtCount == 1 then
+                    table.insert(animationGroups.bracoEsq, parte)
+                else
+                    table.insert(animationGroups.bracoDir, parte)
+                end
+            elseif nomeParte == "Left Leg" then
+                table.insert(animationGroups.pernaEsq, parte)
+            elseif nomeParte == "Right Leg" then
+                table.insert(animationGroups.pernaDir, parte)
+            elseif nomeParte == "Head" then
+                table.insert(animationGroups.head, parte)
+            elseif nomeParte == "Torso" then
+                table.insert(animationGroups.torso, parte)
+            end
+            
+            table.insert(npcParts, parte)
+        end
+    end
+    
+    print("[NPC] 📏 Deixando NPC cair até o chão...")
+    
+    -- DESCER O NPC ATÉ O CHÃO (simples e funcional)
+    local velocidadeDescida = 0.5
+    local alturaMinima = 1 -- Se chegar aqui, para (segurança)
+    
+    while true do
+        if not npcPivot then break end
+        
+        local posAtual = npcPivot.Position
+        
+        -- RAYCAST SIMPLES PARA DETECTAR CHÃO
+        local origem = posAtual + Vector3.new(0, -3, 0) -- 3 studs abaixo do pivot
+        local direcao = Vector3.new(0, -50, 0) -- Ray de 50 studs pra baixo
+        
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {npcPivot, unpack(npcParts)} -- Exclui o próprio NPC
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        
+        local resultado = workspace:Raycast(origem, direcao, rayParams)
+        
+        -- SE DETECTOU ALGO EMBAIXO, PARAR
+        if resultado then
+            alturaOriginal = posAtual.Y
+            print("[NPC] ✅ Chão detectado! Altura: " .. alturaOriginal)
+            break
+        end
+        
+        -- SEGURANÇA: não deixar cair abaixo de alturaMinima
+        if posAtual.Y <= alturaMinima then
+            alturaOriginal = posAtual.Y
+            print("[NPC] ⚠️ Altura mínima atingida: " .. alturaOriginal)
+            break
+        end
+        
+        -- DESCER
+        local novaPos = posAtual - Vector3.new(0, velocidadeDescida, 0)
+        F3X:Move(npcPivot, CFrame.new(novaPos))
+        
+        for parte, dados in pairs(partOffsets) do
+            local novaPosParte = novaPos + dados.offset
+            local cfAtual = parte.CFrame
+            local novoCF = CFrame.new(novaPosParte) * (cfAtual - cfAtual.Position)
+            F3X:Move(parte, novoCF)
+        end
+        
+        task.wait(0.05)
+    end
+    
+    -- Atualizar offsets com a nova posição
+    for parte, dados in pairs(partOffsets) do
+        dados.offset = parte.CFrame.Position - npcPivot.Position
+        dados.originalCF = parte.CFrame
+    end
+    
+    print("[NPC] ✅ NPC criado e alinhado com o chão!")
+    
+    criarInterfaceControle()
+end
+
+function criarInterfaceControle()
+    controlGui = Instance.new("ScreenGui")
+    controlGui.Name = "NPCControl"
+    controlGui.ResetOnSpawn = false
+    controlGui.Parent = game.Players.LocalPlayer.PlayerGui
+    
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0, 250, 0, 350)
+    mainFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    mainFrame.Parent = controlGui
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+    
+    local titulo = Instance.new("TextLabel")
+    titulo.Size = UDim2.new(1, 0, 0, 30)
+    titulo.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    titulo.Text = "Controle do NPC"
+    titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titulo.Font = Enum.Font.GothamBold
+    titulo.TextSize = 14
+    titulo.Parent = mainFrame
+    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
+    
+    -- Botão Cima (Frente)
+    local btnCima = Instance.new("TextButton")
+    btnCima.Size = UDim2.new(0, 60, 0, 60)
+    btnCima.Position = UDim2.new(0.5, -30, 0, 40)
+    btnCima.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+    btnCima.Text = "⬆️"
+    btnCima.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnCima.Font = Enum.Font.GothamBold
+    btnCima.TextSize = 24
+    btnCima.Parent = mainFrame
+    Instance.new("UICorner", btnCima).CornerRadius = UDim.new(0, 8)
+    
+    btnCima.MouseButton1Down:Connect(function()
+        iniciarCaminhada()
+        while btnCima and btnCima.Parent and isWalking do
+            moverNPC("frente")
+            task.wait(0.1)
+        end
+    end)
+    
+    btnCima.MouseButton1Up:Connect(function()
+        pararCaminhada()
+    end)
+    
+    -- Botão Baixo (Trás)
+    local btnBaixo = Instance.new("TextButton")
+    btnBaixo.Size = UDim2.new(0, 60, 0, 60)
+    btnBaixo.Position = UDim2.new(0.5, -30, 0, 160)
+    btnBaixo.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+    btnBaixo.Text = "⬇️"
+    btnBaixo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnBaixo.Font = Enum.Font.GothamBold
+    btnBaixo.TextSize = 24
+    btnBaixo.Parent = mainFrame
+    Instance.new("UICorner", btnBaixo).CornerRadius = UDim.new(0, 8)
+    
+    btnBaixo.MouseButton1Down:Connect(function()
+        iniciarCaminhada()
+        while btnBaixo and btnBaixo.Parent and isWalking do
+            moverNPC("tras")
+            task.wait(0.1)
+        end
+    end)
+    
+    btnBaixo.MouseButton1Up:Connect(function()
+        pararCaminhada()
+    end)
+    
+    -- Botão Esquerda
+    local btnEsquerda = Instance.new("TextButton")
+    btnEsquerda.Size = UDim2.new(0, 60, 0, 60)
+    btnEsquerda.Position = UDim2.new(0, 10, 0, 100)
+    btnEsquerda.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+    btnEsquerda.Text = "⬅️"
+    btnEsquerda.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnEsquerda.Font = Enum.Font.GothamBold
+    btnEsquerda.TextSize = 24
+    btnEsquerda.Parent = mainFrame
+    Instance.new("UICorner", btnEsquerda).CornerRadius = UDim.new(0, 8)
+    
+    btnEsquerda.MouseButton1Down:Connect(function()
+        iniciarCaminhada()
+        while btnEsquerda and btnEsquerda.Parent and isWalking do
+            moverNPC("esquerda")
+            task.wait(0.1)
+        end
+    end)
+    
+    btnEsquerda.MouseButton1Up:Connect(function()
+        pararCaminhada()
+    end)
+    
+    -- Botão Direita
+    local btnDireita = Instance.new("TextButton")
+    btnDireita.Size = UDim2.new(0, 60, 0, 60)
+    btnDireita.Position = UDim2.new(1, -70, 0, 100)
+    btnDireita.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+    btnDireita.Text = "➡️"
+    btnDireita.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnDireita.Font = Enum.Font.GothamBold
+    btnDireita.TextSize = 24
+    btnDireita.Parent = mainFrame
+    Instance.new("UICorner", btnDireita).CornerRadius = UDim.new(0, 8)
+    
+    btnDireita.MouseButton1Down:Connect(function()
+        iniciarCaminhada()
+        while btnDireita and btnDireita.Parent and isWalking do
+            moverNPC("direita")
+            task.wait(0.1)
+        end
+    end)
+    
+    btnDireita.MouseButton1Up:Connect(function()
+        pararCaminhada()
+    end)
+    
+    -- Botão Pular
+    local btnPular = Instance.new("TextButton")
+    btnPular.Size = UDim2.new(0, 100, 0, 40)
+    btnPular.Position = UDim2.new(0.5, -50, 0, 230)
+    btnPular.BackgroundColor3 = Color3.fromRGB(120, 70, 90)
+    btnPular.Text = "🦘 PULAR"
+    btnPular.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnPular.Font = Enum.Font.GothamBold
+    btnPular.TextSize = 14
+    btnPular.Parent = mainFrame
+    Instance.new("UICorner", btnPular).CornerRadius = UDim.new(0, 8)
+    
+    btnPular.MouseButton1Click:Connect(function()
+        pular()
+    end)
+    
+    -- Botão Rotacionar Esquerda
+    local btnRotEsq = Instance.new("TextButton")
+    btnRotEsq.Size = UDim2.new(0, 50, 0, 40)
+    btnRotEsq.Position = UDim2.new(0, 10, 0, 230)
+    btnRotEsq.BackgroundColor3 = Color3.fromRGB(90, 70, 120)
+    btnRotEsq.Text = "↺"
+    btnRotEsq.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnRotEsq.Font = Enum.Font.GothamBold
+    btnRotEsq.TextSize = 20
+    btnRotEsq.Parent = mainFrame
+    Instance.new("UICorner", btnRotEsq).CornerRadius = UDim.new(0, 8)
+    
+    btnRotEsq.MouseButton1Click:Connect(function()
+        rotacionarNPC("esquerda")
+    end)
+    
+    -- Botão Rotacionar Direita
+    local btnRotDir = Instance.new("TextButton")
+    btnRotDir.Size = UDim2.new(0, 50, 0, 40)
+    btnRotDir.Position = UDim2.new(1, -60, 0, 230)
+    btnRotDir.BackgroundColor3 = Color3.fromRGB(90, 70, 120)
+    btnRotDir.Text = "↻"
+    btnRotDir.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnRotDir.Font = Enum.Font.GothamBold
+    btnRotDir.TextSize = 20
+    btnRotDir.Parent = mainFrame
+    Instance.new("UICorner", btnRotDir).CornerRadius = UDim.new(0, 8)
+    
+    btnRotDir.MouseButton1Click:Connect(function()
+        rotacionarNPC("direita")
+    end)
+    
+    -- Botão Fechar
+    local btnFechar = Instance.new("TextButton")
+    btnFechar.Size = UDim2.new(0, 25, 0, 25)
+    btnFechar.Position = UDim2.new(1, -28, 0, 3)
+    btnFechar.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    btnFechar.Text = "X"
+    btnFechar.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnFechar.Font = Enum.Font.GothamBold
+    btnFechar.TextSize = 12
+    btnFechar.Parent = mainFrame
+    Instance.new("UICorner", btnFechar).CornerRadius = UDim.new(0, 6)
+    
+    btnFechar.MouseButton1Click:Connect(function()
+        deletarNPC()
+        if controlGui then
+            controlGui:Destroy()
+            controlGui = nil
+        end
+    end)
+end
+
+-- ============== SISTEMA OBBY COMPLETO COM TOGGLE ==============
+
+local obbyAtivo = false
+local construindo = false
+local mapaAntigo = {} -- Guarda o blueprint do mapa original
+local partesObby = {} -- Guarda as partes do obby pra deletar depois
+local conexoesObby = {} -- Guarda as conexões Touched pra desconectar
+
+-- Função para salvar o mapa atual
+local function salvarMapaAtual()
+    print("[Obby] 💾 Salvando mapa atual...")
+    mapaAntigo = {}
+    
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and not obj:IsDescendantOf(game.Players.LocalPlayer.Character) then
+            local x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 = obj.CFrame:GetComponents()
+            
+            table.insert(mapaAntigo, {
+                n = obj.Name,
+                cf = {x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22},
+                s = {obj.Size.X, obj.Size.Y, obj.Size.Z},
+                c = {obj.Color.R, obj.Color.G, obj.Color.B},
+                m = obj.Material.Name,
+                t = obj.Transparency,
+                col = obj.CanCollide,
+                anc = obj.Anchored
+            })
+        end
+    end
+    
+    print("[Obby] ✅ " .. #mapaAntigo .. " partes salvas!")
+end
+
+-- Função para restaurar o mapa antigo
+local function restaurarMapaAntigo()
+    print("[Obby] 🔄 Restaurando mapa antigo...")
+    
+    if #mapaAntigo == 0 then
+        warn("[Obby] ⚠️ Nenhum mapa salvo para restaurar!")
+        return
+    end
+    
+    -- Deletar tudo que não é player
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local ehPlayer = false
+            local parent = obj.Parent
+            while parent do
+                if parent:IsA("Model") and parent:FindFirstChildOfClass("Humanoid") then
+                    ehPlayer = true
+                    break
+                end
+                parent = parent.Parent
+            end
+            
+            if not ehPlayer then
+                pcall(function() F3X:Remove(obj) end)
+            end
+        end
+    end
+    
+    task.wait(0.5)
+    
+    -- Reconstruir mapa antigo
+    for _, dados in ipairs(mapaAntigo) do
+        local cf = CFrame.new(
+            dados.cf[1], dados.cf[2], dados.cf[3],
+            dados.cf[4], dados.cf[5], dados.cf[6],
+            dados.cf[7], dados.cf[8], dados.cf[9],
+            dados.cf[10], dados.cf[11], dados.cf[12]
+        )
+        
+        local parte = F3X:CreatePart("Normal", cf, workspace)
+        if parte then
+            F3X:Resize(parte, dados.s)
+            F3X:SetColor(parte, dados.c)
+            
+            if dados.t then
+                F3X:SetTransparency(parte, dados.t)
+            end
+            
+            if dados.col ~= nil then
+                F3X:SetCollision(parte, dados.col)
+            else
+                F3X:SetCollision(parte, true)
+            end
+            
+            if dados.anc then
+                F3X:Anchor(parte)
+            else
+                F3X:Unanchor(parte)
+            end
+            
+            pcall(function() F3X:SetMaterial(parte, dados.m) end)
+            
+            parte.CFrame = cf
+        end
+    end
+    
+    print("[Obby] ✅ Mapa antigo restaurado!")
+end
+
+-- Função para deletar o obby
+local function deletarObby()
+    print("[Obby] 🗑️ Deletando obby...")
+    
+    -- Desconectar todas as conexões Touched
+    for _, conexao in ipairs(conexoesObby) do
+        pcall(function() conexao:Disconnect() end)
+    end
+    conexoesObby = {}
+    
+    -- Deletar todas as partes do obby
+    for _, parte in ipairs(partesObby) do
+        if parte and parte.Parent then
+            pcall(function() F3X:Remove(parte) end)
+        end
+    end
+    partesObby = {}
+    
+    print("[Obby] ✅ Obby deletado!")
+end
+
+-- Função principal do toggle
+local function toggleObby(ativar)
+    if ativar then
+        -- ATIVAR: Salvar mapa, construir obby, configurar
+        print("[Obby] 🟢 Ativando sistema obby...")
+        obbyAtivo = true
+        construindo = true
+        
+        -- Salvar mapa atual
+        salvarMapaAtual()
+        
+        -- Construir obby em thread separada (pra poder cancelar)
+        task.spawn(function()
+            local OBBY = {
+  {n="Terrain", cf={0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(2044.00,252.00,2044.00), c=Color3.fromRGB(163,162,165), m="Plastic", t=0.00, col=true, anc=true},
+  {n="KillBrick", cf={-10.0000,0.7000,-23.0000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(0.90,0.20,4.00), c=Color3.fromRGB(255,0,0), m="Neon", t=0.00, col=true, anc=true},
+  {n="FlyCameraFocus", cf={-2.5306,24.2349,-51.2005,-1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,-1.0000}, s=Vector3.new(1.00,1.00,1.00), c=Color3.fromRGB(163,162,165), m="Plastic", t=1.00, col=false, anc=false},
+  {n="FlyCameraFocus", cf={3.1310,18.0668,-25.4316,-1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,-1.0000}, s=Vector3.new(1.00,1.00,1.00), c=Color3.fromRGB(163,162,165), m="Plastic", t=1.00, col=false, anc=false},
+  {n="FlyCameraFocus", cf={0.0000,14.9996,-30.0000,-1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,-1.0000}, s=Vector3.new(1.00,1.00,1.00), c=Color3.fromRGB(163,162,165), m="Plastic", t=1.00, col=false, anc=false},
+  {n="ObbyPart", cf={-11.4731,6.5000,-36.1518,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,12.20,1.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="FlyCameraFocus", cf={19.0089,17.0676,-21.7486,-1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,-1.0000}, s=Vector3.new(1.00,1.00,1.00), c=Color3.fromRGB(163,162,165), m="Plastic", t=1.00, col=false, anc=false},
+  {n="KillBrick", cf={-10.0000,0.6990,-30.9999,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(0.90,0.20,4.00), c=Color3.fromRGB(255,0,0), m="Neon", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-10.0001,7.5000,-9.9998,0.0001,-0.0011,-1.0000,-1.0000,-0.0001,-0.0001,-0.0001,1.0000,-0.0011}, s=Vector3.new(14.00,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,10.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="KillBrick", cf={-10.0000,0.6990,-26.9999,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(0.90,0.20,4.00), c=Color3.fromRGB(255,0,0), m="Neon", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,9.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="KillBrick", cf={-10.0000,0.6990,-19.0000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(0.90,0.20,4.00), c=Color3.fromRGB(255,0,0), m="Neon", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,6.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,1.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={0.0000,0.5000,10.0000,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(4.00,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-10.0000,0.5000,10.0000,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(4.00,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,11.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-10.0001,7.5000,4.0002,0.0001,-0.0011,-1.0000,-1.0000,-0.0001,-0.0001,-0.0001,1.0000,-0.0011}, s=Vector3.new(14.00,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-10.0000,7.5000,-0.0000,0.0000,0.0000,-1.0000,-1.0000,0.0000,0.0000,0.0000,1.0000,0.0000}, s=Vector3.new(14.00,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={0.0000,0.5000,0.0000,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(4.00,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-2.0000,8.0000,0.5000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(15.00,15.20,0.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=1.00, col=true, anc=true},
+  {n="ObbyPart", cf={-10.0001,7.5000,-4.9998,0.0001,-0.0011,-1.0000,-1.0000,-0.0001,-0.0001,-0.0001,1.0000,-0.0011}, s=Vector3.new(14.00,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="KillBrick", cf={-10.0000,0.7000,-15.1510,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(0.90,0.20,4.00), c=Color3.fromRGB(255,0,0), m="Neon", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-10.9475,12.5000,-57.1512,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(42.30,0.20,24.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-10.0000,0.5000,-14.1500,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(40.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,8.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,5.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,4.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-4.9159,8.0000,8.0687,-1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,-1.0000}, s=Vector3.new(6.00,15.20,0.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=1.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,3.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-8.4731,6.5000,-36.1481,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,12.20,1.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,7.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="WinPart", cf={-10.5000,17.1000,-37.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(9.00,9.00,12.00), c=Color3.fromRGB(0,255,0), m="Plastic", t=1.00, col=false, anc=true},
+  {n="ObbyPart", cf={-9.9731,2.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="ObbyPart", cf={-9.9731,0.5000,-36.1499,-0.0012,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,-0.0012}, s=Vector3.new(0.30,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+}
+            
+            -- Deletar mapa antigo
+            print("[Obby] 🗑️ Deletando mapa antigo...")
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if not construindo then break end -- Verifica se foi cancelado
+                
+                if obj:IsA("BasePart") then
+                    local ehPlayer = false
+                    local parent = obj.Parent
+                    while parent do
+                        if parent:IsA("Model") and parent:FindFirstChildOfClass("Humanoid") then
+                            ehPlayer = true
+                            break
+                        end
+                        parent = parent.Parent
+                    end
+                    
+                    if not ehPlayer then
+                        pcall(function() F3X:Remove(obj) end)
+                    end
+                end
+            end
+            
+            if not construindo then
+                print("[Obby] ❌ Construção cancelada!")
+                return
+            end
+            
+            task.wait(0.5)
+            
+            -- Construir obby
+            print("[Obby] 🏗️ Construindo obby...")
+            for i, dados in ipairs(OBBY) do
+                if not construindo then
+                    print("[Obby] ❌ Construção cancelada!")
+                    return
+                end
+                
+                local cf = CFrame.new(
+                    dados.cf[1], dados.cf[2], dados.cf[3],
+                    dados.cf[4], dados.cf[5], dados.cf[6],
+                    dados.cf[7], dados.cf[8], dados.cf[9],
+                    dados.cf[10], dados.cf[11], dados.cf[12]
+                )
+                
+                local parte = F3X:CreatePart("Normal", cf, workspace)
+                if parte then
+                    F3X:Resize(parte, dados.s)
+                    F3X:SetColor(parte, dados.c)
+                    
+                    if dados.t then
+                        F3X:SetTransparency(parte, dados.t)
+                    end
+                    
+                    if dados.col ~= nil then
+                        F3X:SetCollision(parte, dados.col)
+                    else
+                        F3X:SetCollision(parte, true)
+                    end
+                    
+                    if dados.anc then
+                        F3X:Anchor(parte)
+                    else
+                        F3X:Unanchor(parte)
+                    end
+                    
+                    pcall(function() F3X:SetMaterial(parte, dados.m) end)
+                    
+                    parte.CFrame = cf
+                    table.insert(partesObby, parte)
+                end
+                
+                if i % 10 == 0 then
+                    print("[Obby] 🏗️ Progresso: " .. i .. "/" .. #OBBY)
+                    task.wait(0.05)
+                end
+            end
+            
+            if not construindo then
+                print("[Obby] ❌ Construção cancelada!")
+                return
+            end
+            
+            task.wait(1)
+            
+            -- Configurar KillBricks e WinParts
+            print("[Obby] 🔧 Configurando KillBricks e WinParts...")
+            
+            for _, parte in ipairs(partesObby) do
+                if not construindo then break end
+                
+                if parte.Name == "KillBrick" and not parte:FindFirstChild("ObbyConfigured") then
+                    local tag = Instance.new("BoolValue")
+                    tag.Name = "ObbyConfigured"
+                    tag.Parent = parte
+                    
+                    local conexao = parte.Touched:Connect(function(hit)
+                        local character = hit:FindFirstAncestorOfClass("Model")
+                        if character then
+                            local player = Players:GetPlayerFromCharacter(character)
+                            if player and character:FindFirstChild("Humanoid") then
+                                cmdHD(";kill " .. player.Name)
+                                cmdHD(";notice " .. player.Name .. " You die by KillBrick try the obby again!")
+                                print("[Obby] 💀 " .. player.Name .. " morreu no KillBrick!")
+                            end
+                        end
+                    end)
+                    
+                    table.insert(conexoesObby, conexao)
+                elseif parte.Name == "WinPart" and not parte:FindFirstChild("ObbyConfigured") then
+                    local tag = Instance.new("BoolValue")
+                    tag.Name = "ObbyConfigured"
+                    tag.Parent = parte
+                    
+                    local conexao = parte.Touched:Connect(function(hit)
+                        local character = hit:FindFirstAncestorOfClass("Model")
+                        if character then
+                            local player = Players:GetPlayerFromCharacter(character)
+                            if player and character:FindFirstChild("Humanoid") then
+                                cmdHD(";notice " .. player.Name .. " You Win!")
+                                cmdHD(";title " .. player.Name .. " Winner")
+                                print("[Obby] 🏆 " .. player.Name .. " venceu o obby!")
+                            end
+                        end
+                    end)
+                    
+                    table.insert(conexoesObby, conexao)
+                end
+            end
+            
+            construindo = false
+            print("[Obby] 🎉 Sistema obby ativado com sucesso!")
+        end)
+        
+    else
+        -- DESATIVAR: Parar construção, deletar obby, restaurar mapa
+        print("[Obby] 🔴 Desativando sistema obby...")
+        
+        if construindo then
+            construindo = false
+            print("[Obby] ⏹️ Parando construção...")
+            task.wait(0.5)
+        end
+        
+        obbyAtivo = false
+        
+        -- Deletar obby
+        deletarObby()
+        
+        -- Restaurar mapa antigo
+        task.wait(0.5)
+        restaurarMapaAntigo()
+        
+        print("[Obby] ✅ Sistema obby desativado!")
+    end
+end)
+
 -- ============== BANDEIRA COLORIDA (ORDEM CORRIGIDA) ==============
 local function botaoBandeira()
     print("[Bandeira] Iniciando construção...")
@@ -479,11 +1474,11 @@ local function botaoBandeira()
     print("[Bandeira] Construção concluída!")
 end
 
--- ============== CONSTRUTOR DE MAPA COM DEBUG COMPLETO ==============
+-- ============== CONSTRUTOR DE MAPA (INSTANTÂNEO + SERVER-SIDE) ==============
 local function botaoConstruirMapaRapido()
-    print("[DEBUG] 🚀 FUNÇÃO INICIADA!")
+    print("[Mapa] 🚀 Iniciando...")
     
- local MEU_BLUEPRINT = {
+    local MEU_BLUEPRINT = {
   {n="Terrain", cf={0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(2044.00,252.00,2044.00), c=Color3.fromRGB(163,162,165), m="Plastic"},
   {n="Part3", cf={0.6000,10.8911,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.03,2.93), c=Color3.fromRGB(255,236,141), m="Plastic"},
   {n="Part5", cf={0.6000,7.9578,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.03,2.93), c=Color3.fromRGB(255,236,141), m="Plastic"},
@@ -492,7 +1487,7 @@ local function botaoConstruirMapaRapido()
   {n="Part2", cf={0.6000,11.9178,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.17,2.93), c=Color3.fromRGB(129,186,255), m="Plastic"},
   {n="Part7", cf={0.6000,5.7578,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.32,2.93), c=Color3.fromRGB(255,59,162), m="Plastic"},
   {n="Part", cf={0.6000,12.9444,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.17,2.93), c=Color3.fromRGB(101,114,255), m="Plastic"},
-  {n="Part", cf={2.0000,-1.3520,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(100.00,1.00,100.00), c=Color3.fromRGB(163,162,165), m="Asphalt"},
+  {n="Floor", cf={2.0000,-1.3520,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(100.00,1.00,100.00), c=Color3.fromRGB(163,162,165), m="Asphalt"},
   {n="Part3", cf={0.5896,1.1339,-1.0244,-0.9962,-0.0226,0.0842,-0.0000,0.9659,0.2588,-0.0872,0.2578,-0.9623}, s=Vector3.new(0.62,0.62,0.62), c=Color3.fromRGB(255,191,127), m="Plastic"},
   {n="Part5", cf={0.6046,0.2466,-1.1954,-0.9962,0.0000,0.0872,0.0000,1.0000,0.0000,-0.0872,0.0000,-0.9962}, s=Vector3.new(1.24,1.24,0.62), c=Color3.fromRGB(255,191,127), m="Plastic"},
   {n="Part6", cf={1.1853,-0.6571,-1.7268,-0.9064,-0.4213,0.0293,0.0299,0.0052,0.9995,-0.4213,0.9069,0.0079}, s=Vector3.new(0.62,1.24,0.62), c=Color3.fromRGB(255,191,127), m="Plastic"},
@@ -615,34 +1610,45 @@ local function botaoConstruirMapaRapido()
   {n="Part6", cf={-25.1003,10.4178,-0.1658,-0.9642,-0.2585,-0.0597,0.2617,-0.9637,-0.0526,-0.0439,-0.0663,0.9968}, s=Vector3.new(1.16,3.39,1.44), c=Color3.fromRGB(0,0,0), m="Plastic"},
 }
     
-    print("[DEBUG] 📋 Blueprint carregado com " .. #MEU_BLUEPRINT .. " partes")
-    
     if #MEU_BLUEPRINT == 0 then
-        warn("[DEBUG] ❌ BLUEPRINT VAZIO!")
+        warn("[Mapa] ❌ Blueprint vazio!")
         return
     end
     
-    -- Verifica se o F3X está carregado
-    print("[DEBUG] 🔍 Verificando F3X...")
     if not F3X then
-        warn("[DEBUG] ❌ F3X NÃO ESTÁ CARREGADO!")
-        return
-    end
-    print("[DEBUG] ✅ F3X está OK")
-    
-    -- Testa criar uma parte simples
-    print("[DEBUG] 🧪 Testando criação de parte...")
-    local testeParte = F3X:CreatePart("Normal", CFrame.new(0, 10, 0), workspace)
-    if testeParte then
-        print("[DEBUG] ✅ F3X:CreatePart FUNCIONA!")
-        pcall(function() testeParte:Destroy() end)
-    else
-        warn("[DEBUG] ❌ F3X:CreatePart FALHOU!")
+        warn("[Mapa] ❌ F3X não carregado!")
         return
     end
     
-    -- Função para criar parte com CFrame completo
-    local function criarParteComCFrame(dados)
+    -- Função para verificar se uma parte pertence a QUALQUER player
+    local function ehParteDePlayer(parte)
+        local parent = parte.Parent
+        while parent do
+            if parent:IsA("Model") then
+                if parent:FindFirstChildOfClass("Humanoid") then
+                    return true
+                end
+            end
+            parent = parent.Parent
+        end
+        return false
+    end
+    
+    -- Coletar e deletar mapa antigo SERVER-SIDE (protegendo players)
+    print("[Mapa] 🗑️ Deletando mapa antigo...")
+    local deletadas = 0
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and not ehParteDePlayer(obj) then
+            pcall(function() F3X:Remove(obj) end)
+            deletadas = deletadas + 1
+        end
+    end
+    print("[Mapa] ✅ " .. deletadas .. " partes deletadas")
+    
+    -- Construir mapa novo INSTANTANEAMENTE
+    print("[Mapa] 🏗️ Construindo mapa...")
+    local construidas = 0
+    for _, dados in ipairs(MEU_BLUEPRINT) do
         local cf = CFrame.new(
             dados.cf[1], dados.cf[2], dados.cf[3],
             dados.cf[4], dados.cf[5], dados.cf[6],
@@ -651,95 +1657,50 @@ local function botaoConstruirMapaRapido()
         )
         
         local parte = F3X:CreatePart("Normal", cf, workspace)
-        
         if parte then
             F3X:Resize(parte, dados.s)
             F3X:SetColor(parte, dados.c)
             F3X:Anchor(parte)
             F3X:SetCollision(parte, true)
             parte.CFrame = cf
+            construidas = construidas + 1
         end
+    end
+    
+    print("[Mapa] 🎉 " .. construidas .. " partes construídas!")
+end
+
+-- ============== BOAS VINDAS AUTOMÁTICAS ==============
+local boasVindasAtivo = false
+local boasVindasConexao = nil
+
+local function ligarBoasVindas()
+    if boasVindasAtivo then return end
+    boasVindasAtivo = true
+    
+    boasVindasConexao = Players.PlayerAdded:Connect(function(novoJogador)
+        if not boasVindasAtivo then return end
         
-        return parte
-    end
-    
-    print("[DEBUG] 📦 Coletando partes antigas...")
-    local partesAntigas = {}
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and not obj:IsDescendantOf(plr.Character) then
-            table.insert(partesAntigas, obj)
-        end
-    end
-    print("[DEBUG] 📦 " .. #partesAntigas .. " partes antigas encontradas")
-    
-    print("[DEBUG] 🛡️ Criando chão de proteção...")
-    local partesProtecao = {}
-    local floorCount = 0
-    for _, dados in ipairs(MEU_BLUEPRINT) do
-        if dados.n == "Floor" or dados.n == "Terrain" then
-            floorCount = floorCount + 1
-            print("[DEBUG] 🛡️ Criando " .. dados.n .. "...")
-            local parte = criarParteComCFrame(dados)
-            if parte then
-                table.insert(partesProtecao, parte)
-                print("[DEBUG] ✅ " .. dados.n .. " criado!")
-            else
-                warn("[DEBUG] ❌ Falha ao criar " .. dados.n)
-            end
-        end
-    end
-    print("[DEBUG] 🛡️ " .. floorCount .. " partes de chão criadas")
-    
-    if #partesProtecao == 0 then
-        warn("[DEBUG] ⚠️ NENHUM CHÃO FOI CRIADO!")
-    end
-    
-    print("[DEBUG] ⏳ Esperando 1.5 segundos...")
-    task.wait(1.5)
-    print("[DEBUG] ✅ Espera concluída")
-    
-    print("[DEBUG] 🗑️ Deletando mapa antigo...")
-    task.spawn(function()
-        local deletadas = 0
-        for _, obj in ipairs(partesAntigas) do
-            if obj and obj.Parent then
-                pcall(function() obj:Destroy() end)
-                deletadas = deletadas + 1
-            end
-        end
-        print("[DEBUG] 🗑️ " .. deletadas .. " partes deletadas")
+        -- Espera um pouco pro jogador carregar
+        task.wait(1)
+        
+        -- Envia a mensagem de boas vindas
+        cmdHD(";serverHint Welcome " .. novoJogador.Name)
+        print("[BoasVindas] ✅ Mensagem enviada para: " .. novoJogador.Name)
     end)
     
-    print("[DEBUG] 🏗️ Construindo resto do mapa...")
-    task.spawn(function()
-        local construidas = 0
-        local total = #MEU_BLUEPRINT
-        
-        for i, dados in ipairs(MEU_BLUEPRINT) do
-            if dados.n ~= "Floor" and dados.n ~= "Terrain" then
-                local parte = criarParteComCFrame(dados)
-                if parte then
-                    construidas = construidas + 1
-                end
-                
-                if i % 20 == 0 then
-                    print("[DEBUG] 🏗️ Progresso: " .. i .. "/" .. total)
-                    task.wait(0.01)
-                end
-            end
-        end
-        
-        print("[DEBUG] ✅ " .. construidas .. " partes construídas!")
-        
-        print("[DEBUG] 🧹 Removendo chão de proteção...")
-        task.wait(2)
-        for _, parte in ipairs(partesProtecao) do
-            if parte and parte.Parent then
-                pcall(function() parte:Destroy() end)
-            end
-        end
-        print("[DEBUG] 🎉 CONCLUÍDO!")
-    end)
+    print("[BoasVindas] 🟢 Ativado! Novos jogadores receberão boas vindas.")
+end
+
+local function desligarBoasVindas()
+    boasVindasAtivo = false
+    
+    if boasVindasConexao then
+        boasVindasConexao:Disconnect()
+        boasVindasConexao = nil
+    end
+    
+    print("[BoasVindas] 🔴 Desativado.")
 end
 
 -- ============== TOOL HACKER (100% SERVER-SIDE) ==============
@@ -936,26 +1897,20 @@ local function iniciarAtaqueToxico()
     local nome = targetPlayer.Name
     local meuNome = plr.Name
     
-    -- Sequência de comandos
-    cmdHD(";ice " .. nome)
-    task.wait(0.2)
-    cmdHD(";jail " .. nome)
-    task.wait(0.2)
-    cmdHD(";title " .. nome .. " I LOVE " .. meuNome)
-    task.wait(0.2)
-    cmdHD(";warp " .. nome)
-    task.wait(0.2)
-    cmdHD(";blur " .. nome)
-    task.wait(0.2)
-    cmdHD(";punish " .. nome)
+    -- Envia todos os comandos instantaneamente, um atrás do outro sem wait
+    pcall(function() rc:InvokeServer(";ice " .. nome) end)
+    pcall(function() rc:InvokeServer(";jail " .. nome) end)
+    pcall(function() rc:InvokeServer(";title " .. nome .. " I LOVE " .. meuNome) end)
+    pcall(function() rc:InvokeServer(";warp " .. nome) end)
+    pcall(function() rc:InvokeServer(";blur " .. nome) end)
+    pcall(function() rc:InvokeServer(";punish " .. nome) end)
 end
 
 local function loopToxico()
     while modoToxicoAtivo and targetPlayer and Players:FindFirstChild(targetPlayer.Name) do
         iniciarAtaqueToxico()
-        task.wait(2) -- Reenvia tudo a cada 2 segundos para garantir
+        task.wait(1.5) -- Espera 1.5s entre os "pacotes" de comandos para não travar seu PC
     end
-    -- Se o loop parar, desliga o toggle visualmente se necessário
 end
 
 local function abrirPainelToxico(playerAlvo)
@@ -1441,20 +2396,24 @@ presetBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============== BOTÕES DO PAINEL ==============
-criarToggle(" Spam de Partículas Fakes", function(e) if e then iniciarSpam() else pararSpam() end end)
-criarToggle(" Esconder GUIs + Mutar Outros", function(e) if e then ligarHideGuis() else desligarHideGuis() end end)
+criarToggle(" Spam de Partículas Fakes", function(e) if e then iniciarSpam() else pararSpam() end end)
+criarToggle(" Esconder GUIs + Mutar Outros", function(e) if e then ligarHideGuis() else desligarHideGuis() end end)
 criarToggle(" Limpar Efeitos Ruins (loop)", function(e) if e then ligarLimpar() else desligarLimpar() end end)
+criarToggle(" Limpar Balões (loop)", function(e) if e then iniciarBloqueador() else pararBloqueador() end end)
+criarToggle(" Sistema Obby Completo", function(e) toggleObby(e) end)
+criarToggle(" Boas Vindas Automáticas", function(e) if e then ligarBoasVindas() else desligarBoasVindas() end end)
 
-criarBotao(" DISCO + FOG + TIME 0", botaoDiscoFog)
-criarBotao(" Mesh Glitch (-3500)", botaoMeshGlitch)
-criarBotao(" TEXTURIZAR MAPA INTEIRO", botaoTexturizarTudo)
-criarBotao(" METEORITO GIGANTE", botaoMeteorito)
-criarBotao(" BANDEIRA COLORIDA", botaoBandeira)
-criarBotao(" ACESSÓRIO CINTURA", botaoAcessorioCintura)
-criarBotao(" MODO TÓXICO (ANTI-UN)", botaoModoToxico)
+criarBotao(" DISCO + FOG + TIME 0", botaoDiscoFog)
+criarBotao(" Mesh Glitch (-3500)", botaoMeshGlitch)
+criarBotao(" CRIAR NPC CONTROLÁVEL", criarNPC)
+criarBotao(" TEXTURIZAR MAPA INTEIRO", botaoTexturizarTudo)
+criarBotao(" METEORITO GIGANTE", botaoMeteorito)
+criarBotao(" BANDEIRA COLORIDA", botaoBandeira)
+criarBotao(" ACESSÓRIO CINTURA", botaoAcessorioCintura)
+criarBotao(" MODO TÓXICO (ANTI-UN)", botaoModoToxico)
 criarBotao(" TOOL HACKER", botaoCriarToolHacker)
 criarBotao(" MAPA RÁPIDO (LIMPA + CONSTRÓI)", botaoConstruirMapaRapido)
-criarBotao(" ARMADILHA DE JOGADOR", function()
+criarBotao(" ARMADILHA DE JOGADOR", function()
     criarListaJogadores(function(jogador) task.spawn(function() armarArmadilha(jogador) end) end)
 end)
 criarBotao(" COMANDOS EM JOGADOR", function()
