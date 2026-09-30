@@ -27,17 +27,45 @@ local COMANDOS_RAPIDOS = {
 }
 
 -- ============== WRAPPER ==============
-local F3X = nil
-local success, result = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/bqmb3/f3x-wrapper/main/loader.lua", true))()
+print("[F3X] Iniciando download...")
+
+print("A) ANTES do HttpGet")
+
+local ok, res = pcall(function()
+    return game:HttpGet("https://raw.githubusercontent.com/bqmb3/f3x-wrapper/main/loader.lua", true)
 end)
-if success and result then
-    F3X = result
-    print("✅ F3X carregado com sucesso!")
-else
-    warn("⚠️ F3X falhou ao carregar! O painel vai abrir, mas funções de construir mapa podem falhar.")
+
+print("B) DEPOIS do HttpGet — ok:", ok, "| tamanho:", ok and #res or res)
+
+if not ok then
+    warn("[F3X] HttpGet FALHOU:", html)
+    return
 end
-task.wait(1)
+
+print("[F3X] Baixado. Tamanho:", #html, "bytes")
+
+if #html < 100 then
+    warn("[F3X] Arquivo muito pequeno, provavelmente erro 404 do GitHub")
+    warn("[F3X] Conteúdo:", html)
+    return
+end
+
+local ok2, F3X = pcall(function()
+    return loadstring(html)()
+end)
+
+if not ok2 then
+    warn("[F3X] loadstring FALHOU:", F3X)
+    return
+end
+
+print("[F3X] Carregado! Tipo:", typeof(F3X))
+
+if F3X == nil then
+    warn("[F3X] ⚠️ F3X retornou NIL — é ISSO que tá matando seu script no 'if not F3X then return end'")
+else
+    print("[F3X] ✅ F3X funcional, tem a função CreatePart?", typeof(F3X.CreatePart))
+end
 
 -- ============== SERVERENDPOINT ==============
 local function getSE()
@@ -60,7 +88,7 @@ end
 
 local se = getSE()
 if not se then 
-    warn("⚠️ ServerEndpoint não encontrado! O painel vai abrir normalmente.")
+    warn("⚠️ ServerEndpoint não encontrado! Algumas funções de textura podem falhar, mas o painel vai abrir.")
 end
 
 -- ============== FACES E TEXTURA ==============
@@ -441,7 +469,7 @@ end
 local function botaoMeshGlitch()
     local parteWrapper = F3X:CreatePart("Normal", CFrame.new(0, 0, 0), workspace)
     if not parteWrapper then return end
-    F3X:Resize(parteWrapper, Vector3.new(1, 1, 1))
+    F3X:Resize(parteWrapper, Vector3.new(0.001, 0.001, 0.001))
     task.wait(0.01)
     local parteReal = acharParteReal(Vector3.new(0, 0, 0), Vector3.new(0.001, 0.001, 0.001)) or parteWrapper
     pcall(function() se:InvokeServer("CreateMeshes", {{Part = parteReal}}) end)
@@ -1410,7 +1438,7 @@ local function toggleObby(ativar)
                     end)
                     
                     table.insert(conexoesObby, conexao)
-                end
+                end)
             end
             
             construindo = false
@@ -1438,7 +1466,7 @@ local function toggleObby(ativar)
         
         print("[Obby] ✅ Sistema obby desativado!")
     end
-end)
+end
 
 -- ============== BANDEIRA COLORIDA (ORDEM CORRIGIDA) ==============
 local function botaoBandeira()
@@ -1860,337 +1888,36 @@ local targetPlayer = nil
 local modoToxicoAtivo = false
 local toxicoTask = nil
 
--- Sistema Anti-Un (Detecta comandos e reenvia)
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    if method == "InvokeServer" and self == rc then
-        local args = {...}
-        if args[1] and type(args[1]) == "string" then
-            local cmdStr = args[1]:lower()
-            -- Se o modo tóxico estiver ativo e tiver um alvo
-            if modoToxicoAtivo and targetPlayer and Players:FindFirstChild(targetPlayer.Name) then
-                local nomeAlvo = targetPlayer.Name:lower()
-                -- Detecta se o comando é de "un" e menciona o alvo (ou é "all"/"others")
-                if cmdStr:find("unice") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
-                    task.spawn(function() cmdHD(";ice " .. targetPlayer.Name) end)
-                elseif cmdStr:find("unjail") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
-                    task.spawn(function() cmdHD(";jail " .. targetPlayer.Name) end)
-                elseif cmdStr:find("unblur") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
-                    task.spawn(function() cmdHD(";blur " .. targetPlayer.Name) end)
-                elseif cmdStr:find("untitle") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
-                    task.spawn(function() cmdHD(";title " .. targetPlayer.Name .. " I LOVE " .. plr.Name) end)
-                elseif cmdStr:find("unpunish") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
-                    task.spawn(function() cmdHD(";punish " .. targetPlayer.Name) end)
+local hookOk, hookErr = pcall(function()
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if method == "InvokeServer" and self == rc then
+            local args = {...}
+            if args[1] and type(args[1]) == "string" then
+                local cmdStr = args[1]:lower()
+                if modoToxicoAtivo and targetPlayer and Players:FindFirstChild(targetPlayer.Name) then
+                    local nomeAlvo = targetPlayer.Name:lower()
+                    if cmdStr:find("unice") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";ice " .. targetPlayer.Name) end)
+                    elseif cmdStr:find("unjail") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";jail " .. targetPlayer.Name) end)
+                    elseif cmdStr:find("unblur") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";blur " .. targetPlayer.Name) end)
+                    elseif cmdStr:find("untitle") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";title " .. targetPlayer.Name .. " I LOVE " .. plr.Name) end)
+                    elseif cmdStr:find("unpunish") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";punish " .. targetPlayer.Name) end)
+                    end
                 end
             end
         end
-    end
-    return oldNamecall(self, ...)
-end))
-
-local function iniciarAtaqueToxico()
-    if not targetPlayer or not Players:FindFirstChild(targetPlayer.Name) then
-        print("[Tóxico] Alvo saiu do jogo.")
-        return
-    end
-    local nome = targetPlayer.Name
-    local meuNome = plr.Name
-    
-    -- Envia todos os comandos instantaneamente, um atrás do outro sem wait
-    pcall(function() rc:InvokeServer(";ice " .. nome) end)
-    pcall(function() rc:InvokeServer(";jail " .. nome) end)
-    pcall(function() rc:InvokeServer(";title " .. nome .. " I LOVE " .. meuNome) end)
-    pcall(function() rc:InvokeServer(";warp " .. nome) end)
-    pcall(function() rc:InvokeServer(";blur " .. nome) end)
-    pcall(function() rc:InvokeServer(";punish " .. nome) end)
-end
-
-local function loopToxico()
-    while modoToxicoAtivo and targetPlayer and Players:FindFirstChild(targetPlayer.Name) do
-        iniciarAtaqueToxico()
-        task.wait(1.5) -- Espera 1.5s entre os "pacotes" de comandos para não travar seu PC
-    end
-end
-
-local function abrirPainelToxico(playerAlvo)
-    -- Fecha lista anterior se houver
-    local guiAnterior = playerGui:FindFirstChild("ListaJogadores")
-    if guiAnterior then guiAnterior:Destroy() end
-    
-    local painel = Instance.new("ScreenGui")
-    painel.Name = "PainelToxico"
-    painel.ResetOnSpawn = false
-    painel.Parent = playerGui
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 250, 0, 100)
-    frame.Position = UDim2.new(0.5, -125, 0.5, 50)
-    frame.BackgroundColor3 = Color3.fromRGB(40, 20, 20) -- Vermelho escuro
-    frame.BorderSizePixel = 0
-    frame.Active = true
-    frame.Draggable = true
-    frame.Parent = painel
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-
-    local titulo = Instance.new("TextLabel")
-    titulo.Size = UDim2.new(1, 0, 0, 30)
-    titulo.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
-    titulo.Text = "Alvo: " .. playerAlvo.Name
-    titulo.TextColor3 = Color3.fromRGB(255, 100, 100)
-    titulo.Font = Enum.Font.GothamBold
-    titulo.TextSize = 14
-    titulo.Parent = frame
-    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
-
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(1, -20, 0, 40)
-    toggleBtn.Position = UDim2.new(0, 10, 0, 40)
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-    toggleBtn.Text = "ATIVAR ATAQUE\n[ DESLIGADO ]"
-    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleBtn.Font = Enum.Font.GothamBold
-    toggleBtn.TextSize = 12
-    toggleBtn.Parent = frame
-    Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
-
-    local ativo = false
-    toggleBtn.MouseButton1Click:Connect(function()
-        ativo = not ativo
-        if ativo then
-            toggleBtn.Text = "ATAQUE ATIVADO\n[ LIGADO ]"
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-            targetPlayer = playerAlvo
-            modoToxicoAtivo = true
-            -- Envia uma vez imediatamente
-            iniciarAtaqueToxico()
-            -- Inicia o loop
-            if toxicoTask then task.cancel(toxicoTask) end
-            toxicoTask = task.spawn(loopToxico)
-        else
-            toggleBtn.Text = "ATIVAR ATAQUE\n[ DESLIGADO ]"
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-            modoToxicoAtivo = false
-            targetPlayer = nil
-            if toxicoTask then task.cancel(toxicoTask) end
-        end
-    end)
-
-    local fecharBtn = Instance.new("TextButton")
-    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
-    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
-    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-    fecharBtn.Text = "X"
-    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    fecharBtn.Font = Enum.Font.GothamBold
-    fecharBtn.TextSize = 12
-    fecharBtn.Parent = frame
-    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
-    fecharBtn.MouseButton1Click:Connect(function() painel:Destroy() end)
-end
-
-local function botaoModoToxico()
-    local listaGui = Instance.new("ScreenGui")
-    listaGui.Name = "ListaJogadores"
-    listaGui.ResetOnSpawn = false
-    listaGui.Parent = playerGui
-
-    local listaFrame = Instance.new("Frame")
-    listaFrame.Size = UDim2.new(0, 250, 0, 400)
-    listaFrame.Position = UDim2.new(0.5, -125, 0.5, -200)
-    listaFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    listaFrame.BorderSizePixel = 0
-    listaFrame.Active = true
-    listaFrame.Draggable = true
-    listaFrame.Parent = listaGui
-    Instance.new("UICorner", listaFrame).CornerRadius = UDim.new(0, 8)
-
-    local titulo = Instance.new("TextLabel")
-    titulo.Size = UDim2.new(1, 0, 0, 30)
-    titulo.BackgroundColor3 = Color3.fromRGB(70, 30, 30)
-    titulo.Text = "Selecione o Alvo Tóxico"
-    titulo.TextColor3 = Color3.fromRGB(255, 100, 100)
-    titulo.Font = Enum.Font.GothamBold
-    titulo.TextSize = 14
-    titulo.Parent = listaFrame
-    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
-
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -10, 1, -40)
-    scroll.Position = UDim2.new(0, 5, 0, 35)
-    scroll.BackgroundTransparency = 1
-    scroll.ScrollBarThickness = 6
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scroll.Parent = listaFrame
-    Instance.new("UIListLayout", scroll).Padding = UDim.new(0, 4)
-
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= plr then
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, -10, 0, 35)
-            btn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
-            btn.Text = p.Name
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.Font = Enum.Font.GothamMedium
-            btn.TextSize = 13
-            btn.Parent = scroll
-            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-            btn.MouseButton1Click:Connect(function()
-                listaGui:Destroy()
-                abrirPainelToxico(p)
-            end)
-        end
-    end
-
-    local fecharBtn = Instance.new("TextButton")
-    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
-    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
-    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-    fecharBtn.Text = "X"
-    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    fecharBtn.Font = Enum.Font.GothamBold
-    fecharBtn.TextSize = 12
-    fecharBtn.Parent = listaFrame
-    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
-    fecharBtn.MouseButton1Click:Connect(function() listaGui:Destroy() end)
-end
-
--- ============== LISTA DE JOGADORES (OUTRAS FUNÇÕES) ==============
-local function criarListaJogadores(callback)
-    local listaGui = Instance.new("ScreenGui")
-    listaGui.Name = "ListaJogadores"
-    listaGui.ResetOnSpawn = false
-    listaGui.Parent = playerGui
-
-    local listaFrame = Instance.new("Frame")
-    listaFrame.Size = UDim2.new(0, 250, 0, 400)
-    listaFrame.Position = UDim2.new(0.5, -125, 0.5, -200)
-    listaFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    listaFrame.BorderSizePixel = 0
-    listaFrame.Active = true
-    listaFrame.Draggable = true
-    listaFrame.Parent = listaGui
-    Instance.new("UICorner", listaFrame).CornerRadius = UDim.new(0, 8)
-
-    local titulo = Instance.new("TextLabel")
-    titulo.Size = UDim2.new(1, 0, 0, 30)
-    titulo.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-    titulo.Text = "Selecione um Jogador"
-    titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titulo.Font = Enum.Font.GothamBold
-    titulo.TextSize = 14
-    titulo.Parent = listaFrame
-    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
-
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -10, 1, -40)
-    scroll.Position = UDim2.new(0, 5, 0, 35)
-    scroll.BackgroundTransparency = 1
-    scroll.ScrollBarThickness = 6
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scroll.Parent = listaFrame
-    Instance.new("UIListLayout", scroll).Padding = UDim.new(0, 4)
-
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= plr then
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, -10, 0, 35)
-            btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-            btn.Text = p.Name
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.Font = Enum.Font.GothamMedium
-            btn.TextSize = 13
-            btn.Parent = scroll
-            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-            btn.MouseButton1Click:Connect(function()
-                listaGui:Destroy()
-                if callback then callback(p) end
-            end)
-        end
-    end
-
-    local fecharBtn = Instance.new("TextButton")
-    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
-    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
-    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-    fecharBtn.Text = "X"
-    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    fecharBtn.Font = Enum.Font.GothamBold
-    fecharBtn.TextSize = 12
-    fecharBtn.Parent = listaFrame
-    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
-    fecharBtn.MouseButton1Click:Connect(function() listaGui:Destroy() end)
-end
-
--- ============== LISTA DE COMANDOS ==============
-local function criarListaComandos(jogadorAlvo)
-    local listaGui = Instance.new("ScreenGui")
-    listaGui.Name = "ListaComandos"
-    listaGui.ResetOnSpawn = false
-    listaGui.Parent = playerGui
-
-    local listaFrame = Instance.new("Frame")
-    listaFrame.Size = UDim2.new(0, 250, 0, 350)
-    listaFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
-    listaFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    listaFrame.BorderSizePixel = 0
-    listaFrame.Active = true
-    listaFrame.Draggable = true
-    listaFrame.Parent = listaGui
-    Instance.new("UICorner", listaFrame).CornerRadius = UDim.new(0, 8)
-
-    local titulo = Instance.new("TextLabel")
-    titulo.Size = UDim2.new(1, 0, 0, 30)
-    titulo.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-    titulo.Text = "Comandos em: " .. (jogadorAlvo and jogadorAlvo.Name or "?")
-    titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titulo.Font = Enum.Font.GothamBold
-    titulo.TextSize = 14
-    titulo.Parent = listaFrame
-    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
-
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -10, 1, -40)
-    scroll.Position = UDim2.new(0, 5, 0, 35)
-    scroll.BackgroundTransparency = 1
-    scroll.ScrollBarThickness = 6
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scroll.Parent = listaFrame
-    Instance.new("UIListLayout", scroll).Padding = UDim.new(0, 4)
-
-    for _, cmdInfo in ipairs(COMANDOS_RAPIDOS) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -10, 0, 35)
-        btn.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
-        btn.Text = cmdInfo.nome
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.Font = Enum.Font.GothamMedium
-        btn.TextSize = 13
-        btn.Parent = scroll
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-        btn.MouseButton1Click:Connect(function()
-            if jogadorAlvo then
-                cmdHD(cmdInfo.cmd .. " " .. jogadorAlvo.Name)
-                print("[Comando] Executado:", cmdInfo.cmd .. " " .. jogadorAlvo.Name)
-            end
-            listaGui:Destroy()
-        end)
-    end
-
-    local fecharBtn = Instance.new("TextButton")
-    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
-    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
-    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-    fecharBtn.Text = "X"
-    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    fecharBtn.Font = Enum.Font.GothamBold
-    fecharBtn.TextSize = 12
-    fecharBtn.Parent = listaFrame
-    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
-    fecharBtn.MouseButton1Click:Connect(function() listaGui:Destroy() end)
+        return oldNamecall(self, ...)
+    end))
+end)
+if not hookOk then
+    warn("[Anti-Un] hookmetamethod não disponível nesse executor: " .. tostring(hookErr))
+    warn("[Anti-Un] O resto do painel continua funcionando normal.")
 end
 
 -- ============== ARMADILHA DE JOGADOR ==============
@@ -2409,7 +2136,6 @@ criarBotao(" CRIAR NPC CONTROLÁVEL", criarNPC)
 criarBotao(" TEXTURIZAR MAPA INTEIRO", botaoTexturizarTudo)
 criarBotao(" METEORITO GIGANTE", botaoMeteorito)
 criarBotao(" BANDEIRA COLORIDA", botaoBandeira)
-criarBotao(" ACESSÓRIO CINTURA", botaoAcessorioCintura)
 criarBotao(" MODO TÓXICO (ANTI-UN)", botaoModoToxico)
 criarBotao(" TOOL HACKER", botaoCriarToolHacker)
 criarBotao(" MAPA RÁPIDO (LIMPA + CONSTRÓI)", botaoConstruirMapaRapido)
