@@ -1,0 +1,4113 @@
+-- =========================================================
+-- PAINEL FINAL v37 - VERSÃƒO CORRIGIDA COMPLETA
+-- =========================================================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local plr = Players.LocalPlayer
+local playerGui = plr:WaitForChild("PlayerGui")
+
+-- ============== SISTEMA DE KEY COM MISSÃ•ES ==============
+local HttpService = game:GetService("HttpService")
+local KEY_FILE = "blackgui_key.txt"
+local KEY_EXPIRE_FILE = "blackgui_expire.txt"
+local TEMPO_EXPIRACAO = 35 * 60 -- 35 minutos em segundos
+
+-- FunÃ§Ã£o pra gerar key aleatÃ³ria
+local function gerarKey()
+    local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local key = ""
+    for i = 1, 16 do
+        local rand = math.random(1, #chars)
+        key = key .. chars:sub(rand, rand)
+    end
+    return key
+end
+
+-- FunÃ§Ã£o pra salvar key + timestamp
+local function salvarKey(key)
+    local timestamp = os.time() + TEMPO_EXPIRACAO
+    pcall(function()
+        writefile(KEY_FILE, key)
+        writefile(KEY_EXPIRE_FILE, tostring(timestamp))
+    end)
+end
+
+-- FunÃ§Ã£o pra verificar se a key ainda Ã© vÃ¡lida
+local function keyValida()
+    local keySalva = nil
+    local expireSalvo = nil
+    
+    pcall(function()
+        if isfile(KEY_FILE) then
+            keySalva = readfile(KEY_FILE)
+        end
+        if isfile(KEY_EXPIRE_FILE) then
+            expireSalvo = tonumber(readfile(KEY_EXPIRE_FILE))
+        end
+    end)
+    
+    if keySalva and expireSalvo then
+        local agora = os.time()
+        if agora < expireSalvo then
+            return true, keySalva
+        end
+    end
+    
+    return false, nil
+end
+
+-- FunÃ§Ã£o pra gerar conta matemÃ¡tica
+local function gerarConta(dificuldade)
+    local a, b, operacao, resultado
+    
+    if dificuldade == 1 then
+        a = math.random(1, 10)
+        b = math.random(1, 10)
+        operacao = "+"
+        resultado = a + b
+    elseif dificuldade == 2 then
+        a = math.random(2, 12)
+        b = math.random(2, 12)
+        operacao = "Ã—"
+        resultado = a * b
+    elseif dificuldade == 3 then
+        b = math.random(2, 12)
+        resultado = math.random(2, 12)
+        a = b * resultado
+        operacao = "Ã·"
+    elseif dificuldade == 4 then
+        a = math.random(2, 5)
+        b = math.random(2, 8)
+        operacao = "^"
+        resultado = a ^ b
+    else
+        a = math.random(1, 10)
+        b = math.random(1, 10)
+        local c = math.random(1, 5)
+        operacao = "complexa"
+        resultado = (a + b) * c
+        return string.format("(%d + %d) Ã— %d", a, b, c), resultado
+    end
+    
+    return string.format("%d %s %d", a, operacao, b), resultado
+end
+
+-- Frases pra MissÃ£o 13
+local FRASES_MISSAO = {
+    "BL5CK Ã‰ O MELHOR",
+    "F3X + HDADMIN = PODER",
+    "BLACKGUI DOMINA TUDO",
+    "MODO TÃ“XICO ATIVADO",
+    "CLONE + ARMA = DESTRUIÃ‡ÃƒO",
+    "ZUMBI INVADE O SERVIDOR",
+    "TOOL HACKER DELETANDO",
+    "METEORITO CAINDO AGORA"
+}
+
+-- Frases pra MissÃ£o 9
+local COMPLETAR_MISSAO = {
+    {frase = "O comando pra matar Ã© ;___", resposta = "kill"},
+    {frase = "O comando pra congelar Ã© ;___", resposta = "ice"},
+    {frase = "O nome do criador Ã© ___", resposta = "BL5CK"},
+    {frase = "O comando pra esconder GUIs Ã© ;___", resposta = "hideGuis"},
+    {frase = "O painel se chama ___", resposta = "BlackGUI"},
+    {frase = "O comando pra prender Ã© ;___", resposta = "jail"},
+    {frase = "O comando pra dar dano Ã© ;___", resposta = "dmg"}
+}
+
+-- Verifica se jÃ¡ tem key vÃ¡lida
+local temKeyValida, keyAtual = keyValida()
+
+if temKeyValida then
+    print("[BlackGUI] âœ… Key vÃ¡lida encontrada! Abrindo painel...")
+    -- Continua pro resto do script
+else
+    -- Gera nova key
+    keyAtual = gerarKey()
+    salvarKey(keyAtual)
+    
+    print("[BlackGUI] ðŸ”‘ Nova key gerada: " .. keyAtual)
+    
+    -- Cria GUI de login
+    local loginGui = Instance.new("ScreenGui")
+    loginGui.Name = "BlackGUI_Login"
+    loginGui.ResetOnSpawn = false
+    loginGui.IgnoreGuiInset = true
+    loginGui.DisplayOrder = 999999
+    loginGui.Parent = game:GetService("CoreGui")
+    
+    -- Janela principal (Login) - Mais compacta
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 350, 0, 400) -- DiminuÃ­do de 400x500 para 350x400
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -200) -- Ajustado pra centralizar no novo tamanho
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = loginGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+
+-- Borda verde
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(40, 180, 70)
+stroke.Thickness = 2
+stroke.Parent = mainFrame
+
+-- Fundo com imagem (opcional, mas mantÃ©m o estilo)
+local bgImage = Instance.new("ImageLabel")
+bgImage.Size = UDim2.new(1, 0, 1, 0)
+bgImage.BackgroundTransparency = 1
+bgImage.Image = "rbxassetid://117638534679966"
+bgImage.ImageTransparency = 0.85
+bgImage.ImageColor3 = Color3.fromRGB(100, 100, 100)
+bgImage.ScaleType = Enum.ScaleType.Crop
+bgImage.ZIndex = 0
+bgImage.Parent = mainFrame
+
+-- TÃ­tulo mais alto e fino
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 50) -- Reduzido de 60 para 50
+title.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+title.Text = "ðŸ”’ BLACKGUI KEY" -- Texto mais curto
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16 -- Reduzido de 18 para 16
+title.Parent = mainFrame
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+
+-- DescriÃ§Ã£o menor e mais concisa
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Size = UDim2.new(1, -40, 0, 60) -- Altura reduzida
+infoLabel.Position = UDim2.new(0, 20, 0, 60) -- Subiu um pouco
+infoLabel.BackgroundTransparency = 1
+infoLabel.Text = "Complete as missÃµes ou cole sua key.\nExpira em 35 minutos." -- Texto mais curto
+infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+infoLabel.Font = Enum.Font.Gotham
+infoLabel.TextSize = 12
+infoLabel.TextWrapped = true
+infoLabel.Parent = mainFrame
+
+-- Input da Key
+local keyInput = Instance.new("TextBox")
+keyInput.Size = UDim2.new(1, -40, 0, 40) -- Altura padrÃ£o
+keyInput.Position = UDim2.new(0, 20, 0, 130) -- PosiÃ§Ã£o ajustada
+keyInput.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+keyInput.PlaceholderText = "Digite a key..."
+keyInput.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+keyInput.Text = ""
+keyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyInput.Font = Enum.Font.GothamBold
+keyInput.TextSize = 14
+keyInput.Parent = mainFrame
+Instance.new("UICorner", keyInput).CornerRadius = UDim.new(0, 8)
+
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -40, 0, 25) -- Menor altura
+statusLabel.Position = UDim2.new(0, 20, 0, 175) -- Logo abaixo do input
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = ""
+statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextSize = 11
+statusLabel.Parent = mainFrame
+
+-- BotÃ£o Validar
+local validarBtn = Instance.new("TextButton")
+validarBtn.Size = UDim2.new(1, -40, 0, 40) -- PadrÃ£o
+validarBtn.Position = UDim2.new(0, 20, 0, 205) -- Subiu bastante
+validarBtn.BackgroundColor3 = Color3.fromRGB(20, 60, 30)
+validarBtn.Text = "âœ… VALIDAR KEY"
+validarBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+validarBtn.Font = Enum.Font.GothamBold
+validarBtn.TextSize = 13
+validarBtn.Parent = mainFrame
+Instance.new("UICorner", validarBtn).CornerRadius = UDim.new(0, 8)
+
+-- BotÃ£o MissÃµes
+local missoesBtn = Instance.new("TextButton")
+missoesBtn.Size = UDim2.new(1, -40, 0, 40) -- PadrÃ£o
+missoesBtn.Position = UDim2.new(0, 20, 0, 255) -- Logo abaixo do validar
+missoesBtn.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+missoesBtn.Text = "ðŸŽ¯ FAZER MISSÃ•ES"
+missoesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+missoesBtn.Font = Enum.Font.GothamBold
+missoesBtn.TextSize = 13
+missoesBtn.Parent = mainFrame
+Instance.new("UICorner", missoesBtn).CornerRadius = UDim.new(0, 8)
+    
+local function abrirMissoes()
+    local missoesGui = Instance.new("ScreenGui")
+    missoesGui.Name = "BlackGUI_Missoes"
+    missoesGui.ResetOnSpawn = false
+    missoesGui.IgnoreGuiInset = true
+    missoesGui.DisplayOrder = 1000000
+    missoesGui.Parent = game:GetService("CoreGui")
+    
+    -- 1. JANELA PRINCIPAL DAS MISSÃ•ES (Altura aumentada pra caber tudo sem cortar)
+    local missoesFrame = Instance.new("Frame")
+    missoesFrame.Size = UDim2.new(0, 450, 0, 550) 
+    missoesFrame.Position = UDim2.new(0.5, -225, 0.5, -275)
+    missoesFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    missoesFrame.BorderSizePixel = 0
+    missoesFrame.Parent = missoesGui
+    Instance.new("UICorner", missoesFrame).CornerRadius = UDim.new(0, 12)
+    
+    local missoesStroke = Instance.new("UIStroke")
+    missoesStroke.Color = Color3.fromRGB(40, 180, 70)
+    missoesStroke.Thickness = 2
+    missoesStroke.Parent = missoesFrame
+    
+    local missoesTitle = Instance.new("TextLabel")
+    missoesTitle.Size = UDim2.new(1, 0, 0, 50)
+    missoesTitle.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+    missoesTitle.Text = "ðŸŽ¯ MISSÃ•ES - Complete todas para obter a key"
+    missoesTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    missoesTitle.Font = Enum.Font.GothamBold
+    missoesTitle.TextSize = 16
+    missoesTitle.Parent = missoesFrame
+    Instance.new("UICorner", missoesTitle).CornerRadius = UDim.new(0, 12)
+    
+    local progressoLabel = Instance.new("TextLabel")
+    progressoLabel.Size = UDim2.new(1, -40, 0, 30)
+    progressoLabel.Position = UDim2.new(0, 20, 0, 60)
+    progressoLabel.BackgroundTransparency = 1
+    progressoLabel.Text = "Progresso: 0/3 missÃµes completadas"
+    progressoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    progressoLabel.Font = Enum.Font.GothamBold
+    progressoLabel.TextSize = 13
+    progressoLabel.Parent = missoesFrame
+    
+    -- 2. SCROLLING FRAME CORRIGIDO (NÃ£o corta os botÃµes e calcula o tamanho sozinho)
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Size = UDim2.new(1, -40, 1, -180) -- EspaÃ§o exato pra nÃ£o sobrepor o botÃ£o de baixo
+    scrollFrame.Position = UDim2.new(0, 20, 0, 100)
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.ScrollBarThickness = 4
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 60)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y -- FAZ O SCROLL CRESCER SOZINHO
+    scrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+    scrollFrame.Parent = missoesFrame
+    
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 15) -- MAIS ESPAÃ‡O ENTRE AS MISSÃ•ES
+    layout.Parent = scrollFrame
+    
+    -- 3. PADDING PRA GARANTIR QUE NADA GRUDE NO FUNDO QUANDO SCROLLAR
+    local padding = Instance.new("UIPadding")
+    padding.PaddingBottom = UDim.new(0, 15)
+    padding.Parent = scrollFrame
+    
+    local missoesCompletadas = 0
+    
+             -- MISSÃƒO 1: MatemÃ¡tica RÃ¡pida
+        local missao1Frame = Instance.new("Frame")
+        missao1Frame.Size = UDim2.new(1, -10, 0, 120)
+        missao1Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        missao1Frame.BorderSizePixel = 0
+        missao1Frame.Parent = scrollFrame
+        Instance.new("UICorner", missao1Frame).CornerRadius = UDim.new(0, 8)
+        
+        local missao1Title = Instance.new("TextLabel")
+        missao1Title.Size = UDim2.new(1, -20, 0, 30)
+        missao1Title.Position = UDim2.new(0, 10, 0, 5)
+        missao1Title.BackgroundTransparency = 1
+        missao1Title.Text = "ðŸ”¢ MissÃ£o 1: MatemÃ¡tica RÃ¡pida"
+        missao1Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        missao1Title.Font = Enum.Font.GothamBold
+        missao1Title.TextSize = 13
+        missao1Title.TextXAlignment = Enum.TextXAlignment.Left
+        missao1Title.Parent = missao1Frame
+        
+        local missao1Desc = Instance.new("TextLabel")
+        missao1Desc.Size = UDim2.new(1, -20, 0, 20)
+        missao1Desc.Position = UDim2.new(0, 10, 0, 35)
+        missao1Desc.BackgroundTransparency = 1
+        missao1Desc.Text = "Resolva 5 contas matemÃ¡ticas"
+        missao1Desc.TextColor3 = Color3.fromRGB(150, 150, 150)
+        missao1Desc.Font = Enum.Font.Gotham
+        missao1Desc.TextSize = 11
+        missao1Desc.TextXAlignment = Enum.TextXAlignment.Left
+        missao1Desc.Parent = missao1Frame
+        
+        local missao1Btn = Instance.new("TextButton")
+        missao1Btn.Size = UDim2.new(1, -20, 0, 40)
+        missao1Btn.Position = UDim2.new(0, 10, 0, 65)
+        missao1Btn.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+        missao1Btn.Text = "INICIAR MISSÃƒO"
+        missao1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        missao1Btn.Font = Enum.Font.GothamBold
+        missao1Btn.TextSize = 12
+        missao1Btn.Parent = missao1Frame
+        Instance.new("UICorner", missao1Btn).CornerRadius = UDim.new(0, 6)
+        
+        missao1Btn.MouseButton1Click:Connect(function()
+            local rodada = 1
+            local acertos = 0
+            
+            local function proximaConta()
+                if rodada > 5 then
+                    if acertos >= 4 then
+                        missoesCompletadas = missoesCompletadas + 1
+                        progressoLabel.Text = string.format("Progresso: %d/3 missÃµes completadas", missoesCompletadas)
+                        missao1Btn.Text = "âœ… COMPLETADA"
+                        missao1Btn.BackgroundColor3 = Color3.fromRGB(20, 60, 30)
+                        missao1Btn.Active = false
+                    else
+                        missao1Btn.Text = "âŒ FALHOU (TENTE DE NOVO)"
+                        missao1Btn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+                    end
+                    return
+                end
+                
+                local conta, resultado = gerarConta(rodada)
+                missao1Btn.Text = string.format("Conta %d/5: %s = ? (10s)", rodada, conta)
+                missao1Btn.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+                
+                local tempoInicio = os.time()
+                local resposta = ""
+                
+                local inputBox = Instance.new("TextBox")
+                inputBox.Size = UDim2.new(1, -20, 0, 35)
+                inputBox.Position = UDim2.new(0, 10, 0, 65)
+                inputBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                inputBox.PlaceholderText = "Digite a resposta..."
+                inputBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+                inputBox.Text = ""
+                inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+                inputBox.Font = Enum.Font.GothamBold
+                inputBox.TextSize = 13
+                inputBox.Parent = missao1Frame
+                Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0, 6)
+                inputBox:CaptureFocus()
+                
+                local confirmBtn = Instance.new("TextButton")
+                confirmBtn.Size = UDim2.new(0, 80, 0, 35)
+                confirmBtn.Position = UDim2.new(1, -90, 0, 65)
+                confirmBtn.BackgroundColor3 = Color3.fromRGB(20, 60, 30)
+                confirmBtn.Text = "OK"
+                confirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                confirmBtn.Font = Enum.Font.GothamBold
+                confirmBtn.TextSize = 12
+                confirmBtn.Parent = missao1Frame
+                Instance.new("UICorner", confirmBtn).CornerRadius = UDim.new(0, 6)
+                
+                local function verificar()
+                    local respostaNum = tonumber(inputBox.Text)
+                    if respostaNum == resultado then
+                        acertos = acertos + 1
+                    end
+                    inputBox:Destroy()
+                    confirmBtn:Destroy()
+                    rodada = rodada + 1
+                    task.wait(0.5)
+                    proximaConta()
+                end
+                
+                confirmBtn.MouseButton1Click:Connect(verificar)
+                inputBox.FocusLost:Connect(function(enterPressed)
+                    if enterPressed then
+                        verificar()
+                    end
+                end)
+                
+                task.spawn(function()
+                    task.wait(10)
+                    if inputBox.Parent then
+                        inputBox:Destroy()
+                        confirmBtn:Destroy()
+                        rodada = rodada + 1
+                        proximaConta()
+                    end
+                end)
+            end
+            
+            proximaConta()
+        end)
+        
+        -- MISSÃƒO 2: Digite a Frase
+        local missao2Frame = Instance.new("Frame")
+        missao2Frame.Size = UDim2.new(1, -10, 0, 120)
+        missao2Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        missao2Frame.BorderSizePixel = 0
+        missao2Frame.Parent = scrollFrame
+        Instance.new("UICorner", missao2Frame).CornerRadius = UDim.new(0, 8)
+        
+        local missao2Title = Instance.new("TextLabel")
+        missao2Title.Size = UDim2.new(1, -20, 0, 30)
+        missao2Title.Position = UDim2.new(0, 10, 0, 5)
+        missao2Title.BackgroundTransparency = 1
+        missao2Title.Text = "âŒ¨ï¸ MissÃ£o 2: Digite a Frase"
+        missao2Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        missao2Title.Font = Enum.Font.GothamBold
+        missao2Title.TextSize = 13
+        missao2Title.TextXAlignment = Enum.TextXAlignment.Left
+        missao2Title.Parent = missao2Frame
+        
+        local missao2Desc = Instance.new("TextLabel")
+        missao2Desc.Size = UDim2.new(1, -20, 0, 20)
+        missao2Desc.Position = UDim2.new(0, 10, 0, 35)
+        missao2Desc.BackgroundTransparency = 1
+        missao2Desc.Text = "Digite 3 frases exatamente como aparecem"
+        missao2Desc.TextColor3 = Color3.fromRGB(150, 150, 150)
+        missao2Desc.Font = Enum.Font.Gotham
+        missao2Desc.TextSize = 11
+        missao2Desc.TextXAlignment = Enum.TextXAlignment.Left
+        missao2Desc.Parent = missao2Frame
+        
+        local missao2Btn = Instance.new("TextButton")
+        missao2Btn.Size = UDim2.new(1, -20, 0, 40)
+        missao2Btn.Position = UDim2.new(0, 10, 0, 65)
+        missao2Btn.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+        missao2Btn.Text = "INICIAR MISSÃƒO"
+        missao2Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        missao2Btn.Font = Enum.Font.GothamBold
+        missao2Btn.TextSize = 12
+        missao2Btn.Parent = missao2Frame
+        Instance.new("UICorner", missao2Btn).CornerRadius = UDim.new(0, 6)
+        
+        missao2Btn.MouseButton1Click:Connect(function()
+            local fraseIndex = 1
+            local acertos = 0
+            
+            local function proximaFrase()
+                if fraseIndex > 3 then
+                    if acertos >= 2 then
+                        missoesCompletadas = missoesCompletadas + 1
+                        progressoLabel.Text = string.format("Progresso: %d/3 missÃµes completadas", missoesCompletadas)
+                        missao2Btn.Text = "âœ… COMPLETADA"
+                        missao2Btn.BackgroundColor3 = Color3.fromRGB(20, 60, 30)
+                        missao2Btn.Active = false
+                    else
+                        missao2Btn.Text = "âŒ FALHOU (TENTE DE NOVO)"
+                        missao2Btn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+                    end
+                    return
+                end
+                
+                local frase = FRASES_MISSAO[math.random(1, #FRASES_MISSAO)]
+                missao2Btn.Text = string.format("Frase %d/3: Digite exatamente (15s)", fraseIndex)
+                missao2Btn.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+                
+                local fraseLabel = Instance.new("TextLabel")
+                fraseLabel.Size = UDim2.new(1, -20, 0, 30)
+                fraseLabel.Position = UDim2.new(0, 10, 0, 65)
+                fraseLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                fraseLabel.Text = frase
+                fraseLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+                fraseLabel.Font = Enum.Font.GothamBold
+                fraseLabel.TextSize = 12
+                fraseLabel.Parent = missao2Frame
+                Instance.new("UICorner", fraseLabel).CornerRadius = UDim.new(0, 6)
+                
+                local inputBox = Instance.new("TextBox")
+                inputBox.Size = UDim2.new(1, -20, 0, 35)
+                inputBox.Position = UDim2.new(0, 10, 0, 100)
+                inputBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                inputBox.PlaceholderText = "Digite a frase aqui..."
+                inputBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+                inputBox.Text = ""
+                inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+                inputBox.Font = Enum.Font.Gotham
+                inputBox.TextSize = 12
+                inputBox.Parent = missao2Frame
+                Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0, 6)
+                inputBox:CaptureFocus()
+                
+                local function verificar()
+                    if inputBox.Text == frase then
+                        acertos = acertos + 1
+                    end
+                    fraseLabel:Destroy()
+                    inputBox:Destroy()
+                    fraseIndex = fraseIndex + 1
+                    task.wait(0.5)
+                    proximaFrase()
+                end
+                
+                inputBox.FocusLost:Connect(function(enterPressed)
+                    if enterPressed then
+                        verificar()
+                    end
+                end)
+                
+                task.spawn(function()
+                    task.wait(15)
+                    if inputBox.Parent then
+                        verificar()
+                    end
+                end)
+            end
+            
+            proximaFrase()
+        end)
+        
+        -- MISSÃƒO 3: Complete a Frase
+        local missao3Frame = Instance.new("Frame")
+        missao3Frame.Size = UDim2.new(1, -10, 0, 120)
+        missao3Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        missao3Frame.BorderSizePixel = 0
+        missao3Frame.Parent = scrollFrame
+        Instance.new("UICorner", missao3Frame).CornerRadius = UDim.new(0, 8)
+        
+        local missao3Title = Instance.new("TextLabel")
+        missao3Title.Size = UDim2.new(1, -20, 0, 30)
+        missao3Title.Position = UDim2.new(0, 10, 0, 5)
+        missao3Title.BackgroundTransparency = 1
+        missao3Title.Text = "ðŸ“ MissÃ£o 3: Complete a Frase"
+        missao3Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        missao3Title.Font = Enum.Font.GothamBold
+        missao3Title.TextSize = 13
+        missao3Title.TextXAlignment = Enum.TextXAlignment.Left
+        missao3Title.Parent = missao3Frame
+        
+        local missao3Desc = Instance.new("TextLabel")
+        missao3Desc.Size = UDim2.new(1, -20, 0, 20)
+        missao3Desc.Position = UDim2.new(0, 10, 0, 35)
+        missao3Desc.BackgroundTransparency = 1
+        missao3Desc.Text = "Complete 4 frases sobre o painel"
+        missao3Desc.TextColor3 = Color3.fromRGB(150, 150, 150)
+        missao3Desc.Font = Enum.Font.Gotham
+        missao3Desc.TextSize = 11
+        missao3Desc.TextXAlignment = Enum.TextXAlignment.Left
+        missao3Desc.Parent = missao3Frame
+        
+        local missao3Btn = Instance.new("TextButton")
+        missao3Btn.Size = UDim2.new(1, -20, 0, 40)
+        missao3Btn.Position = UDim2.new(0, 10, 0, 65)
+        missao3Btn.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+        missao3Btn.Text = "INICIAR MISSÃƒO"
+        missao3Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        missao3Btn.Font = Enum.Font.GothamBold
+        missao3Btn.TextSize = 12
+        missao3Btn.Parent = missao3Frame
+        Instance.new("UICorner", missao3Btn).CornerRadius = UDim.new(0, 6)
+        
+        missao3Btn.MouseButton1Click:Connect(function()
+            local fraseIndex = 1
+            local acertos = 0
+            local frasesUsadas = {}
+            
+            local function proximaFrase()
+                if fraseIndex > 4 then
+                    if acertos >= 3 then
+                        missoesCompletadas = missoesCompletadas + 1
+                        progressoLabel.Text = string.format("Progresso: %d/3 missÃµes completadas", missoesCompletadas)
+                        missao3Btn.Text = "âœ… COMPLETADA"
+                        missao3Btn.BackgroundColor3 = Color3.fromRGB(20, 60, 30)
+                        missao3Btn.Active = false
+                    else
+                        missao3Btn.Text = "âŒ FALHOU (TENTE DE NOVO)"
+                        missao3Btn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+                    end
+                    return
+                end
+                
+                local idx
+                repeat
+                    idx = math.random(1, #COMPLETAR_MISSAO)
+                until not frasesUsadas[idx]
+                frasesUsadas[idx] = true
+                
+                local missao = COMPLETAR_MISSAO[idx]
+                missao3Btn.Text = string.format("Frase %d/4: Complete (10s)", fraseIndex)
+                missao3Btn.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+                
+                local fraseLabel = Instance.new("TextLabel")
+                fraseLabel.Size = UDim2.new(1, -20, 0, 30)
+                fraseLabel.Position = UDim2.new(0, 10, 0, 65)
+                fraseLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                fraseLabel.Text = missao.frase
+                fraseLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+                fraseLabel.Font = Enum.Font.GothamBold
+                fraseLabel.TextSize = 12
+                fraseLabel.Parent = missao3Frame
+                Instance.new("UICorner", fraseLabel).CornerRadius = UDim.new(0, 6)
+                
+                local inputBox = Instance.new("TextBox")
+                inputBox.Size = UDim2.new(1, -20, 0, 35)
+                inputBox.Position = UDim2.new(0, 10, 0, 100)
+                inputBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                inputBox.PlaceholderText = "Complete a frase..."
+                inputBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+                inputBox.Text = ""
+                inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+                inputBox.Font = Enum.Font.Gotham
+                inputBox.TextSize = 12
+                inputBox.Parent = missao3Frame
+                Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0, 6)
+                inputBox:CaptureFocus()
+                
+                local function verificar()
+                    if inputBox.Text:lower() == missao.resposta:lower() then
+                        acertos = acertos + 1
+                    end
+                    fraseLabel:Destroy()
+                    inputBox:Destroy()
+                    fraseIndex = fraseIndex + 1
+                    task.wait(0.5)
+                    proximaFrase()
+                end
+                
+                inputBox.FocusLost:Connect(function(enterPressed)
+                    if enterPressed then
+                        verificar()
+                    end
+                end)
+                
+                task.spawn(function()
+                    task.wait(10)
+                    if inputBox.Parent then
+                        verificar()
+                    end
+                end)
+            end
+            
+            proximaFrase()
+        end)
+
+    -- BotÃ£o pra mostrar key
+    local mostrarKeyBtn = Instance.new("TextButton")
+    mostrarKeyBtn.Size = UDim2.new(1, -40, 0, 45)
+    mostrarKeyBtn.Position = UDim2.new(0, 20, 1, -65) -- PosiÃ§Ã£o ajustada pro final da janela
+    mostrarKeyBtn.BackgroundColor3 = Color3.fromRGB(20, 60, 30)
+    mostrarKeyBtn.Text = "ðŸ”‘ COPIAR KEY E VOLTAR"
+    mostrarKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    mostrarKeyBtn.Font = Enum.Font.GothamBold
+    mostrarKeyBtn.TextSize = 13
+    mostrarKeyBtn.Parent = missoesFrame
+    Instance.new("UICorner", mostrarKeyBtn).CornerRadius = UDim.new(0, 8)
+    
+    mostrarKeyBtn.MouseButton1Click:Connect(function()
+        if missoesCompletadas >= 3 then
+            if setclipboard then
+                setclipboard(keyAtual)
+                mostrarKeyBtn.Text = "âœ… KEY COPIADA! Cole na tela anterior"
+            else
+                mostrarKeyBtn.Text = "Key: " .. keyAtual
+            end
+            task.wait(2)
+            missoesGui:Destroy()
+        else
+            mostrarKeyBtn.Text = "âŒ Complete todas as missÃµes primeiro!"
+            task.wait(2)
+            mostrarKeyBtn.Text = "ðŸ”‘ COPIAR KEY E VOLTAR"
+        end
+    end)
+end
+    
+    missoesBtn.MouseButton1Click:Connect(abrirMissoes)
+    
+    -- Validar key
+    validarBtn.MouseButton1Click:Connect(function()
+        local keyDigitada = keyInput.Text:upper()
+        if keyDigitada == keyAtual then
+            statusLabel.Text = "âœ… Key vÃ¡lida! Abrindo painel..."
+            statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            task.wait(1)
+            loginGui:Destroy()
+            -- Continua pro resto do script
+        else
+            statusLabel.Text = "âŒ Key invÃ¡lida! Tente novamente."
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        end
+    end)
+    
+    -- Bloqueia o script atÃ© a key ser validada
+    local validado = false
+    validarBtn.MouseButton1Click:Connect(function()
+        local keyDigitada = keyInput.Text:upper()
+        if keyDigitada == keyAtual then
+            validado = true
+        end
+    end)
+    
+    -- Espera atÃ© validar
+    while not validado do
+        task.wait(0.1)
+    end
+end
+
+local TEXTURE_ID   = 139385026360175
+local PART_SIZE    = Vector3.new(1.5, 1.5, 0.001)
+local SPAWN_DELAY  = 0.01
+local TRAP_POSITION = Vector3.new(-11565.53, 12984.85, -5125.60)
+local TRAP_SIZE = Vector3.new(10, 10, 10)
+
+local COMANDOS_RAPIDOS = {
+    {nome = "Heal (Curar)", cmd = ";heal"},
+    {nome = "Kill (Matar)", cmd = ";kill"},
+    {nome = "Jail (Prender)", cmd = ";jail"},
+    {nome = "Ice (Congelar)", cmd = ";ice"},
+    {nome = "Blur (Desfocar)", cmd = ";blur"},
+    {nome = "Warp (Fov)", cmd = ";warp"},
+    {nome = "Freeze (Parar)", cmd = ";freeze"},
+    {nome = "Dmg (Dano)", cmd = ";dmg"}
+}
+
+-- ============== SISTEMA DE NOTIFICAÃ‡Ã•ES (NO TOPO!) ==============
+local NOTIF_CONFIG = {
+    sucesso = {
+        icone = "rbxassetid://6353957304",
+        som = "rbxassetid://133071738727579",
+        cor = Color3.fromRGB(35, 140, 60),
+        corBorda = Color3.fromRGB(60, 200, 90),
+        titulo = "SUCESSO"
+    },
+    erro = {
+        icone = "rbxassetid://71503984286896",
+        som = "rbxassetid://131661013076677",
+        cor = Color3.fromRGB(160, 40, 40),
+        corBorda = Color3.fromRGB(220, 70, 70),
+        titulo = "ERRO"
+    },
+    info = {
+        icone = "rbxassetid://108376802555749",
+        som = "rbxassetid://131390520971848",
+        cor = Color3.fromRGB(40, 80, 160),
+        corBorda = Color3.fromRGB(70, 130, 220),
+        titulo = "AVISO"
+    }
+}
+
+local notifGui = Instance.new("ScreenGui")
+notifGui.Name = "NotificacoesBonitas"
+notifGui.ResetOnSpawn = false
+notifGui.IgnoreGuiInset = true
+notifGui.DisplayOrder = 999998
+notifGui.Parent = game:GetService("CoreGui")
+
+local notifContainer = Instance.new("Frame")
+notifContainer.Name = "Container"
+notifContainer.Size = UDim2.new(0, 350, 1, -20)
+notifContainer.Position = UDim2.new(1, -370, 0, 10)
+notifContainer.BackgroundTransparency = 1
+notifContainer.Parent = notifGui
+
+local notifLayout = Instance.new("UIListLayout")
+notifLayout.Padding = UDim.new(0, 8)
+notifLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+notifLayout.SortOrder = Enum.SortOrder.LayoutOrder
+notifLayout.Parent = notifContainer
+
+local function notificar(tipo, mensagem, duracao)
+    tipo = tipo or "info"
+    duracao = duracao or 4
+    local config = NOTIF_CONFIG[tipo] or NOTIF_CONFIG.info
+    
+    local notif = Instance.new("Frame")
+    notif.Name = "Notif"
+    notif.Size = UDim2.new(1, 0, 0, 70)
+    notif.BackgroundColor3 = config.cor
+    notif.BorderSizePixel = 0
+    notif.BackgroundTransparency = 0.1
+    notif.LayoutOrder = os.clock() * 1000
+    notif.Parent = notifContainer
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = notif
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = config.corBorda
+    stroke.Thickness = 2
+    stroke.Transparency = 0.3
+    stroke.Parent = notif
+    
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, config.cor),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(
+            math.max(0, config.cor.R * 255 - 30),
+            math.max(0, config.cor.G * 255 - 30),
+            math.max(0, config.cor.B * 255 - 30)
+        ))
+    })
+    gradient.Rotation = 45
+    gradient.Parent = notif
+    
+    local icone = Instance.new("ImageLabel")
+    icone.Size = UDim2.new(0, 50, 0, 50)
+    icone.Position = UDim2.new(0, 10, 0.5, -25)
+    icone.BackgroundTransparency = 1
+    icone.Image = config.icone
+    icone.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    icone.Parent = notif
+    
+    local titulo = Instance.new("TextLabel")
+    titulo.Size = UDim2.new(1, -75, 0, 20)
+    titulo.Position = UDim2.new(0, 70, 0, 10)
+    titulo.BackgroundTransparency = 1
+    titulo.Text = config.titulo
+    titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titulo.Font = Enum.Font.GothamBold
+    titulo.TextSize = 14
+    titulo.TextXAlignment = Enum.TextXAlignment.Left
+    titulo.Parent = notif
+    
+    local msgLabel = Instance.new("TextLabel")
+    msgLabel.Size = UDim2.new(1, -75, 0, 35)
+    msgLabel.Position = UDim2.new(0, 70, 0, 30)
+    msgLabel.BackgroundTransparency = 1
+    msgLabel.Text = tostring(mensagem)
+    msgLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
+    msgLabel.Font = Enum.Font.Gotham
+    msgLabel.TextSize = 12
+    msgLabel.TextXAlignment = Enum.TextXAlignment.Left
+    msgLabel.TextYAlignment = Enum.TextYAlignment.Top
+    msgLabel.TextWrapped = true
+    msgLabel.Parent = notif
+    
+    local barraBg = Instance.new("Frame")
+    barraBg.Size = UDim2.new(1, -20, 0, 3)
+    barraBg.Position = UDim2.new(0, 10, 1, -8)
+    barraBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    barraBg.BackgroundTransparency = 0.5
+    barraBg.BorderSizePixel = 0
+    barraBg.Parent = notif
+    Instance.new("UICorner", barraBg).CornerRadius = UDim.new(0, 2)
+    
+    local barra = Instance.new("Frame")
+    barra.Size = UDim2.new(1, 0, 1, 0)
+    barra.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    barra.BackgroundTransparency = 0.3
+    barra.BorderSizePixel = 0
+    barra.Parent = barraBg
+    Instance.new("UICorner", barra).CornerRadius = UDim.new(0, 2)
+    
+    task.spawn(function()
+        local som = Instance.new("Sound")
+        som.SoundId = config.som
+        som.Volume = 0.7
+        som.PlaybackSpeed = 1.1
+        som.Parent = SoundService
+        som:Play()
+        game:GetService("Debris"):AddItem(som, 3)
+    end)
+    
+    notif.Position = UDim2.new(1, 0, 0, 0)
+    notif.BackgroundTransparency = 1
+    
+    local tweenEntrada = TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 0.1
+    })
+    tweenEntrada:Play()
+    
+    local tweenBarra = TweenService:Create(barra, TweenInfo.new(duracao, Enum.EasingStyle.Linear, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 1, 0)
+    })
+    tweenBarra:Play()
+    
+    task.spawn(function()
+        task.wait(duracao)
+        local tweenSaida = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 0, 0, 0),
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0)
+        })
+        tweenSaida:Play()
+        tweenSaida.Completed:Wait()
+        notif:Destroy()
+    end)
+end
+
+local function notifySucesso(msg, dur) notificar("sucesso", msg, dur or 4) end
+local function notifyErro(msg, dur) notificar("erro", msg, dur or 5) end
+local function notifyInfo(msg, dur) notificar("info", msg, dur or 4) end
+
+print("[NotificaÃ§Ãµes] Sistema carregado!")
+
+-- ============== WRAPPER ==============
+print("[F3X] Iniciando download...")
+local ok, html = pcall(function()
+    return game:HttpGet("https://raw.githubusercontent.com/bqmb3/f3x-wrapper/main/loader.lua", true)
+end)
+
+if not ok then
+    warn("[F3X] HttpGet FALHOU:", html)
+    return
+end
+
+if #html < 100 then
+    warn("[F3X] Arquivo muito pequeno, provavelmente erro 404")
+    return
+end
+
+local ok2, F3X = pcall(function()
+    return loadstring(html)()
+end)
+
+if not ok2 or F3X == nil then
+    warn("[F3X] loadstring FALHOU")
+    return
+end
+
+print("[F3X] Carregado!")
+
+-- ============== SERVERENDPOINT ==============
+local function getSE()
+    if plr.Character then
+        for _, c in ipairs(plr.Character:GetChildren()) do
+            if c:FindFirstChild("SyncAPI") then
+                return c.SyncAPI:FindFirstChild("ServerEndpoint")
+            end
+        end
+    end
+    local bp = plr:FindFirstChild("Backpack")
+    if bp then
+        for _, c in ipairs(bp:GetChildren()) do
+            if c:FindFirstChild("SyncAPI") then
+                return c.SyncAPI:FindFirstChild("ServerEndpoint")
+            end
+        end
+    end
+end
+
+local se = getSE()
+
+-- ============== HD ADMIN (SILENCIOSO) ==============
+local function getRC()
+    local hdc = ReplicatedStorage:FindFirstChild("HDAdminHDClient")
+    if hdc then
+        local sig = hdc:FindFirstChild("Signals")
+        if sig then return sig:FindFirstChild("RequestCommandSilent") end
+    end
+end
+local rc = getRC()
+
+local function cmdHD(c)
+    if not rc then return end
+    pcall(function() rc:InvokeServer(c) end)
+end
+
+-- ============== BUSCAR PARTE REAL ==============
+local function acharParteReal(posicao, tamanho)
+    local parteReal, menorDist = nil, math.huge
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("BasePart") then
+            local d = (obj.Position - posicao).Magnitude
+            local tamDiff = (obj.Size - tamanho).Magnitude
+            if d < 3 and tamDiff < 0.5 and d < menorDist then
+                menorDist = d
+                parteReal = obj
+            end
+        end
+    end
+    return parteReal
+end
+
+-- ============== BUILDING TOOLS+ ENDPOINT ==============
+local function getFork3XEndpoint()
+    local bp = plr:FindFirstChild("Backpack")
+    if bp then
+        for _, tool in ipairs(bp:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == "Building Tools+" then
+                local syncAPI = tool:FindFirstChild("SyncAPI")
+                if syncAPI then
+                    local se = syncAPI:FindFirstChild("ServerEndpoint")
+                    if se and se:IsA("RemoteFunction") then return se end
+                end
+            end
+        end
+    end
+    if plr.Character then
+        for _, tool in ipairs(plr.Character:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == "Building Tools+" then
+                local syncAPI = tool:FindFirstChild("SyncAPI")
+                if syncAPI then
+                    local se = syncAPI:FindFirstChild("ServerEndpoint")
+                    if se and se:IsA("RemoteFunction") then return se end
+                end
+            end
+        end
+    end
+end
+
+-- ============== LISTA DE JOGADORES ==============
+local function criarListaJogadores(callback)
+    local listaGui = Instance.new("ScreenGui")
+    listaGui.Name = "ListaJogadores"
+    listaGui.ResetOnSpawn = false
+    listaGui.Parent = playerGui
+
+    local listaFrame = Instance.new("Frame")
+    listaFrame.Size = UDim2.new(0, 250, 0, 400)
+    listaFrame.Position = UDim2.new(0.5, -125, 0.5, -200)
+    listaFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    listaFrame.BorderSizePixel = 0
+    listaFrame.Active = true
+    listaFrame.Draggable = true
+    listaFrame.Parent = listaGui
+    Instance.new("UICorner", listaFrame).CornerRadius = UDim.new(0, 8)
+        
+    local titulo = Instance.new("TextLabel")
+    titulo.Size = UDim2.new(1, 0, 0, 30)
+    titulo.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    titulo.Text = "Selecione um Jogador"
+    titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titulo.Font = Enum.Font.GothamBold
+    titulo.TextSize = 14
+    titulo.Parent = listaFrame
+    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -10, 1, -40)
+    scroll.Position = UDim2.new(0, 5, 0, 35)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 6
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = listaFrame
+    Instance.new("UIListLayout", scroll).Padding = UDim.new(0, 4)
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= plr then
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -10, 0, 35)
+            btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+            btn.Text = p.Name
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.Font = Enum.Font.GothamMedium
+            btn.TextSize = 13
+            btn.Parent = scroll
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+            btn.MouseButton1Click:Connect(function()
+                listaGui:Destroy()
+                if callback then callback(p) end
+            end)
+        end
+    end
+
+    local fecharBtn = Instance.new("TextButton")
+    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
+    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
+    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    fecharBtn.Text = "X"
+    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fecharBtn.Font = Enum.Font.GothamBold
+    fecharBtn.TextSize = 12
+    fecharBtn.Parent = listaFrame
+    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
+    fecharBtn.MouseButton1Click:Connect(function() listaGui:Destroy() end)
+end
+
+-- ============== LISTA DE COMANDOS ==============
+local function criarListaComandos(jogadorAlvo)
+    local listaGui = Instance.new("ScreenGui")
+    listaGui.Name = "ListaComandos"
+    listaGui.ResetOnSpawn = false
+    listaGui.Parent = playerGui
+
+    local listaFrame = Instance.new("Frame")
+    listaFrame.Size = UDim2.new(0, 250, 0, 350)
+    listaFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
+    listaFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    listaFrame.BorderSizePixel = 0
+    listaFrame.Active = true
+    listaFrame.Draggable = true
+    listaFrame.Parent = listaGui
+    Instance.new("UICorner", listaFrame).CornerRadius = UDim.new(0, 8)
+
+    local titulo = Instance.new("TextLabel")
+    titulo.Size = UDim2.new(1, 0, 0, 30)
+    titulo.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    titulo.Text = "Comandos em: " .. (jogadorAlvo and jogadorAlvo.Name or "?")
+    titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titulo.Font = Enum.Font.GothamBold
+    titulo.TextSize = 14
+    titulo.Parent = listaFrame
+    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -10, 1, -40)
+    scroll.Position = UDim2.new(0, 5, 0, 35)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 6
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = listaFrame
+    Instance.new("UIListLayout", scroll).Padding = UDim.new(0, 4)
+
+    for _, cmdInfo in ipairs(COMANDOS_RAPIDOS) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -10, 0, 35)
+        btn.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+        btn.Text = cmdInfo.nome
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.GothamMedium
+        btn.TextSize = 13
+        btn.Parent = scroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        btn.MouseButton1Click:Connect(function()
+            if jogadorAlvo then
+                cmdHD(cmdInfo.cmd .. " " .. jogadorAlvo.Name)
+                notifySucesso("Comando: " .. cmdInfo.cmd .. " " .. jogadorAlvo.Name)
+            end
+            listaGui:Destroy()
+        end)
+    end
+
+    local fecharBtn = Instance.new("TextButton")
+    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
+    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
+    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    fecharBtn.Text = "X"
+    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fecharBtn.Font = Enum.Font.GothamBold
+    fecharBtn.TextSize = 12
+    fecharBtn.Parent = listaFrame
+    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
+    fecharBtn.MouseButton1Click:Connect(function() listaGui:Destroy() end)
+end
+
+-- ============== MODO TÃ“XICO ==============
+local targetPlayer = nil
+local modoToxicoAtivo = false
+local toxicoTask = nil
+
+local function iniciarAtaqueToxico()
+    if not targetPlayer or not Players:FindFirstChild(targetPlayer.Name) then return end
+    local nome = targetPlayer.Name
+    local meuNome = plr.Name
+    pcall(function() rc:InvokeServer(";ice " .. nome) end)
+    pcall(function() rc:InvokeServer(";jail " .. nome) end)
+    pcall(function() rc:InvokeServer(";title " .. nome .. " I LOVE " .. meuNome) end)
+    pcall(function() rc:InvokeServer(";warp " .. nome) end)
+    pcall(function() rc:InvokeServer(";blur " .. nome) end)
+    pcall(function() rc:InvokeServer(";punish " .. nome) end)
+end
+
+local function loopToxico()
+    while modoToxicoAtivo and targetPlayer and Players:FindFirstChild(targetPlayer.Name) do
+        iniciarAtaqueToxico()
+        task.wait(1.5)
+    end
+end
+
+local function abrirPainelToxico(playerAlvo)
+    local guiAnterior = playerGui:FindFirstChild("ListaJogadores")
+    if guiAnterior then guiAnterior:Destroy() end
+    
+    local painel = Instance.new("ScreenGui")
+    painel.Name = "PainelToxico"
+    painel.ResetOnSpawn = false
+    painel.Parent = playerGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 250, 0, 100)
+    frame.Position = UDim2.new(0.5, -125, 0.5, 50)
+    frame.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = painel
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+
+    local titulo = Instance.new("TextLabel")
+    titulo.Size = UDim2.new(1, 0, 0, 30)
+    titulo.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
+    titulo.Text = "Alvo: " .. playerAlvo.Name
+    titulo.TextColor3 = Color3.fromRGB(255, 100, 100)
+    titulo.Font = Enum.Font.GothamBold
+    titulo.TextSize = 14
+    titulo.Parent = frame
+    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
+
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(1, -20, 0, 40)
+    toggleBtn.Position = UDim2.new(0, 10, 0, 40)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    toggleBtn.Text = "ATIVAR ATAQUE\n[ DESLIGADO ]"
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.TextSize = 12
+    toggleBtn.Parent = frame
+    Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+
+    local ativo = false
+    toggleBtn.MouseButton1Click:Connect(function()
+        ativo = not ativo
+        if ativo then
+            toggleBtn.Text = "ATAQUE ATIVADO\n[ LIGADO ]"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+            targetPlayer = playerAlvo
+            modoToxicoAtivo = true
+            iniciarAtaqueToxico()
+            if toxicoTask then task.cancel(toxicoTask) end
+            toxicoTask = task.spawn(loopToxico)
+            notifySucesso("Ataque ativado contra " .. playerAlvo.Name)
+        else
+            toggleBtn.Text = "ATIVAR ATAQUE\n[ DESLIGADO ]"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+            modoToxicoAtivo = false
+            targetPlayer = nil
+            if toxicoTask then task.cancel(toxicoTask) end
+            notifyInfo("Ataque desativado")
+        end
+    end)
+
+    local fecharBtn = Instance.new("TextButton")
+    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
+    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
+    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    fecharBtn.Text = "X"
+    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fecharBtn.Font = Enum.Font.GothamBold
+    fecharBtn.TextSize = 12
+    fecharBtn.Parent = frame
+    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
+    fecharBtn.MouseButton1Click:Connect(function() painel:Destroy() end)
+end
+
+local function botaoModoToxico()
+    local listaGui = Instance.new("ScreenGui")
+    listaGui.Name = "ListaJogadores"
+    listaGui.ResetOnSpawn = false
+    listaGui.Parent = playerGui
+
+    local listaFrame = Instance.new("Frame")
+    listaFrame.Size = UDim2.new(0, 250, 0, 400)
+    listaFrame.Position = UDim2.new(0.5, -125, 0.5, -200)
+    listaFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    listaFrame.BorderSizePixel = 0
+    listaFrame.Active = true
+    listaFrame.Draggable = true
+    listaFrame.Parent = listaGui
+    Instance.new("UICorner", listaFrame).CornerRadius = UDim.new(0, 8)
+
+    local titulo = Instance.new("TextLabel")
+    titulo.Size = UDim2.new(1, 0, 0, 30)
+    titulo.BackgroundColor3 = Color3.fromRGB(70, 30, 30)
+    titulo.Text = "Selecione o Alvo TÃ³xico"
+    titulo.TextColor3 = Color3.fromRGB(255, 100, 100)
+    titulo.Font = Enum.Font.GothamBold
+    titulo.TextSize = 14
+    titulo.Parent = listaFrame
+    Instance.new("UICorner", titulo).CornerRadius = UDim.new(0, 8)
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -10, 1, -40)
+    scroll.Position = UDim2.new(0, 5, 0, 35)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 6
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = listaFrame
+    Instance.new("UIListLayout", scroll).Padding = UDim.new(0, 4)
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= plr then
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -10, 0, 35)
+            btn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+            btn.Text = p.Name
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.Font = Enum.Font.GothamMedium
+            btn.TextSize = 13
+            btn.Parent = scroll
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+            btn.MouseButton1Click:Connect(function()
+                listaGui:Destroy()
+                abrirPainelToxico(p)
+            end)
+        end
+    end
+
+    local fecharBtn = Instance.new("TextButton")
+    fecharBtn.Size = UDim2.new(0, 25, 0, 25)
+    fecharBtn.Position = UDim2.new(1, -28, 0, 3)
+    fecharBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    fecharBtn.Text = "X"
+    fecharBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    fecharBtn.Font = Enum.Font.GothamBold
+    fecharBtn.TextSize = 12
+    fecharBtn.Parent = listaFrame
+    Instance.new("UICorner", fecharBtn).CornerRadius = UDim.new(0, 6)
+    fecharBtn.MouseButton1Click:Connect(function() listaGui:Destroy() end)
+end
+
+-- Anti-Un Hook
+local hookOk, hookErr = pcall(function()
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if method == "InvokeServer" and self == rc then
+            local args = {...}
+            if args[1] and type(args[1]) == "string" then
+                local cmdStr = args[1]:lower()
+                if modoToxicoAtivo and targetPlayer and Players:FindFirstChild(targetPlayer.Name) then
+                    local nomeAlvo = targetPlayer.Name:lower()
+                    if cmdStr:find("unice") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";ice " .. targetPlayer.Name) end)
+                    elseif cmdStr:find("unjail") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";jail " .. targetPlayer.Name) end)
+                    elseif cmdStr:find("unblur") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";blur " .. targetPlayer.Name) end)
+                    elseif cmdStr:find("untitle") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";title " .. targetPlayer.Name .. " I LOVE " .. plr.Name) end)
+                    elseif cmdStr:find("unpunish") and (cmdStr:find(nomeAlvo) or cmdStr:find("all") or cmdStr:find("others")) then
+                        task.spawn(function() cmdHD(";punish " .. targetPlayer.Name) end)
+                    end
+                end
+            end
+        end
+        return oldNamecall(self, ...)
+    end))
+end)
+
+-- ============== TOOL INVISIBLE/TOGGLE ==============
+local function botaoCriarToolInvisible()
+    if plr.Backpack:FindFirstChild("InvisibleTool") then
+        notifyErro("Tool jÃ¡ existe!")
+        return
+    end
+    
+    local tool = Instance.new("Tool")
+    tool.Name = "InvisibleTool"
+    tool.RequiresHandle = false
+    tool.CanBeDropped = false
+    tool.ToolTip = "Clique para InvisÃ­vel/VisÃ­vel"
+    tool.Parent = plr.Backpack
+    
+    -- Desativa a animaÃ§Ã£o de levantar o braÃ§o
+    tool.Equipped:Connect(function()
+        local char = plr.Character
+        if not char then return end
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            -- ForÃ§a a animaÃ§Ã£o de idle (braÃ§o abaixado)
+            local animator = humanoid:FindFirstChild("Animator")
+            if animator then
+                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                    if track.Animation and track.Animation.AnimationId:find("204295235") then
+                        track:Stop()
+                    end
+                end
+            end
+        end
+    end)
+    
+    local invisivel = false
+    
+    tool.Activated:Connect(function()
+        invisivel = not invisivel
+        if invisivel then
+            cmdHD(";invisible")
+            notifySucesso("InvisÃ­vel ativado!")
+        else
+            cmdHD(";visible")
+            notifyInfo("VisÃ­vel novamente!")
+        end
+    end)
+    
+    notifySucesso("Tool Invisible criada! Equipe e clique.")
+end
+
+-- ============== BANDEIRA COLORIDA ==============
+local function botaoBandeira()
+    notifyInfo("Construindo bandeira...")
+    local posicaoBase = Vector3.new(0, 5, 0)
+    local largura = 20
+    local profundidade = 2
+
+    local cores = {
+        Color3.fromRGB(200, 100, 180),
+        Color3.fromRGB(245, 169, 184),
+        Color3.fromRGB(255, 230, 0),
+        Color3.fromRGB(255, 255, 255),
+        Color3.fromRGB(255, 230, 0),
+        Color3.fromRGB(80, 200, 240),
+        Color3.fromRGB(91, 206, 250)
+    }
+    local alturas = {1, 1, 1, 2, 1, 1, 1}
+    local alturaAtual = posicaoBase.Y
+
+    for i, cor in ipairs(cores) do
+        local altura = alturas[i]
+        local posicaoFaixa = Vector3.new(posicaoBase.X, alturaAtual + altura/2, posicaoBase.Z)
+        local parte = F3X:CreatePart("Normal", CFrame.new(posicaoFaixa), workspace)
+        if parte then
+            F3X:Resize(parte, Vector3.new(largura, altura, profundidade))
+            F3X:SetColor(parte, cor)
+            F3X:Anchor(parte)
+            alturaAtual = alturaAtual + altura
+        end
+    end
+    notifySucesso("Bandeira construÃ­da!")
+end
+
+-- ============== MÃšSICA ==============
+local MUSIC_PRESETS = {
+    {id = 1839246711, vol = 9999, pitch = 0.9, nome = "Jumpsytle"},
+    {id = 95156028272944, vol = 9999, pitch = 0.2, nome = "PadrÃ£o"},
+    {id = 16190761193, vol = 9999, pitch = 0.9, nome = "Jugsta"},
+    {id = 105819456196233, vol = 9999, pitch = 0.3, nome = "Fast Beep"},    
+    {id = 75485931767123, vol = 9999, pitch = 0.9, nome = "Alone"},
+    {id = 88914658183319, vol = 9999, pitch = 0.8, nome = "China Music"},
+    {id = 87989952166968, vol = 9999, pitch = 0.2, nome = "Keemstar Music"},
+    {id = 78973045684083, vol = 9999, pitch = 0.3, nome = "Sirmeme"},
+    {id = 86317637164248, vol = 9999, pitch = 1.0, nome = "Misery"},
+    {id = 138981629726601, vol = 9999, pitch = 0.8, nome = "Phonk Slowed"},
+    {id = 97927847298766, vol = 9999, pitch = 0.8, nome = "Verity Theme"},
+    {id = 92843733974363, vol = 9999, pitch = 0.95, nome = "Washing Machine"},
+    {id = 109288461793825, vol = 9999, pitch = 0.8, nome = "JET 2 HOLIDAY"},
+    {id = 110919391228823, vol = 9999, pitch = 1.0, nome = "Low Cortisol"},
+    {id = 82188333380385, vol = 9999, pitch = 0.10, nome = "Miguel Phonk"},
+    {id = 82746224492420, vol = 9999, pitch = 0.8, nome = "Terranova"},
+    {id = 82696338249251, vol = 9999, pitch = 0.8, nome = "Rampage"}
+}
+
+local presetIndex = 2
+local musicaLigada = false
+local musicaTask = nil
+local currentId = MUSIC_PRESETS[presetIndex].id
+local currentVol = MUSIC_PRESETS[presetIndex].vol
+local currentPitch = MUSIC_PRESETS[presetIndex].pitch
+local currentName = MUSIC_PRESETS[presetIndex].nome
+local MUSIC_ID_STR = tostring(currentId)
+local musicToggleBtn = nil
+local presetBtn = nil
+
+local function atualizarTextoToggle()
+    if musicToggleBtn then
+        local estado = musicaLigada and "\n[ LIGADO ]" or "\n[ DESLIGADO ]"
+        musicToggleBtn.Text = "ðŸŽµ MÃºsica IMORTAL [" .. currentName .. "]" .. estado
+    end
+end
+
+local function tocarMusica()
+    if not rc then return end
+    pcall(function()
+        rc:InvokeServer(";music " .. currentId .. " ;pitch " .. currentPitch .. " ;volume " .. currentVol)
+    end)
+end
+
+local function encontrarMusicaAtual()
+    local locais = {workspace, SoundService, plr}
+    if plr:FindFirstChild("PlayerGui") then table.insert(locais, plr.PlayerGui) end
+    if plr:FindFirstChild("Backpack") then table.insert(locais, plr.Backpack) end
+    if plr.Character then table.insert(locais, plr.Character) end
+
+    for _, local_ in ipairs(locais) do
+        for _, obj in ipairs(local_:GetDescendants()) do
+            if obj:IsA("Sound") then
+                local sid = tostring(obj.SoundId)
+                if string.find(sid, MUSIC_ID_STR, 1, true) then
+                    return obj
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function ligarMusica()
+    if musicaLigada then return end
+    musicaLigada = true
+    atualizarTextoToggle()
+    tocarMusica()
+    notifySucesso("MÃºsica ativada: " .. currentName)
+
+    musicaTask = task.spawn(function()
+        local ultimoAviso = 0
+        while musicaLigada do
+            task.wait(0.5)
+            if not musicaLigada then break end
+            local som = encontrarMusicaAtual()
+            local agora = tick()
+            if not som or not som.Playing or (som.TimeLength > 0 and som.TimePosition >= som.TimeLength - 0.5) then
+                if (agora - ultimoAviso) > 2 then
+                    ultimoAviso = agora
+                    task.spawn(function() tocarMusica() end)
+                end
+            else
+                pcall(function() som.Looped = true end)
+            end
+        end
+    end)
+end
+
+local function desligarMusica()
+    musicaLigada = false
+    atualizarTextoToggle()
+    if musicaTask then pcall(function() task.cancel(musicaTask) end) musicaTask = nil end
+    cmdHD(";unmusic ;volume 1 ;pitch 1")
+    notifyInfo("MÃºsica desativada")
+end
+
+local function trocarPreset()
+    presetIndex = presetIndex + 1
+    if presetIndex > #MUSIC_PRESETS then presetIndex = 1 end
+    local p = MUSIC_PRESETS[presetIndex]
+    currentId = p.id
+    currentVol = p.vol
+    currentPitch = p.pitch
+    currentName = p.nome
+    MUSIC_ID_STR = tostring(currentId)
+    atualizarTextoToggle()
+    if musicaLigada then
+        cmdHD(";unmusic")
+        task.spawn(function() tocarMusica() end)
+    end
+    notifyInfo("Preset: " .. currentName)
+end
+
+-- ============== SPAM DE PARTES ==============
+local partesCriadas = {}
+local spamLigado = false
+
+local TODAS_FACES = {
+    Enum.NormalId.Front, Enum.NormalId.Back,
+    Enum.NormalId.Left, Enum.NormalId.Right,
+    Enum.NormalId.Top, Enum.NormalId.Bottom
+}
+
+local function texturizarUmaFace(parte, face)
+    if not se then return end
+    pcall(function() se:InvokeServer("CreateTextures", {{Part = parte, Face = face, TextureType = "Decal"}}) end)
+    pcall(function() se:InvokeServer("SyncTexture", {{Part = parte, Face = face, TextureType = "Decal", Texture = "rbxassetid://" .. TEXTURE_ID}}) end)
+end
+
+local function texturizar(parte)
+    for _, face in ipairs({Enum.NormalId.Front, Enum.NormalId.Back}) do
+        texturizarUmaFace(parte, face)
+    end
+end
+
+local function animarParte(parte)
+    if not parte then return end
+    pcall(function() F3X:SetName(parte, "Particule") end)
+    pcall(function() F3X:Anchor(parte) end)
+    task.spawn(function()
+        local transparencia = 0
+        while parte and parte.Parent and transparencia < 1 do
+            local novaPos = parte.Position + Vector3.new(0, 0.5, 0)
+            pcall(function() F3X:Move(parte, CFrame.new(novaPos)) end)
+            transparencia = transparencia + 0.05
+            pcall(function() F3X:SetTransparency(parte, transparencia) end)
+            task.wait(0.05)
+        end
+        if parte and parte.Parent then pcall(function() F3X:Remove(parte) end) end
+    end)
+end
+
+local function criarParteTexturizada(posicao)
+    local parteWrapper = F3X:CreatePart("Normal", CFrame.new(posicao), workspace)
+    if not parteWrapper then return nil end
+    F3X:Resize(parteWrapper, PART_SIZE)
+    task.wait(0.001)
+    local parteReal = acharParteReal(posicao, PART_SIZE) or parteWrapper
+    table.insert(partesCriadas, parteReal)
+    task.spawn(function() texturizar(parteReal) end)
+    animarParte(parteReal)
+    return parteReal
+end
+
+local function iniciarSpam()
+    if spamLigado then return end
+    spamLigado = true
+    notifySucesso("Spam de partÃ­culas ativado!")
+    task.spawn(function()
+        while spamLigado do
+            for _, p in ipairs(Players:GetPlayers()) do
+                if not spamLigado then break end
+                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = p.Character.HumanoidRootPart
+                    local pos = hrp.Position + Vector3.new(math.random(-6,6), math.random(3,10), math.random(-6,6))
+                    criarParteTexturizada(pos)
+                end
+                task.wait(SPAWN_DELAY)
+            end
+            task.wait(0.001)
+        end
+    end)
+end
+
+local function pararSpam()
+    spamLigado = false
+    if #partesCriadas > 0 then
+        pcall(function() F3X:RemoveParts(partesCriadas) end)
+        partesCriadas = {}
+    end
+    notifyInfo("Spam desativado")
+end
+
+-- ============== BLOQUEADOR DE BALÃ•ES ==============
+local bloqueadorAtivo = false
+local bloqueadorTask = nil
+
+local function bloquearBaloes()
+    if not plr.Character then return end
+    for _, obj in ipairs(plr.Character:GetDescendants()) do
+        if obj:IsA("BillboardGui") or obj.Name:lower():find("bubblechat") then
+            pcall(function() obj:Destroy() end)
+        end
+    end
+end
+
+local function iniciarBloqueador()
+    if bloqueadorAtivo then return end
+    bloqueadorAtivo = true
+    bloqueadorTask = task.spawn(function()
+        while bloqueadorAtivo do
+            pcall(bloquearBaloes)
+            task.wait(0.03)
+        end
+    end)
+    notifySucesso("Bloqueador de balÃµes ativado!")
+end
+
+local function pararBloqueador()
+    bloqueadorAtivo = false
+    if bloqueadorTask then task.cancel(bloqueadorTask) bloqueadorTask = nil end
+    notifyInfo("Bloqueador desativado")
+end
+
+-- ============== HIDE GUIS + MUTE ==============
+local hideLigado = false
+local function ligarHideGuis()
+    if hideLigado then return end
+    hideLigado = true
+    cmdHD(";hideGuis others")
+    cmdHD(";uncmdbar2 others")
+    cmdHD(";mute others")
+    notifySucesso("GUIs escondidas e players mutados!")
+end
+local function desligarHideGuis()
+    hideLigado = false
+    cmdHD(";showGuis others")
+    cmdHD(";cmdbar2 others")
+    cmdHD(";unmute others")
+    notifyInfo("GUIs mostradas e players desmutados")
+end
+
+-- ============== LIMPAR EFEITOS ==============
+local limparLigado = false
+local limparTask = nil
+local COMANDOS_LIMPEZA = {";unice", ";unjail", ";unblur", ";untitle", ";unpunish", ";unmute", ";showGuis", ";refresh"}
+
+local function ligarLimpar()
+    if limparLigado then return end
+    limparLigado = true
+    limparTask = task.spawn(function()
+        while limparLigado do
+            for _, cmd in ipairs(COMANDOS_LIMPEZA) do
+                if not limparLigado then break end
+                cmdHD(cmd)
+                task.wait(0.01)
+            end
+            task.wait(3)
+        end
+    end)
+    notifySucesso("Limpeza automÃ¡tica ativada!")
+end
+
+local function desligarLimpar()
+    limparLigado = false
+    if limparTask then task.cancel(limparTask) limparTask = nil end
+    notifyInfo("Limpeza desativada")
+end
+
+-- ============== BOTÃ•ES SIMPLES ==============
+local function botaoDiscoFog()
+    cmdHD(";disco ;fog ;time 0")
+    notifySucesso("Disco + Fog + Time 0 ativados!")
+end
+
+local function botaoMeshGlitch()
+    local parteWrapper = F3X:CreatePart("Normal", CFrame.new(0, 0, 0), workspace)
+    if not parteWrapper then return end
+    F3X:Resize(parteWrapper, Vector3.new(0.001, 0.001, 0.001))
+    task.wait(0.01)
+    local parteReal = acharParteReal(Vector3.new(0, 0, 0), Vector3.new(0.001, 0.001, 0.001)) or parteWrapper
+    if se then
+        pcall(function() se:InvokeServer("CreateMeshes", {{Part = parteReal}}) end)
+        task.wait(0.01)
+        pcall(function()
+            se:InvokeServer("SyncMesh", {{
+                Part = parteReal, MeshType = "FileMesh", Mesh = 16169707,
+                TextureId = 117638534679966, Scale = Vector3.new(-3500, -3500, -3500)
+            }})
+        end)
+    end
+    notifySucesso("Mesh Glitch aplicado!")
+end
+
+local function botaoTexturizarTudo()
+    notifyInfo("Texturizando mapa inteiro...")
+    task.spawn(function()
+        local todasPartes = {}
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then table.insert(todasPartes, obj) end
+        end
+        for i, parte in ipairs(todasPartes) do
+            task.spawn(function() texturizar(parte) end)
+            if i % 30 == 0 then task.wait(0.05) end
+        end
+        notifySucesso("Mapa inteiro texturizado!")
+    end)
+end
+
+local function botaoMeteorito()
+    notifyInfo("Meteorito gigante caindo...")
+    local posicaoCeu = Vector3.new(0, 500, 0)
+    local parte = F3X:CreatePart("Normal", CFrame.new(posicaoCeu), workspace)
+    if not parte then return end
+    F3X:Resize(parte, Vector3.new(100, 100, 100))
+    task.wait(0.5)
+    F3X:Unanchor(parte)
+    task.spawn(function()
+        local tempoParado = 0
+        while parte and parte.Parent do
+            local velocidade = parte.AssemblyLinearVelocity or Vector3.new(0, 0, 0)
+            if velocidade.Magnitude < 1 then
+                tempoParado = tempoParado + 0.1
+                if tempoParado > 0.5 then
+                    local pontoImpacto = parte.Position
+                    local bola = F3X:CreatePart("Ball", CFrame.new(pontoImpacto), workspace)
+                    if bola then
+                        F3X:Resize(bola, Vector3.new(10, 10, 10))
+                        F3X:SetColor(bola, Color3.fromRGB(255, 0, 0))
+                        F3X:SetTransparency(bola, 0.4)
+                        F3X:Anchor(bola)
+                        pcall(function() F3X:Remove(parte) end)
+                        local tamanhoAtual = 10
+                        while tamanhoAtual < 1500 and bola and bola.Parent do
+                            tamanhoAtual = tamanhoAtual + 50
+                            pcall(function() F3X:Resize(bola, Vector3.new(tamanhoAtual, tamanhoAtual, tamanhoAtual)) end)
+                            task.wait(0.05)
+                        end
+                        task.wait(1)
+                        pcall(function() F3X:Remove(bola) end)
+                    end
+                    break
+                end
+            else
+                tempoParado = 0
+            end
+            task.wait(0.1)
+        end
+        notifySucesso("Meteorito concluÃ­do!")
+    end)
+end
+
+-- ============== BOAS VINDAS ==============
+local boasVindasAtivo = false
+local boasVindasConexao = nil
+
+local function ligarBoasVindas()
+    if boasVindasAtivo then return end
+    boasVindasAtivo = true
+    boasVindasConexao = Players.PlayerAdded:Connect(function(novoJogador)
+        if not boasVindasAtivo then return end
+        task.wait(1)
+        cmdHD(";serverHint Welcome " .. novoJogador.Name)
+    end)
+    notifySucesso("Boas vindas automÃ¡ticas ativadas!")
+end
+
+local function desligarBoasVindas()
+    boasVindasAtivo = false
+    if boasVindasConexao then
+        boasVindasConexao:Disconnect()
+        boasVindasConexao = nil
+    end
+    notifyInfo("Boas vindas desativadas")
+end
+
+-- ============== PARTÃCULAS AVANÃ‡ADAS ==============
+local particulasLigado = false
+local particulasTask = nil
+
+local PART_CONFIG = {
+    TEXTURA = "rbxassetid://139385026360175",
+    TAMANHO = "5",
+    VELOCIDADE = "45",
+    DISPERSAO = "360",
+    RATE = "50"
+}
+
+local function aplicarParticulaAvancada(seBTP, parte)
+    if not seBTP or not parte then return end
+    pcall(function()
+        seBTP:InvokeServer("CreateDecorations", {{Part = parte, DecorationType = "ParticleEmitter"}})
+    end)
+    local props = {
+        {Texture = PART_CONFIG.TEXTURA},
+        {Size = PART_CONFIG.TAMANHO},
+        {Speed = PART_CONFIG.VELOCIDADE},
+        {SpreadAngle = PART_CONFIG.DISPERSAO},
+        {Rate = PART_CONFIG.RATE}
+    }
+    for _, prop in ipairs(props) do
+        local dados = {Part = parte, DecorationType = "ParticleEmitter"}
+        for k, v in pairs(prop) do dados[k] = v end
+        pcall(function() seBTP:InvokeServer("SyncDecorate", {dados}) end)
+    end
+end
+
+local function ligarParticulas()
+    if particulasLigado then return end
+    local seBTP = getFork3XEndpoint()
+    if not seBTP then
+        notifyErro("Building Tools+ nÃ£o encontrada! Equipa ela primeiro.")
+        return
+    end
+    particulasLigado = true
+    particulasTask = task.spawn(function()
+        local partes = {}
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and not obj:IsDescendantOf(plr.Character) then
+                table.insert(partes, obj)
+            end
+        end
+        for i, parte in ipairs(partes) do
+            if not particulasLigado then return end
+            aplicarParticulaAvancada(seBTP, parte)
+            if i % 30 == 0 then task.wait(0.1) end
+        end
+        notifySucesso("PartÃ­culas aplicadas em " .. #partes .. " partes!")
+    end)
+end
+
+local function desligarParticulas()
+    particulasLigado = false
+    if particulasTask then task.cancel(particulasTask) particulasTask = nil end
+    notifyInfo("PartÃ­culas desativadas")
+end
+
+-- ============== ARMADILHA DE JOGADOR ==============
+local function armarArmadilha(jogadorAlvo)
+    if not jogadorAlvo or not jogadorAlvo.Character then return end
+    notifyInfo("Construindo armadilha para " .. jogadorAlvo.Name .. "...")
+    
+    local posicaoOriginal = nil
+    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        posicaoOriginal = plr.Character.HumanoidRootPart.CFrame
+    end
+
+    cmdHD(";teleport me " .. TRAP_POSITION.X .. "," .. TRAP_POSITION.Y .. "," .. TRAP_POSITION.Z)
+    task.wait(0.8)
+
+    pcall(function()
+        local chao = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X, TRAP_POSITION.Y - TRAP_SIZE.Y/2, TRAP_POSITION.Z), workspace)
+        if chao then F3X:Resize(chao, Vector3.new(TRAP_SIZE.X, 0.5, TRAP_SIZE.Z)) end
+    end)
+    pcall(function()
+        local teto = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X, TRAP_POSITION.Y + TRAP_SIZE.Y/2, TRAP_POSITION.Z), workspace)
+        if teto then F3X:Resize(teto, Vector3.new(TRAP_SIZE.X, 0.5, TRAP_SIZE.Z)) end
+    end)
+    pcall(function()
+        local frente = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X, TRAP_POSITION.Y, TRAP_POSITION.Z + TRAP_SIZE.Z/2), workspace)
+        if frente then F3X:Resize(frente, Vector3.new(TRAP_SIZE.X, TRAP_SIZE.Y, 0.5)) end
+    end)
+    pcall(function()
+        local tras = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X, TRAP_POSITION.Y, TRAP_POSITION.Z - TRAP_SIZE.Z/2), workspace)
+        if tras then F3X:Resize(tras, Vector3.new(TRAP_SIZE.X, TRAP_SIZE.Y, 0.5)) end
+    end)
+    pcall(function()
+        local esquerda = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X - TRAP_SIZE.X/2, TRAP_POSITION.Y, TRAP_POSITION.Z), workspace)
+        if esquerda then F3X:Resize(esquerda, Vector3.new(0.5, TRAP_SIZE.Y, TRAP_SIZE.Z)) end
+    end)
+    pcall(function()
+        local direita = F3X:CreatePart("Normal", CFrame.new(TRAP_POSITION.X + TRAP_SIZE.X/2, TRAP_POSITION.Y, TRAP_POSITION.Z), workspace)
+        if direita then F3X:Resize(direita, Vector3.new(0.5, TRAP_SIZE.Y, TRAP_SIZE.Z)) end
+    end)
+    task.wait(0.5)
+
+    cmdHD(";teleport " .. jogadorAlvo.Name)
+    task.wait(0.5)
+
+    if posicaoOriginal then
+        cmdHD(";teleport me " .. posicaoOriginal.Position.X .. "," .. posicaoOriginal.Position.Y .. "," .. posicaoOriginal.Position.Z)
+    end
+    notifySucesso("Armadilha armada para " .. jogadorAlvo.Name .. "!")
+end
+
+-- ============== CONSTRUTOR DE MAPA RÃPIDO ==============
+local function botaoConstruirMapaRapido()
+    notifyInfo("Iniciando construÃ§Ã£o do mapa...")
+
+    local MEU_BLUEPRINT = {
+  {n="Terrain", cf={0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(2044.00,252.00,2044.00), c=Color3.fromRGB(163,162,165), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-38.0000,63.5000,-31.5000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(16.00,1.00,2.00), c=Color3.fromRGB(99,49,255), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-38.0000,57.5000,-31.5000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(16.00,1.00,2.00), c=Color3.fromRGB(255,102,204), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-37.0000,59.5217,-29.7064,0.0000,-0.0000,-1.0000,-0.6428,-0.7661,-0.0000,-0.7661,0.6428,-0.0000}, s=Vector3.new(4.20,1.00,0.00), c=Color3.fromRGB(0,255,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-37.0000,60.4267,-32.6298,0.0000,0.0000,-1.0000,-0.7661,0.6428,-0.0000,0.6428,0.7661,0.0000}, s=Vector3.new(6.10,1.00,0.00), c=Color3.fromRGB(0,255,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-38.0000,58.5000,-31.5000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(16.00,1.00,2.00), c=Color3.fromRGB(255,249,145), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-38.0000,61.5000,-31.5000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(16.00,1.00,2.00), c=Color3.fromRGB(255,249,145), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-36.5020,60.1482,7.7553,0.0000,-0.0000,-1.0000,-0.6428,-0.7661,-0.0000,-0.7661,0.6428,-0.0000}, s=Vector3.new(4.20,1.00,0.00), c=Color3.fromRGB(0,255,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-36.5016,61.0531,4.8320,0.0000,0.0000,-1.0000,-0.7661,0.6428,-0.0000,0.6428,0.7661,0.0000}, s=Vector3.new(6.10,1.00,0.00), c=Color3.fromRGB(0,255,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-38.0000,60.0000,-31.5000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(16.00,2.00,2.00), c=Color3.fromRGB(255,255,255), m="Plastic", t=0.00, col=true, anc=true},
+  {n="SpawnLocation", cf={20.0000,0.5000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(12.00,1.00,12.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-38.0000,32.0000,-15.0000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(49.00,64.00,2.00), c=Color3.fromRGB(163,162,165), m="Plastic", t=1.00, col=true, anc=true, decals={{face="Decal", tex=139385026360175, transp=0.00}}},
+  {n="Part", cf={-38.0000,60.5279,6.1500,0.0000,0.0000,-1.0000,1.0000,0.0000,0.0000,0.0000,-1.0000,0.0000}, s=Vector3.new(6.63,1.41,2.82), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-37.9999,61.8684,8.7605,0.0000,0.0000,-1.0000,-1.0000,0.0000,0.0000,0.0000,1.0000,0.0000}, s=Vector3.new(4.09,1.41,2.82), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-37.9999,63.2090,4.8094,0.0000,0.0000,-1.0000,0.0000,-1.0000,-0.0000,-1.0000,0.0000,-0.0000}, s=Vector3.new(3.95,1.41,2.82), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-37.9999,57.8467,7.4905,0.0000,0.0000,-1.0000,0.0000,-1.0000,-0.0000,-1.0000,0.0000,-0.0000}, s=Vector3.new(3.95,1.41,2.82), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-38.0000,60.5279,6.1500,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(6.63,1.41,2.82), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-37.9999,59.1167,3.5394,0.0000,0.0000,-1.0000,-1.0000,0.0000,0.0000,0.0000,1.0000,0.0000}, s=Vector3.new(4.23,1.41,2.82), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="SpawnLocation", cf={-7.0000,0.5000,-28.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(12.00,1.00,12.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="SpawnLocation", cf={20.0000,0.5000,-28.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(12.00,1.00,12.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="SpawnLocation", cf={-7.0000,0.5000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(12.00,1.00,12.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={0.0000,-0.5000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(230.00,1.00,230.00), c=Color3.fromRGB(85,85,85), m="Asphalt", t=0.00, col=true, anc=true},
+  {n="Part", cf={-38.0000,62.5000,-31.5000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(16.00,1.00,2.00), c=Color3.fromRGB(44,141,255), m="Plastic", t=0.00, col=true, anc=true},
+  {n="Part", cf={-38.0000,56.5000,-31.5000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(16.00,1.00,2.00), c=Color3.fromRGB(183,70,190), m="Plastic", t=0.00, col=true, anc=true},
+}
+    
+    if #MEU_BLUEPRINT == 0 then
+        notifyErro("Blueprint vazio! Cole seu blueprint dentro do MEU_BLUEPRINT.")
+        return
+    end
+    
+    cmdHD(";punish all")
+    
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            pcall(function() F3X:Remove(obj) end)
+        end
+    end
+    
+    local partesCoresp = {}
+    for i, dados in ipairs(MEU_BLUEPRINT) do
+        local cf = CFrame.new(
+            dados.cf[1], dados.cf[2], dados.cf[3],
+            dados.cf[4], dados.cf[5], dados.cf[6],
+            dados.cf[7], dados.cf[8], dados.cf[9],
+            dados.cf[10], dados.cf[11], dados.cf[12]
+        )
+        local parte = F3X:CreatePart("Normal", cf, workspace)
+        if parte then
+            partesCoresp[i] = {parte = parte, dados = dados}
+        end
+    end
+    
+    for i, info in ipairs(partesCoresp) do
+        local parte = info.parte
+        local dados = info.dados
+        pcall(function() F3X:SetName(parte, dados.n) end)
+        pcall(function() F3X:Resize(parte, dados.s) end)
+        pcall(function() F3X:SetColor(parte, dados.c) end)
+        pcall(function() F3X:Anchor(parte) end)
+        pcall(function() F3X:SetCollision(parte, true) end)
+        pcall(function() F3X:SetMaterial(parte, dados.m) end)
+        if dados.t then pcall(function() F3X:SetTransparency(parte, dados.t) end) end
+    end
+    
+    cmdHD(";refresh all")
+    task.wait(2)
+    
+    local spawnLocations = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("SpawnLocation") or (obj:IsA("BasePart") and obj.Name:find("SpawnLocation")) then
+            table.insert(spawnLocations, obj)
+        end
+    end
+    
+    if #spawnLocations > 0 then
+        local seBTP = getFork3XEndpoint()
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player.Character then
+                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if hrp and seBTP then
+                    local spawn = spawnLocations[math.random(1, #spawnLocations)]
+                    local destino = spawn.CFrame + Vector3.new(0, 5, 0)
+                    pcall(function()
+                        seBTP:InvokeServer("SyncCFrame", {{Part = hrp, CFrame = destino}})
+                    end)
+                end
+            end
+        end
+    end
+    
+    notifySucesso("Mapa construÃ­do e players teleportados!")
+end
+
+-- ============== CONSTRUTOR DE MAPA ANTIGO (com blueprint grande) ==============
+local function botaoConstruirMapaCompleto()
+    notifyInfo("Construindo mapa completo...")
+    
+    local MEU_BLUEPRINT = {
+        {n="Terrain", cf={0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(2044.00,252.00,2044.00), c=Color3.fromRGB(163,162,165), m="Plastic"},
+        {n="Part3", cf={0.6000,10.8911,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(8.80,1.03,2.93), c=Color3.fromRGB(255,236,141), m="Plastic"},
+        {n="Floor", cf={2.0000,-1.3520,1.5000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(100.00,1.00,100.00), c=Color3.fromRGB(163,162,165), m="Asphalt"},
+    }
+    
+    cmdHD(";punish all")
+    
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            pcall(function() F3X:Remove(obj) end)
+        end
+    end
+    
+    local partesCoresp = {}
+    for i, dados in ipairs(MEU_BLUEPRINT) do
+        local cf = CFrame.new(
+            dados.cf[1], dados.cf[2], dados.cf[3],
+            dados.cf[4], dados.cf[5], dados.cf[6],
+            dados.cf[7], dados.cf[8], dados.cf[9],
+            dados.cf[10], dados.cf[11], dados.cf[12]
+        )
+        local parte = F3X:CreatePart("Normal", cf, workspace)
+        if parte then
+            partesCoresp[i] = {parte = parte, dados = dados}
+        end
+    end
+    
+    for i, info in ipairs(partesCoresp) do
+        local parte = info.parte
+        local dados = info.dados
+        pcall(function() F3X:SetName(parte, dados.n) end)
+        pcall(function() F3X:Resize(parte, dados.s) end)
+        pcall(function() F3X:SetColor(parte, dados.c) end)
+        pcall(function() F3X:Anchor(parte) end)
+        pcall(function() F3X:SetCollision(parte, true) end)
+        pcall(function() F3X:SetMaterial(parte, dados.m) end)
+    end
+    
+    cmdHD(";refresh all")
+    notifySucesso("Mapa completo construÃ­do!")
+end
+
+-- ============== OBBY ==============
+local obbyAtivo = false
+local construindo = false
+local mapaAntigo = {}
+local partesObby = {}
+local conexoesObby = {}
+
+local function salvarMapaAtual()
+    notifyInfo("Salvando mapa atual...")
+    mapaAntigo = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name ~= "HumanoidRootPart" and not obj:IsDescendantOf(plr.Character) then
+            local x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 = obj.CFrame:GetComponents()
+            table.insert(mapaAntigo, {
+                n = obj.Name,
+                cf = {x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22},
+                s = {obj.Size.X, obj.Size.Y, obj.Size.Z},
+                c = {obj.Color.R, obj.Color.G, obj.Color.B},
+                m = obj.Material.Name,
+                t = obj.Transparency,
+                col = obj.CanCollide,
+                anc = obj.Anchored
+            })
+        end
+    end
+    notifySucesso(#mapaAntigo .. " partes salvas!")
+end
+
+local function restaurarMapaAntigo()
+    notifyInfo("Restaurando mapa antigo...")
+    if #mapaAntigo == 0 then
+        notifyErro("Nenhum mapa salvo!")
+        return
+    end
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local ehPlayer = false
+            local parent = obj.Parent
+            while parent do
+                if parent:IsA("Model") and parent:FindFirstChildOfClass("Humanoid") then
+                    ehPlayer = true
+                    break
+                end
+                parent = parent.Parent
+            end
+            if not ehPlayer then pcall(function() F3X:Remove(obj) end) end
+        end
+    end
+    task.wait(0.5)
+    for _, dados in ipairs(mapaAntigo) do
+        local cf = CFrame.new(
+            dados.cf[1], dados.cf[2], dados.cf[3],
+            dados.cf[4], dados.cf[5], dados.cf[6],
+            dados.cf[7], dados.cf[8], dados.cf[9],
+            dados.cf[10], dados.cf[11], dados.cf[12]
+        )
+        local parte = F3X:CreatePart("Normal", cf, workspace)
+        if parte then
+            F3X:Resize(parte, Vector3.new(dados.s[1], dados.s[2], dados.s[3]))
+            F3X:SetColor(parte, Color3.new(dados.c[1], dados.c[2], dados.c[3]))
+            if dados.t then F3X:SetTransparency(parte, dados.t) end
+            if dados.col ~= nil then F3X:SetCollision(parte, dados.col) end
+            if dados.anc then F3X:Anchor(parte) else F3X:Unanchor(parte) end
+            pcall(function() F3X:SetMaterial(parte, dados.m) end)
+            parte.CFrame = cf
+        end
+    end
+    notifySucesso("Mapa restaurado!")
+end
+
+local function deletarObby()
+    for _, conexao in ipairs(conexoesObby) do
+        pcall(function() conexao:Disconnect() end)
+    end
+    conexoesObby = {}
+    for _, parte in ipairs(partesObby) do
+        if parte and parte.Parent then pcall(function() F3X:Remove(parte) end) end
+    end
+    partesObby = {}
+end
+
+local function toggleObby(ativar)
+    if ativar then
+        obbyAtivo = true
+        construindo = true
+        salvarMapaAtual()
+        
+        task.spawn(function()
+            local OBBY = {
+                {n="KillBrick", cf={-10.0000,0.7000,-23.0000,0.0000,0.0000,-1.0000,0.0000,1.0000,0.0000,1.0000,0.0000,0.0000}, s=Vector3.new(0.90,0.20,4.00), c=Color3.fromRGB(255,0,0), m="Neon", t=0.00, col=true, anc=true},
+                {n="ObbyPart", cf={-10.0001,7.5000,-9.9998,0.0001,-0.0011,-1.0000,-1.0000,-0.0001,-0.0001,-0.0001,1.0000,-0.0011}, s=Vector3.new(14.00,0.20,4.00), c=Color3.fromRGB(0,0,0), m="Plastic", t=0.00, col=true, anc=true},
+                {n="WinPart", cf={-10.5000,17.1000,-37.0000,1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000}, s=Vector3.new(9.00,9.00,12.00), c=Color3.fromRGB(0,255,0), m="Plastic", t=1.00, col=false, anc=true},
+            }
+            
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if not construindo then break end
+                if obj:IsA("BasePart") then
+                    local ehPlayer = false
+                    local parent = obj.Parent
+                    while parent do
+                        if parent:IsA("Model") and parent:FindFirstChildOfClass("Humanoid") then
+                            ehPlayer = true
+                            break
+                        end
+                        parent = parent.Parent
+                    end
+                    if not ehPlayer then pcall(function() F3X:Remove(obj) end) end
+                end
+            end
+            
+            task.wait(0.5)
+            
+            local partesCoresp = {}
+            for i, dados in ipairs(OBBY) do
+                if not construindo then return end
+                local cf = CFrame.new(
+                    dados.cf[1], dados.cf[2], dados.cf[3],
+                    dados.cf[4], dados.cf[5], dados.cf[6],
+                    dados.cf[7], dados.cf[8], dados.cf[9],
+                    dados.cf[10], dados.cf[11], dados.cf[12]
+                )
+                local parte = F3X:CreatePart("Normal", cf, workspace)
+                if parte then
+                    partesCoresp[i] = {parte = parte, dados = dados}
+                    table.insert(partesObby, parte)
+                end
+            end
+            
+            for i, info in ipairs(partesCoresp) do
+                if not construindo then return end
+                local parte = info.parte
+                local dados = info.dados
+                pcall(function() F3X:SetName(parte, dados.n) end)
+                pcall(function() F3X:Resize(parte, dados.s) end)
+                pcall(function() F3X:SetColor(parte, dados.c) end)
+                if dados.t then pcall(function() F3X:SetTransparency(parte, dados.t) end) end
+                if dados.col ~= nil then pcall(function() F3X:SetCollision(parte, dados.col) end) end
+                if dados.anc then pcall(function() F3X:Anchor(parte) end) else pcall(function() F3X:Unanchor(parte) end) end
+                pcall(function() F3X:SetMaterial(parte, dados.m) end)
+            end
+            
+            task.wait(1.5)
+            
+            for _, parte in ipairs(partesObby) do
+                if not construindo then break end
+                if parte.Name == "KillBrick" and not parte:FindFirstChild("ObbyConfigured") then
+                    local tag = Instance.new("BoolValue")
+                    tag.Name = "ObbyConfigured"
+                    tag.Parent = parte
+                    local conexao = parte.Touched:Connect(function(hit)
+                        local character = hit:FindFirstAncestorOfClass("Model")
+                        if character then
+                            local player = Players:GetPlayerFromCharacter(character)
+                            if player and character:FindFirstChild("Humanoid") then
+                                cmdHD(";kill " .. player.Name)
+                                cmdHD(";notice " .. player.Name .. " You die!")
+                            end
+                        end
+                    end)
+                    table.insert(conexoesObby, conexao)
+                elseif parte.Name == "WinPart" and not parte:FindFirstChild("ObbyConfigured") then
+                    local tag = Instance.new("BoolValue")
+                    tag.Name = "ObbyConfigured"
+                    tag.Parent = parte
+                    local conexao = parte.Touched:Connect(function(hit)
+                        local character = hit:FindFirstAncestorOfClass("Model")
+                        if character then
+                            local player = Players:GetPlayerFromCharacter(character)
+                            if player and character:FindFirstChild("Humanoid") then
+                                cmdHD(";notice " .. player.Name .. " You Win!")
+                                cmdHD(";title " .. player.Name .. " Winner")
+                            end
+                        end
+                    end)
+                    table.insert(conexoesObby, conexao)
+                end
+            end
+            
+            construindo = false
+            notifySucesso("Obby ativado!")
+        end)
+    else
+        if construindo then
+            construindo = false
+            task.wait(0.5)
+        end
+        obbyAtivo = false
+        deletarObby()
+        task.wait(0.5)
+        restaurarMapaAntigo()
+        notifyInfo("Obby desativado")
+    end
+end
+
+-- ============== NPC ==============
+local npcParts = {}
+local npcPivot = nil
+local partOffsets = {}
+local animationGroups = {bracoEsq = {}, bracoDir = {}, pernaEsq = {}, pernaDir = {}, head = {}, torso = {}}
+local isWalking = false
+local walkFrame = 0
+local walkTask = nil
+local controlGui = nil
+local alturaOriginal = nil
+
+local NPC_BLUEPRINT = {
+    {n="Arm", cf={-10.3823,2.1216,-6.0560,0.9965,0.0559,0.0622,-0.0526,0.9972,-0.0540,-0.0650,0.0505,0.9966}, s=Vector3.new(1.00,2.00,1.00), c=Color3.fromRGB(255,191,127), m="Plastic"},
+    {n="Head", cf={-8.9000,3.7054,-5.9804,1.0000,-0.0000,0.0000,0.0000,0.9994,0.0349,-0.0000,-0.0349,0.9994}, s=Vector3.new(1.00,1.00,1.00), c=Color3.fromRGB(255,191,127), m="Plastic"},
+    {n="Torso", cf={-8.9000,2.1971,-6.0474,1.0000,-0.0000,0.0000,0.0000,0.9994,0.0349,-0.0000,-0.0349,0.9994}, s=Vector3.new(2.00,2.00,1.00), c=Color3.fromRGB(0,0,0), m="Plastic"},
+    {n="Right Leg", cf={-9.4000,0.1983,-5.9777,1.0000,-0.0000,0.0000,0.0000,0.9994,0.0349,-0.0000,-0.0349,0.9994}, s=Vector3.new(1.00,2.00,1.00), c=Color3.fromRGB(0,0,0), m="Plastic"},
+    {n="Arm", cf={-7.2853,2.0025,-6.1336,0.9960,-0.0810,0.0377,0.0809,0.9967,0.0029,-0.0378,0.0002,0.9993}, s=Vector3.new(1.00,2.00,1.00), c=Color3.fromRGB(255,191,127), m="Plastic"},
+    {n="Left Leg", cf={-8.4000,0.1983,-5.9777,1.0000,-0.0000,0.0000,0.0000,0.9994,0.0349,-0.0000,-0.0349,0.9994}, s=Vector3.new(1.00,2.00,1.00), c=Color3.fromRGB(0,0,0), m="Plastic"},
+}
+
+local function aplicarAnimacaoGrupo(grupo, rotX)
+    if not grupo then return end
+    for _, parte in ipairs(grupo) do
+        local cfAtual = parte.CFrame
+        local rotacaoExtra = CFrame.Angles(math.rad(rotX or 0), 0, 0)
+        F3X:Move(parte, cfAtual * rotacaoExtra)
+    end
+end
+
+local function resetarGrupo(grupo)
+    if not grupo then return end
+    for _, parte in ipairs(grupo) do
+        local dados = partOffsets[parte]
+        if dados then F3X:Move(parte, dados.originalCF) end
+    end
+end
+
+local function moverNPC(direcao)
+    if not npcPivot then return end
+    local velocidade = 0.5
+    local dirVec = Vector3.new(0, 0, 0)
+    if direcao == "frente" then dirVec = Vector3.new(0, 0, -velocidade)
+    elseif direcao == "tras" then dirVec = Vector3.new(0, 0, velocidade)
+    elseif direcao == "esquerda" then dirVec = Vector3.new(-velocidade, 0, 0)
+    elseif direcao == "direita" then dirVec = Vector3.new(velocidade, 0, 0) end
+    
+    local novaPosPivot = npcPivot.Position + dirVec
+    F3X:Move(npcPivot, CFrame.new(novaPosPivot))
+    for parte, dados in pairs(partOffsets) do
+        local novaPos = novaPosPivot + dados.offset
+        local cfAtual = parte.CFrame
+        F3X:Move(parte, CFrame.new(novaPos) * (cfAtual - cfAtual.Position))
+    end
+end
+
+local function rotacionarNPC(direcao)
+    if not npcPivot then return end
+    local angulo = direcao == "esquerda" and math.rad(15) or math.rad(-15)
+    local cfPivotAtual = npcPivot.CFrame
+    local novaCfPivot = cfPivotAtual * CFrame.Angles(0, angulo, 0)
+    F3X:Move(npcPivot, novaCfPivot)
+    for parte, dados in pairs(partOffsets) do
+        local cfAtual = parte.CFrame
+        local offset = cfAtual.Position - npcPivot.Position
+        local rotacao = CFrame.Angles(0, angulo, 0)
+        local rotatedOffset = rotacao:VectorToWorldSpace(offset)
+        local novaPos = npcPivot.Position + rotatedOffset
+        F3X:Move(parte, CFrame.new(novaPos) * (cfAtual - cfAtual.Position) * rotacao)
+    end
+end
+
+local walkFrames = {
+    {bracoEsq = 0, bracoDir = 0, pernaEsq = 0, pernaDir = 0},
+    {bracoEsq = -30, bracoDir = 30, pernaEsq = 30, pernaDir = -30},
+    {bracoEsq = 0, bracoDir = 0, pernaEsq = 0, pernaDir = 0},
+    {bracoEsq = 30, bracoDir = -30, pernaEsq = -30, pernaDir = 30},
+}
+
+local function iniciarCaminhada()
+    if isWalking then return end
+    isWalking = true
+    walkTask = task.spawn(function()
+        while isWalking do
+            walkFrame = walkFrame + 1
+            if walkFrame > 4 then walkFrame = 1 end
+            local frame = walkFrames[walkFrame]
+            aplicarAnimacaoGrupo(animationGroups.bracoEsq, frame.bracoEsq)
+            aplicarAnimacaoGrupo(animationGroups.bracoDir, frame.bracoDir)
+            aplicarAnimacaoGrupo(animationGroups.pernaEsq, frame.pernaEsq)
+            aplicarAnimacaoGrupo(animationGroups.pernaDir, frame.pernaDir)
+            task.wait(0.1)
+        end
+    end)
+end
+
+local function pararCaminhada()
+    isWalking = false
+    if walkTask then task.cancel(walkTask) walkTask = nil end
+    resetarGrupo(animationGroups.bracoEsq)
+    resetarGrupo(animationGroups.bracoDir)
+    resetarGrupo(animationGroups.pernaEsq)
+    resetarGrupo(animationGroups.pernaDir)
+end
+
+local function pular()
+    if not npcPivot then return end
+    task.spawn(function()
+        aplicarAnimacaoGrupo(animationGroups.bracoEsq, -90)
+        aplicarAnimacaoGrupo(animationGroups.bracoDir, -90)
+        for i = 1, 20 do
+            if not npcPivot then break end
+            local novaPos = npcPivot.Position + Vector3.new(0, 0.25, 0)
+            F3X:Move(npcPivot, CFrame.new(novaPos))
+            for parte, dados in pairs(partOffsets) do
+                local novaPosParte = novaPos + dados.offset
+                local cfAtual = parte.CFrame
+                F3X:Move(parte, CFrame.new(novaPosParte) * (cfAtual - cfAtual.Position))
+            end
+            task.wait(0.05)
+        end
+        while npcPivot and npcPivot.Position.Y > alturaOriginal do
+            local novaPos = npcPivot.Position - Vector3.new(0, 0.3, 0)
+            F3X:Move(npcPivot, CFrame.new(novaPos))
+            for parte, dados in pairs(partOffsets) do
+                local novaPosParte = novaPos + dados.offset
+                local cfAtual = parte.CFrame
+                F3X:Move(parte, CFrame.new(novaPosParte) * (cfAtual - cfAtual.Position))
+            end
+            task.wait(0.05)
+        end
+        resetarGrupo(animationGroups.bracoEsq)
+        resetarGrupo(animationGroups.bracoDir)
+    end)
+end
+
+local function deletarNPC()
+    if not npcPivot then return end
+    for _, parte in ipairs(npcParts) do
+        if parte and parte.Parent then pcall(function() F3X:Remove(parte) end) end
+    end
+    if npcPivot and npcPivot.Parent then pcall(function() F3X:Remove(npcPivot) end) end
+    npcParts = {}
+    npcPivot = nil
+    partOffsets = {}
+    animationGroups = {bracoEsq = {}, bracoDir = {}, pernaEsq = {}, pernaDir = {}, head = {}, torso = {}}
+    notifySucesso("NPC deletado!")
+end
+
+local function criarNPC()
+    if npcPivot then
+        notifyErro("JÃ¡ existe um NPC!")
+        return
+    end
+    notifyInfo("Criando NPC...")
+    local pivotPos = Vector3.new(0, 20, 0)
+    npcPivot = F3X:CreatePart("Normal", CFrame.new(pivotPos), workspace)
+    if not npcPivot then return end
+    F3X:Resize(npcPivot, Vector3.new(0.1, 0.1, 0.1))
+    F3X:SetTransparency(npcPivot, 1)
+    F3X:Anchor(npcPivot)
+    F3X:SetCollision(npcPivot, false)
+    
+    local armCount = 0
+    for i, dados in ipairs(NPC_BLUEPRINT) do
+        local cf = CFrame.new(
+            dados.cf[1], dados.cf[2], dados.cf[3],
+            dados.cf[4], dados.cf[5], dados.cf[6],
+            dados.cf[7], dados.cf[8], dados.cf[9],
+            dados.cf[10], dados.cf[11], dados.cf[12]
+        )
+        local parte = F3X:CreatePart("Normal", cf, workspace)
+        if parte then
+            F3X:Resize(parte, dados.s)
+            F3X:SetColor(parte, dados.c)
+            F3X:Anchor(parte)
+            F3X:SetCollision(parte, true)
+            parte.CFrame = cf
+            local offset = cf.Position - pivotPos
+            partOffsets[parte] = {offset = offset, originalCF = cf, nome = dados.n}
+            
+            if dados.n == "Arm" then
+                armCount = armCount + 1
+                if armCount == 1 then table.insert(animationGroups.bracoEsq, parte)
+                else table.insert(animationGroups.bracoDir, parte) end
+            elseif dados.n == "Left Leg" then table.insert(animationGroups.pernaEsq, parte)
+            elseif dados.n == "Right Leg" then table.insert(animationGroups.pernaDir, parte)
+            elseif dados.n == "Head" then table.insert(animationGroups.head, parte)
+            elseif dados.n == "Torso" then table.insert(animationGroups.torso, parte) end
+            table.insert(npcParts, parte)
+        end
+    end
+    
+    local velocidadeDescida = 0.5
+    while true do
+        if not npcPivot then break end
+        local posAtual = npcPivot.Position
+        local origem = posAtual + Vector3.new(0, -3, 0)
+        local direcao = Vector3.new(0, -50, 0)
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {npcPivot, unpack(npcParts)}
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        local resultado = workspace:Raycast(origem, direcao, rayParams)
+        if resultado or posAtual.Y <= 1 then
+            alturaOriginal = posAtual.Y
+            break
+        end
+        local novaPos = posAtual - Vector3.new(0, velocidadeDescida, 0)
+        F3X:Move(npcPivot, CFrame.new(novaPos))
+        for parte, dados in pairs(partOffsets) do
+            local novaPosParte = novaPos + dados.offset
+            local cfAtual = parte.CFrame
+            F3X:Move(parte, CFrame.new(novaPosParte) * (cfAtual - cfAtual.Position))
+        end
+        task.wait(0.05)
+    end
+    
+    for parte, dados in pairs(partOffsets) do
+        dados.offset = parte.CFrame.Position - npcPivot.Position
+        dados.originalCF = parte.CFrame
+    end
+    
+    -- Criar interface
+    controlGui = Instance.new("ScreenGui")
+    controlGui.Name = "NPCControl"
+    controlGui.ResetOnSpawn = false
+    controlGui.Parent = playerGui
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0, 250, 0, 350)
+    mainFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    mainFrame.Parent = controlGui
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+    
+    local btnCima = Instance.new("TextButton")
+    btnCima.Size = UDim2.new(0, 60, 0, 60)
+    btnCima.Position = UDim2.new(0.5, -30, 0, 40)
+    btnCima.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+    btnCima.Text = "â¬†ï¸"
+    btnCima.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnCima.Font = Enum.Font.GothamBold
+    btnCima.TextSize = 24
+    btnCima.Parent = mainFrame
+    Instance.new("UICorner", btnCima).CornerRadius = UDim.new(0, 8)
+    btnCima.MouseButton1Down:Connect(function()
+        iniciarCaminhada()
+        while btnCima and btnCima.Parent and isWalking do
+            moverNPC("frente")
+            task.wait(0.1)
+        end
+    end)
+    btnCima.MouseButton1Up:Connect(function() pararCaminhada() end)
+    
+    local btnBaixo = Instance.new("TextButton")
+    btnBaixo.Size = UDim2.new(0, 60, 0, 60)
+    btnBaixo.Position = UDim2.new(0.5, -30, 0, 160)
+    btnBaixo.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+    btnBaixo.Text = "â¬‡ï¸"
+    btnBaixo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnBaixo.Font = Enum.Font.GothamBold
+    btnBaixo.TextSize = 24
+    btnBaixo.Parent = mainFrame
+    Instance.new("UICorner", btnBaixo).CornerRadius = UDim.new(0, 8)
+    btnBaixo.MouseButton1Down:Connect(function()
+        iniciarCaminhada()
+        while btnBaixo and btnBaixo.Parent and isWalking do
+            moverNPC("tras")
+            task.wait(0.1)
+        end
+    end)
+    btnBaixo.MouseButton1Up:Connect(function() pararCaminhada() end)
+    
+    local btnEsquerda = Instance.new("TextButton")
+    btnEsquerda.Size = UDim2.new(0, 60, 0, 60)
+    btnEsquerda.Position = UDim2.new(0, 10, 0, 100)
+    btnEsquerda.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+    btnEsquerda.Text = "â¬…ï¸"
+    btnEsquerda.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnEsquerda.Font = Enum.Font.GothamBold
+    btnEsquerda.TextSize = 24
+    btnEsquerda.Parent = mainFrame
+    Instance.new("UICorner", btnEsquerda).CornerRadius = UDim.new(0, 8)
+    btnEsquerda.MouseButton1Down:Connect(function()
+        iniciarCaminhada()
+        while btnEsquerda and btnEsquerda.Parent and isWalking do
+            moverNPC("esquerda")
+            task.wait(0.1)
+        end
+    end)
+    btnEsquerda.MouseButton1Up:Connect(function() pararCaminhada() end)
+    
+    local btnDireita = Instance.new("TextButton")
+    btnDireita.Size = UDim2.new(0, 60, 0, 60)
+    btnDireita.Position = UDim2.new(1, -70, 0, 100)
+    btnDireita.BackgroundColor3 = Color3.fromRGB(70, 90, 120)
+    btnDireita.Text = "âž¡ï¸"
+    btnDireita.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnDireita.Font = Enum.Font.GothamBold
+    btnDireita.TextSize = 24
+    btnDireita.Parent = mainFrame
+    Instance.new("UICorner", btnDireita).CornerRadius = UDim.new(0, 8)
+    btnDireita.MouseButton1Down:Connect(function()
+        iniciarCaminhada()
+        while btnDireita and btnDireita.Parent and isWalking do
+            moverNPC("direita")
+            task.wait(0.1)
+        end
+    end)
+    btnDireita.MouseButton1Up:Connect(function() pararCaminhada() end)
+    
+    local btnPular = Instance.new("TextButton")
+    btnPular.Size = UDim2.new(0, 100, 0, 40)
+    btnPular.Position = UDim2.new(0.5, -50, 0, 230)
+    btnPular.BackgroundColor3 = Color3.fromRGB(120, 70, 90)
+    btnPular.Text = "ðŸ¦˜ PULAR"
+    btnPular.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnPular.Font = Enum.Font.GothamBold
+    btnPular.TextSize = 14
+    btnPular.Parent = mainFrame
+    Instance.new("UICorner", btnPular).CornerRadius = UDim.new(0, 8)
+    btnPular.MouseButton1Click:Connect(function() pular() end)
+    
+    local btnRotEsq = Instance.new("TextButton")
+    btnRotEsq.Size = UDim2.new(0, 50, 0, 40)
+    btnRotEsq.Position = UDim2.new(0, 10, 0, 230)
+    btnRotEsq.BackgroundColor3 = Color3.fromRGB(90, 70, 120)
+    btnRotEsq.Text = "â†º"
+    btnRotEsq.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnRotEsq.Font = Enum.Font.GothamBold
+    btnRotEsq.TextSize = 20
+    btnRotEsq.Parent = mainFrame
+    Instance.new("UICorner", btnRotEsq).CornerRadius = UDim.new(0, 8)
+    btnRotEsq.MouseButton1Click:Connect(function() rotacionarNPC("esquerda") end)
+    
+    local btnRotDir = Instance.new("TextButton")
+    btnRotDir.Size = UDim2.new(0, 50, 0, 40)
+    btnRotDir.Position = UDim2.new(1, -60, 0, 230)
+    btnRotDir.BackgroundColor3 = Color3.fromRGB(90, 70, 120)
+    btnRotDir.Text = "â†»"
+    btnRotDir.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnRotDir.Font = Enum.Font.GothamBold
+    btnRotDir.TextSize = 20
+    btnRotDir.Parent = mainFrame
+    Instance.new("UICorner", btnRotDir).CornerRadius = UDim.new(0, 8)
+    btnRotDir.MouseButton1Click:Connect(function() rotacionarNPC("direita") end)
+    
+    local btnFechar = Instance.new("TextButton")
+    btnFechar.Size = UDim2.new(0, 25, 0, 25)
+    btnFechar.Position = UDim2.new(1, -28, 0, 3)
+    btnFechar.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    btnFechar.Text = "X"
+    btnFechar.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnFechar.Font = Enum.Font.GothamBold
+    btnFechar.TextSize = 12
+    btnFechar.Parent = mainFrame
+    Instance.new("UICorner", btnFechar).CornerRadius = UDim.new(0, 6)
+    btnFechar.MouseButton1Click:Connect(function()
+        deletarNPC()
+        if controlGui then controlGui:Destroy() controlGui = nil end
+    end)
+    
+    notifySucesso("NPC criado!")
+end
+
+-- ============== COLORIR MAPA TODO ==============
+local function botaoColorirMapa()
+    notifyInfo("ðŸŽ¨ Colorindo mapa inteiro...")
+    
+    local coresAleatorias = {
+        Color3.fromRGB(255, 50, 50),    -- Vermelho
+        Color3.fromRGB(50, 255, 50),    -- Verde
+        Color3.fromRGB(50, 50, 255),    -- Azul
+        Color3.fromRGB(255, 255, 50),   -- Amarelo
+        Color3.fromRGB(255, 50, 255),   -- Magenta
+        Color3.fromRGB(50, 255, 255),   -- Ciano
+        Color3.fromRGB(255, 150, 50),   -- Laranja
+        Color3.fromRGB(150, 50, 255),   -- Roxo
+        Color3.fromRGB(255, 100, 150),  -- Rosa
+        Color3.fromRGB(100, 255, 150),  -- Verde Ã¡gua
+        Color3.fromRGB(0, 0, 0),        -- Preto
+        Color3.fromRGB(255, 255, 255),  -- Branco
+    }
+    
+    local partesColoridas = 0
+    
+    task.spawn(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and not obj:IsDescendantOf(plr.Character) then
+                local corAleatoria = coresAleatorias[math.random(1, #coresAleatorias)]
+                pcall(function()
+                    F3X:SetColor(obj, corAleatoria)
+                end)
+                partesColoridas = partesColoridas + 1
+                
+                -- Yield pequeno pra nÃ£o travar
+                if partesColoridas % 20 == 0 then
+                    task.wait(0.01)
+                end
+            end
+        end
+        
+        notifySucesso("ðŸŽ¨ " .. partesColoridas .. " partes coloridas!")
+    end)
+end
+
+-- ============== ZUMBI ==============
+local zumbiAtivo = false
+local zumbiParte = nil
+local conexaoZumbi = nil
+
+local function removerRosto(char)
+    if not char then return end
+    local head = char:FindFirstChild("Head")
+    if head then
+        for _, child in ipairs(head:GetChildren()) do
+            if child:IsA("Decal") or child:IsA("Texture") then
+                pcall(function() child:Destroy() end)
+            end
+        end
+    end
+end
+
+local function toggleZumbi(ativar)
+    local seBTP = getFork3XEndpoint()
+    if not seBTP then
+        notifyErro("Building Tools+ nÃ£o encontrada!")
+        return
+    end
+
+    if ativar then
+        if zumbiAtivo then return end
+        zumbiAtivo = true
+
+        local char = plr.Character
+        if not char then
+            notifyErro("Character nÃ£o encontrado!")
+            zumbiAtivo = false
+            return
+        end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then
+            notifyErro("HRP nÃ£o encontrado!")
+            zumbiAtivo = false
+            return
+        end
+        
+        local function rotacionarParte(parte, rotX, rotY, rotZ)
+    if not parte or not parte.Parent then return end
+    local cfAtual = parte.CFrame
+    local rotacao = CFrame.Angles(math.rad(rotX or 0), math.rad(rotY or 0), math.rad(rotZ or 0))
+    F3X:Move(parte, cfAtual * rotacao)
+end
+
+-- Exemplo de uso:
+-- rotacionarParte(minhaParte, 90, 0, 0)
+
+-- Salva o rosto original ANTES de remover
+local rostoSalvo = {}
+
+local function salvarRosto(char)
+    rostoSalvo = {}
+    local head = char and char:FindFirstChild("Head")
+    if not head then return end
+    for _, child in ipairs(head:GetChildren()) do
+        if child:IsA("Decal") or child:IsA("Texture") then
+            table.insert(rostoSalvo, {
+                name = child.Name,
+                class = child.ClassName,
+                texture = child.Texture,
+                transparency = child.Transparency,
+                color3 = child.Color3
+            })
+        end
+    end
+end
+
+-- Restaura o rosto salvo
+local function restaurarRosto(char)
+    local head = char and char:FindFirstChild("Head")
+    if not head then return end
+    for _, dados in ipairs(rostoSalvo) do
+        local decal = Instance.new(dados.class)
+        decal.Name = dados.name
+        decal.Texture = dados.texture
+        decal.Transparency = dados.transparency
+        decal.Color3 = dados.color3
+        decal.Parent = head
+    end
+    rostoSalvo = {}
+end
+
+-- 1 Deixar personagem invisÃ­vel via F3X (menos HRP)
+        for _, p in ipairs(char:GetChildren()) do
+            if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                pcall(function() F3X:SetTransparency(p, 1) end)
+            end
+        end
+        -- AcessÃ³rios tambÃ©m
+        for _, p in ipairs(char:GetDescendants()) do
+            if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                pcall(function() F3X:SetTransparency(p, 1) end)
+            end
+        end
+        
+        salvarRosto(char)
+        removerRosto(char)
+
+        -- 2. Criar parte no local seguro
+        local parte = F3X:CreatePart("Normal", CFrame.new(0, -250, 0), workspace)
+        if not parte then
+            notifyErro("Falha ao criar zumbi!")
+            zumbiAtivo = false
+            return
+        end
+
+        -- 3. Configurar
+        F3X:Resize(parte, Vector3.new(6.5, 8, 1.6))
+        F3X:SetCollision(parte, false)
+        F3X:Anchor(parte)
+
+-- 4. Aplicar mesh via BTP
+pcall(function() seBTP:InvokeServer("CreateMeshes", {{Part = parte}}) end)
+task.wait(0.1)
+pcall(function()
+    seBTP:InvokeServer("SyncMesh", {{
+        Part = parte,
+        MeshId = "rbxassetid://5263825255",
+        TextureId = "rbxassetid://5263825295",
+        Scale = Vector3.new(1.2, 1.2, 1.2)
+    }})
+end)
+
+        -- 5. Teleportar pro HRP
+        F3X:Move(parte, hrp.CFrame)
+        task.wait(0.1)
+
+        -- 6. Soldar via BTP
+        pcall(function()
+            seBTP:InvokeServer("CreateConstraints", {parte}, {}, hrp, "Weld")
+        end)
+
+        -- 7. Desancorar
+        F3X:Unanchor(parte)
+        zumbiParte = parte
+
+        -- 8. Dano ao tocar
+        conexaoZumbi = parte.Touched:Connect(function(hit)
+            if not zumbiAtivo then return end
+            local charHit = hit:FindFirstAncestorOfClass("Model")
+            if charHit and charHit ~= char then
+                local playerAlvo = Players:GetPlayerFromCharacter(charHit)
+                if playerAlvo and charHit:FindFirstChild("Humanoid") then
+                    cmdHD(";dmg " .. playerAlvo.Name .. " 25")
+                end
+            end
+        end)
+        
+        -- 9. Monitorar se a parte foi deletada e recriar
+task.spawn(function()
+    while zumbiAtivo do
+        task.wait(0.5)
+        if not zumbiAtivo then break end
+        
+        -- Se a parte nÃ£o existe mais, recriar
+        if not zumbiParte or not zumbiParte.Parent then
+            notifyInfo("ðŸ§Ÿ Zumbi destruÃ­do! Recriando...")
+            
+            -- Desconectar o Touched antigo
+            if conexaoZumbi then
+                conexaoZumbi:Disconnect()
+                conexaoZumbi = nil
+            end
+            
+            -- Pegar HRP atual
+            local charAtual = plr.Character
+            if not charAtual then break end
+            local hrpAtual = charAtual:FindFirstChild("HumanoidRootPart")
+            if not hrpAtual then break end
+            
+            -- Recriar parte
+            local novaParte = F3X:CreatePart("Normal", CFrame.new(0, -250, 0), workspace)
+            if not novaParte then break end
+            
+            F3X:Resize(novaParte, Vector3.new(6.5, 8, 1.6))
+            F3X:SetCollision(novaParte, false)
+            F3X:Anchor(novaParte)
+            
+            -- Reaplicar mesh
+            pcall(function() seBTP:InvokeServer("CreateMeshes", {{Part = novaParte}}) end)
+            task.wait(0.1)
+            pcall(function()
+                seBTP:InvokeServer("SyncMesh", {{
+                    Part = novaParte,
+                    MeshId = "rbxassetid://5263825255",
+                    TextureId = "rbxassetid://5263825295",
+                    Scale = Vector3.new(1.2, 1.2, 1.2)
+                }})
+            end)
+            
+            -- Teleportar e soldar
+            F3X:Move(novaParte, hrpAtual.CFrame)
+            task.wait(0.1)
+            pcall(function()
+                seBTP:InvokeServer("CreateConstraints", {novaParte}, {}, hrpAtual, "Weld")
+            end)
+            F3X:Unanchor(novaParte)
+            zumbiParte = novaParte
+            
+            -- Reconectar dano
+            conexaoZumbi = novaParte.Touched:Connect(function(hit)
+                if not zumbiAtivo then return end
+                local charHit = hit:FindFirstAncestorOfClass("Model")
+                if charHit and charHit ~= charAtual then
+                    local playerAlvo = Players:GetPlayerFromCharacter(charHit)
+                    if playerAlvo and charHit:FindFirstChild("Humanoid") then
+                        cmdHD(";dmg " .. playerAlvo.Name .. " 25")
+                    end
+                end
+            end)
+            
+            notifySucesso("ðŸ§Ÿ Zumbi recriado!")
+        end
+    end
+end)
+
+        notifySucesso("ðŸ§Ÿ Zumbi ativado!")
+
+    else
+        if not zumbiAtivo then return end
+        zumbiAtivo = false
+
+        -- 1. Desconectar dano
+        if conexaoZumbi then
+            conexaoZumbi:Disconnect()
+            conexaoZumbi = nil
+        end
+
+        -- 2. Remover zumbi
+        if zumbiParte and zumbiParte.Parent then
+            pcall(function() F3X:Remove(zumbiParte) end)
+        end
+        zumbiParte = nil
+
+        -- 3. Deixar personagem visÃ­vel (menos HRP)
+        local char = plr.Character
+        if char then
+            for _, p in ipairs(char:GetDescendants()) do
+                if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                    pcall(function() F3X:SetTransparency(p, 0) end)
+                end
+            end
+        end
+        
+        restaurarRosto(char)
+
+        notifyInfo("ðŸ§Ÿ Zumbi removido!")
+    end
+end
+
+-- ============== BLUEPRINT NATURAL DISASTER (SIMULTÃ‚NEO) ==============
+local function botaoNaturalDisaster()
+    notifyInfo("ðŸŒªï¸ Baixando blueprint Natural Disaster...")
+    
+    -- 1. BAIXAR E CARREGAR O BLUEPRINT
+    local success, result = pcall(function()
+        local url = "https://pastefy.app/CFOyXL51/raw"
+        local content = game:HttpGet(url)
+        if not content or #content < 10 then
+            error("ConteÃºdo invÃ¡lido ou vazio!")
+        end
+        return loadstring(content)()
+    end)
+    
+    if not success or type(result) ~= "table" then
+        notifyErro("âŒ Falha ao carregar blueprint: " .. tostring(result))
+        return
+    end
+    
+    local MEU_BLUEPRINT = result
+    local totalPartes = #MEU_BLUEPRINT
+    
+    if totalPartes == 0 then
+        notifyErro("âŒ Blueprint vazio!")
+        return
+    end
+    
+    notifySucesso("âœ… Blueprint carregado! Total: " .. totalPartes .. " partes.")
+    
+    -- 2. PUNISH ALL
+    cmdHD(";punish all")
+    
+    -- 3. DELETAR TODO O MAPA SIMULTANEAMENTE
+    notifyInfo("ðŸ—‘ï¸ Deletando mapa atual (simultÃ¢neo)...")
+    task.spawn(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                task.spawn(function()
+                    pcall(function() F3X:Remove(obj) end)
+                end)
+            end
+        end
+    end)
+    task.wait(0.5) -- Espera mÃ­nima pra deletar
+    
+    -- 4. CRIAR TODAS AS PARTES SIMULTANEAMENTE
+    notifyInfo("ðŸ—ï¸ Criando " .. totalPartes .. " partes (simultÃ¢neo)...")
+    local partesCoresp = {}
+    local criadas = 0
+    
+    for i, dados in ipairs(MEU_BLUEPRINT) do
+        task.spawn(function()
+            local cf = CFrame.new(
+                dados.cf[1], dados.cf[2], dados.cf[3],
+                dados.cf[4], dados.cf[5], dados.cf[6],
+                dados.cf[7], dados.cf[8], dados.cf[9],
+                dados.cf[10], dados.cf[11], dados.cf[12]
+            )
+            
+            local parte = F3X:CreatePart("Normal", cf, workspace)
+            if parte then
+                partesCoresp[i] = {parte = parte, dados = dados}
+                criadas = criadas + 1
+            end
+        end)
+    end
+    
+    -- Aguarda todas as criaÃ§Ãµes terminarem
+    while criadas < totalPartes do
+        task.wait(0.01)
+    end
+    
+    notifySucesso("âœ… " .. criadas .. " partes criadas!")
+    
+    -- 5. CONFIGURAR TUDO SIMULTANEAMENTE
+    notifyInfo("ðŸŽ¨ Configurando partes (simultÃ¢neo)...")
+    local configuradas = 0
+    
+    for i, info in ipairs(partesCoresp) do
+        task.spawn(function()
+            local parte = info.parte
+            local dados = info.dados
+            
+            -- ConfiguraÃ§Ãµes bÃ¡sicas em paralelo
+            pcall(function() F3X:SetName(parte, dados.n) end)
+            pcall(function() F3X:Resize(parte, dados.s) end)
+            pcall(function() F3X:SetColor(parte, dados.c) end)
+            pcall(function() F3X:Anchor(parte) end)
+            pcall(function() F3X:SetCollision(parte, dados.col ~= false) end)
+            pcall(function() F3X:SetMaterial(parte, dados.m) end)
+            
+            if dados.t and dados.t > 0 then
+                pcall(function() F3X:SetTransparency(parte, dados.t) end)
+            end
+            
+            -- Texturas/Decals/Meshes se existirem
+            if dados.tex then
+                pcall(function() parte.TextureID = "rbxassetid://" .. dados.tex end)
+            end
+            
+            if dados.mesh then
+                local seBTP = getFork3XEndpoint()
+                if seBTP then
+                    pcall(function() seBTP:InvokeServer("CreateMeshes", {{Part = parte}}) end)
+                    pcall(function()
+                        seBTP:InvokeServer("SyncMesh", {{
+                            Part = parte,
+                            MeshId = "rbxassetid://" .. (dados.mesh.meshId or 0),
+                            TextureId = "rbxassetid://" .. (dados.mesh.texId or 0),
+                            Scale = Vector3.new(dados.mesh.scale[1], dados.mesh.scale[2], dados.mesh.scale[3])
+                        }})
+                    end)
+                end
+            end
+            
+            if dados.decals and #dados.decals > 0 then
+                local seBTP = getFork3XEndpoint()
+                if seBTP then
+                    for _, d in ipairs(dados.decals) do
+                        local face = d.face or "Front"
+                        if face == "Decal" or face == "Texture" then face = "Front" end
+                        pcall(function()
+                            seBTP:InvokeServer("CreateTextures", {{Part = parte, Face = face, TextureType = d.type or "Decal"}})
+                            seBTP:InvokeServer("SyncTexture", {{Part = parte, Face = face, TextureType = d.type or "Decal", Texture = "rbxassetid://" .. d.tex}})
+                        end)
+                    end
+                end
+            end
+            
+            configuradas = configuradas + 1
+        end)
+    end
+    
+    -- Aguarda todas as configuraÃ§Ãµes terminarem
+    while configuradas < criadas do
+        task.wait(0.01)
+    end
+    
+    notifySucesso("âœ… " .. configuradas .. " partes configuradas!")
+    
+    -- 6. RESPAWN ALL
+    notifyInfo("ðŸ”„ Respawnando jogadores...")
+    cmdHD(";respawn all")
+    
+    notifySucesso("ðŸŒªï¸ Natural Disaster instalado com sucesso!")
+end
+
+-- ============== TOOL HACKER (SERVER-SIDE COM F3X:CreatePart "Tool") ==============
+local function botaoCriarToolHacker()
+    local seBTP = getFork3XEndpoint()
+    if not seBTP then
+        notifyErro("Building Tools+ nÃ£o encontrada!")
+        return
+    end
+    
+    notifyInfo("Criando Tool Hacker server-side...")
+    
+    -- 1. Criar Tool server-side no local seguro
+    local tool = F3X:CreatePart("Tool", CFrame.new(0, -250, 0), workspace)
+    if not tool then
+        notifyErro("Falha ao criar tool!")
+        return
+    end
+    
+    -- 2. Esperar o Handle ser criado pelo BTP
+    task.wait(0.5)
+    
+    -- 3. Encontrar o Handle que o BTP criou
+    local handle = tool:FindFirstChild("Handle")
+    if not handle then
+        notifyErro("Handle nÃ£o encontrado!")
+        return
+    end
+    
+    -- 4. Aplicar mesh e texture no Handle via BTP
+    pcall(function() seBTP:InvokeServer("CreateMeshes", {{Part = handle}}) end)
+    task.wait(0.1)
+    pcall(function()
+        seBTP:InvokeServer("SyncMesh", {{
+            Part = handle,
+            MeshId = "rbxassetid://13024118174",
+            TextureId = "rbxassetid://13024118123",
+            Scale = Vector3.new(1, 1, 1)
+        }})
+    end)
+    
+    -- 5. AnimaÃ§Ã£o quando clicar
+    local animation = Instance.new("Animation")
+    animation.AnimationId = "rbxassetid://204295235"
+    
+    tool.Activated:Connect(function()
+        local char = plr.Character
+        if not char then return end
+        
+        -- Tocar animaÃ§Ã£o
+        local humanoid = char:FindFirstChild("Humanoid")
+        if humanoid then
+            local animator = humanoid:FindFirstChild("Animator")
+            if animator then
+                local track = animator:LoadAnimation(animation)
+                track:Play()
+            end
+        end
+        
+        -- Detectar player clicado
+        local mouse = plr:GetMouse()
+        local target = mouse.Target
+        if not target then return end
+        
+        local targetChar = target:FindFirstAncestorOfClass("Model")
+        if targetChar and targetChar ~= char then
+            local targetPlayer = Players:GetPlayerFromCharacter(targetChar)
+            if targetPlayer and targetChar:FindFirstChild("Humanoid") then
+                -- Deletar partes do player
+                task.spawn(function()
+                    for _, part in ipairs(targetChar:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            pcall(function() F3X:Remove(part) end)
+                        end
+                    end
+                end)
+                -- Comandos HD Admin
+                cmdHD(";kill " .. targetPlayer.Name)
+                task.wait(0.01)
+                cmdHD(";explode " .. targetPlayer.Name)
+                task.wait(0.01)
+                cmdHD(";respawn " .. targetPlayer.Name)
+                notifySucesso(targetPlayer.Name .. " deletado!")
+            end
+        end
+    end)
+    
+    notifySucesso("ðŸ”¨ Tool Hacker criada! Pegue ela no chÃ£o.")
+end
+
+-- ============== CRIAR MODELO FLUTUANTE (PARTS SOLDADAS) ==============
+local function criarModeloFlutuante()
+    local seBTP = getFork3XEndpoint()
+    if not seBTP then
+        notifyErro("Building Tools+ não encontrada!")
+        return
+    end
+    
+    local char = plr.Character
+    if not char then
+        notifyErro("Character não encontrado!")
+        return
+    end
+    
+    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+    if not torso then
+        notifyErro("Torso não encontrado!")
+        return
+    end
+    
+    notifyInfo("📦 Criando modelo flutuante...")
+    
+    -- 1. DEFINIÇÃO DAS PARTES E SUAS PROPRIEDADES
+    local defs = {
+        ["Part3"] = {cf={-0.2433,6.0213,1.2728,-0.9741,-0.0355,0.2234,-0.0166,0.9962,0.0856,-0.2256,0.0796,-0.9710}, s=Vector3.new(0.08,0.08,0.08), c=Color3.fromRGB(255,191,255), m="Air"},
+        ["Part5"] = {cf={0.1319,5.9887,0.5391,-0.8748,-0.0355,0.4832,0.0076,0.9962,0.0868,-0.4845,0.0796,-0.8712}, s=Vector3.new(1.55,1.55,1.55), c=Color3.fromRGB(0,0,0), m="Fabric"},
+        ["Part6"] = {cf={1.0896,6.0631,1.3435,-0.9553,-0.0355,-0.2936,-0.0573,0.9962,0.0658,0.2901,0.0797,-0.9537}, s=Vector3.new(0.08,0.08,0.08), c=Color3.fromRGB(255,191,255), m="Air"},
+        ["Part4"] = {cf={-0.0347,5.9909,0.9014,-0.8662,-0.0355,0.4985,0.0091,0.9962,0.0867,-0.4996,0.0797,-0.8626}, s=Vector3.new(0.92,0.92,0.92), c=Color3.fromRGB(255,191,255), m="Air"},
+        ["Part2"] = {cf={0.9351,6.0223,0.9409,-0.9500,-0.0355,-0.3102,-0.0584,0.9962,0.0648,0.3067,0.0797,-0.9485}, s=Vector3.new(0.92,0.92,0.92), c=Color3.fromRGB(255,200,253), m="Air"},
+        ["Part"]  = {cf={0.7669,6.0090,0.5685,-0.7179,-0.0355,-0.6952,-0.0809,0.9962,0.0327,0.6914,0.0797,-0.7180}, s=Vector3.new(1.55,1.55,1.55), c=Color3.fromRGB(0,0,0), m="Fabric"}
+    }
+    
+    local parts = {}
+    local localSeguro = Vector3.new(0, -250, 0)
+    
+    -- 2. CRIAR TODAS AS PARTES NO LOCAL SEGURO
+    for nome, dados in pairs(defs) do
+        local cf = CFrame.new(dados.cf[1], dados.cf[2], dados.cf[3], dados.cf[4], dados.cf[5], dados.cf[6], dados.cf[7], dados.cf[8], dados.cf[9], dados.cf[10], dados.cf[11], dados.cf[12])
+        
+        -- Usa o CFrame original para manter a rotação relativa correta ao criar
+        local parte = F3X:CreatePart("Normal", CFrame.new(localSeguro), workspace)
+        if parte then
+            F3X:Resize(parte, dados.s)
+            F3X:SetColor(parte, dados.c)
+            pcall(function() parte.Material = Enum.Material[dados.m] end)
+            F3X:SetCollision(parte, false)
+            F3X:Anchor(parte)
+            
+            -- Aplica o CFrame original (rotação + posição relativa)
+            -- Como estamos criando em localSeguro, precisamos ajustar a posição relativa
+            -- Mas para simplificar e garantir que a estrutura interna fique certa, 
+            -- vamos usar os CFrames originais diretamente no local seguro primeiro
+            -- e depois mover o grupo inteiro.
+            
+            -- Na verdade, a forma mais robusta é criar com o CFrame relativo à origem (0,0,0)
+            -- e depois transladar. Mas como você forneceu CFrees absolutos, 
+            -- vou criar eles na posição absoluta deles primeiro, soldar, 
+            -- e depois mover o "centro de massa" (Part5) para o torso.
+            
+            -- Recriando na posição absoluta original para preservar a geometria exata
+            parte.CFrame = cf 
+            
+            parts[nome] = parte
+        else
+            notifyErro("Falha ao criar " .. nome)
+            return
+        end
+    end
+    
+    task.wait(0.1) -- Espera o servidor registrar as partes
+    
+    -- 3. FUNÇÃO AUXILIAR PARA SOLDAR VIA BTP
+    local function weldServerSide(p1, p2)
+        if not p1 or not p2 then return end
+        pcall(function()
+            seBTP:InvokeServer("CreateConstraints", {p1}, {}, p2, "Weld")
+        end)
+    end
+    
+    -- 4. FAZER AS SOLDAS INTERNAS (GRUPAMENTO)
+    -- Grupo Esquerdo: Part3 -> Part4 -> Part5
+    weldServerSide(parts["Part3"], parts["Part4"])
+    weldServerSide(parts["Part4"], parts["Part5"])
+    
+    -- Grupo Direito: Part6 -> Part2 -> Part5
+    weldServerSide(parts["Part6"], parts["Part2"])
+    weldServerSide(parts["Part2"], parts["Part5"])
+    
+    task.wait(0.1)
+    
+    -- 5. TELEPORTAR O CENTRO DA ESTRUTURA (PART5) PARA ACIMA DO TORSO
+    -- Posição alvo: Centro do Torso + 2 studs acima
+    local destinoCF = torso.CFrame * CFrame.new(0, 2, 0)
+    
+    -- Move a Part5 (que agora é o pivô central devido às soldas)
+    F3X:Move(parts["Part5"], destinoCF)
+    
+    -- As outras partes devem seguir automaticamente por causa das soldas, 
+    -- mas para garantir que o servidor atualize a física, podemos mover elas também 
+    -- ou apenas confiar no Weld. Vamos confiar no Weld server-side.
+    
+    task.wait(0.1)
+    
+    -- 6. DESENANCORAR TUDO
+    for _, p in pairs(parts) do
+        F3X:Unanchor(p)
+    end
+    
+    -- 7. SOLDAR A ESTRUTURA FINAL NO PERSONAGEM
+    -- Soldamos a Part5 (centro) e a Part (lado direito/extremo) no Torso para estabilidade dupla
+    weldServerSide(parts["Part5"], torso)
+    weldServerSide(parts["Part"], torso)
+    
+    notifySucesso("✅ Modelo flutuante criado e grudado no peito!")
+end
+    
+-- ============== CLONE ==============
+local cloneAtivo = false
+local armaAtiva = false
+local partesClone = {}
+local guiArmaToggle = nil
+local conexaoTiro = nil
+local loopCabeca = nil
+local loopAnimacao = nil
+local LIMITE_HORIZONTAL = 60
+local LIMITE_VERTICAL = 30
+
+local BLUEPRINT_PERSONAGEM = {
+    {n="Right Arm", s=Vector3.new(1,2,1), c=Color3.fromRGB(17,17,17), m="Plastic", weld=true},
+    {n="Head", s=Vector3.new(2,1,1), c=Color3.fromRGB(0,0,0), m="Plastic", weld=false},
+    {n="Torso", s=Vector3.new(2,2,1), c=Color3.fromRGB(17,17,17), m="Plastic", weld=true},
+    {n="HumanoidRootPart", s=Vector3.new(2,2,1), c=Color3.fromRGB(163,162,165), m="Plastic", t=1, weld=true},
+    {n="Left Arm", s=Vector3.new(1,2,1), c=Color3.fromRGB(17,17,17), m="Plastic", weld=true},
+    {n="Right Leg", s=Vector3.new(1,2,1), c=Color3.fromRGB(17,17,17), m="Plastic", weld=true},
+    {n="Left Leg", s=Vector3.new(1,2,1), c=Color3.fromRGB(17,17,17), m="Plastic", weld=true},
+}
+
+local function criarWeldServerSide(seBTP, parte1, parte2)
+    if not seBTP or not parte1 or not parte2 then return false end
+    local sucesso = pcall(function()
+        seBTP:InvokeServer("CreateConstraints", {parte1}, {}, parte2, "Weld")
+    end)
+    return sucesso
+end
+
+local function limparCloneCompletamente()
+    if loopCabeca then loopCabeca:Disconnect() loopCabeca = nil end
+    if loopAnimacao then loopAnimacao:Disconnect() loopAnimacao = nil end
+    for nome, parte in pairs(partesClone) do
+        if parte and parte.Parent then pcall(function() F3X:Remove(parte) end) end
+    end
+    partesClone = {}
+end
+
+local function iniciarAnimacaoCabeca()
+    if loopCabeca then loopCabeca:Disconnect() end
+    loopCabeca = RunService.RenderStepped:Connect(function()
+        if not cloneAtivo then return end
+        local headClone = partesClone["Head"]
+        local headOriginal = plr.Character and plr.Character:FindFirstChild("Head")
+        if not headClone or not headOriginal or not headClone.Parent then return end
+        local posBase = headOriginal.Position
+        local cfBase = headOriginal.CFrame
+        local camera = workspace.CurrentCamera
+        if not camera then return end
+        local mousePos = UserInputService:GetMouseLocation()
+        if not mousePos then return end
+        local ray = camera:ScreenPointToRay(mousePos.X, mousePos.Y)
+        local direcaoMouse = ray.Direction
+        local direcaoCabeca = cfBase.LookVector
+        local direcaoCabecaUp = cfBase.UpVector
+        local dotHorizontal = direcaoCabeca.X * direcaoMouse.X + direcaoCabeca.Z * direcaoMouse.Z
+        dotHorizontal = math.clamp(dotHorizontal, -1, 1)
+        local anguloYaw = math.acos(dotHorizontal)
+        local crossY = direcaoCabeca.X * direcaoMouse.Z - direcaoCabeca.Z * direcaoMouse.X
+        if crossY < 0 then anguloYaw = -anguloYaw end
+        local yawGraus = math.clamp(math.deg(anguloYaw), -LIMITE_HORIZONTAL, LIMITE_HORIZONTAL)
+        local dotVertical = direcaoCabecaUp.X * direcaoMouse.X + direcaoCabecaUp.Y * direcaoMouse.Y + direcaoCabecaUp.Z * direcaoMouse.Z
+        dotVertical = math.clamp(dotVertical, -1, 1)
+        local anguloPitch = math.acos(dotVertical) - math.rad(90)
+        local pitchGraus = math.clamp(math.deg(anguloPitch), -LIMITE_VERTICAL, LIMITE_VERTICAL)
+        local rotacaoExtra = CFrame.Angles(math.rad(pitchGraus), math.rad(yawGraus), 0)
+        local cfFinal = CFrame.new(posBase) * (cfBase - cfBase.Position) * rotacaoExtra
+        pcall(function() F3X:Move(headClone, cfFinal) end)
+    end)
+end
+
+local function iniciarAnimacaoCorpo()
+    if loopAnimacao then loopAnimacao:Disconnect() end
+    local bracoEsq = partesClone["Left Arm"]
+    local bracoDir = partesClone["Right Arm"]
+    local pernaEsq = partesClone["Left Leg"]
+    local pernaDir = partesClone["Right Leg"]
+    local frameCaminhada = 0
+    local tempoFrame = 0
+    loopAnimacao = RunService.Heartbeat:Connect(function(dt)
+        if not cloneAtivo then return end
+        local char = plr.Character
+        if not char then return end
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        local velocidade = humanoid.MoveDirection.Magnitude
+        local andando = velocidade > 0.1
+        local pulando = humanoid.FloorMaterial == Enum.Material.Air
+        
+        if pulando then
+            if bracoEsq then pcall(function() F3X:Move(bracoEsq, bracoEsq.CFrame * CFrame.Angles(math.rad(-120), 0, math.rad(-20))) end) end
+            if bracoDir then pcall(function() F3X:Move(bracoDir, bracoDir.CFrame * CFrame.Angles(math.rad(-120), 0, math.rad(20))) end) end
+            if pernaEsq then pcall(function() F3X:Move(pernaEsq, pernaEsq.CFrame * CFrame.Angles(math.rad(45), 0, 0)) end) end
+            if pernaDir then pcall(function() F3X:Move(pernaDir, pernaDir.CFrame * CFrame.Angles(math.rad(45), 0, 0)) end) end
+            return
+        end
+        
+        if andando then
+            tempoFrame = tempoFrame + dt
+            if tempoFrame >= 0.12 then
+                tempoFrame = 0
+                frameCaminhada = (frameCaminhada % 4) + 1
+            end
+            local frame = walkFrames[frameCaminhada]
+            if bracoEsq then pcall(function() F3X:Move(bracoEsq, bracoEsq.CFrame * CFrame.Angles(math.rad(frame.bracoEsq), 0, 0)) end) end
+            if bracoDir then pcall(function() F3X:Move(bracoDir, bracoDir.CFrame * CFrame.Angles(math.rad(frame.bracoDir), 0, 0)) end) end
+            if pernaEsq then pcall(function() F3X:Move(pernaEsq, pernaEsq.CFrame * CFrame.Angles(math.rad(frame.pernaEsq), 0, 0)) end) end
+            if pernaDir then pcall(function() F3X:Move(pernaDir, pernaDir.CFrame * CFrame.Angles(math.rad(frame.pernaDir), 0, 0)) end) end
+        else
+            if frameCaminhada ~= 0 then
+                frameCaminhada = 0
+                for _, nome in ipairs({"Left Arm", "Right Arm", "Left Leg", "Right Leg"}) do
+                    local parte = partesClone[nome]
+                    local original = char:FindFirstChild(nome)
+                    if parte and original then pcall(function() F3X:Move(parte, original.CFrame) end) end
+                end
+            end
+        end
+    end)
+end
+
+local function ativarArmaNoClone()
+    local seBTP = getFork3XEndpoint()
+    if not seBTP then return false end
+    local rightArmClone = partesClone["Right Arm"]
+    if not rightArmClone or not rightArmClone.Parent then return false end
+    local localSeguro = Vector3.new(0, -200, 0)
+    
+    local cabo = F3X:CreatePart("Normal", CFrame.new(localSeguro), workspace)
+    if not cabo then return false end
+    F3X:Resize(cabo, Vector3.new(1.001, 3, 1.001))
+    F3X:SetColor(cabo, Color3.fromRGB(0, 0, 0))
+    F3X:SetCollision(cabo, false)
+    F3X:Anchor(cabo)
+    F3X:Move(cabo, rightArmClone.CFrame * CFrame.new(0, -1.5, 0))
+    task.wait(0.1)
+    if not criarWeldServerSide(seBTP, cabo, rightArmClone) then
+        pcall(function() F3X:Remove(cabo) end)
+        return false
+    end
+    F3X:Unanchor(cabo)
+    partesClone["_ArmaCabo"] = cabo
+    
+    local cano = F3X:CreatePart("Normal", CFrame.new(localSeguro), workspace)
+    if not cano then return false end
+    F3X:Resize(cano, Vector3.new(1.001, 3, 1.001))
+    F3X:SetColor(cano, Color3.fromRGB(0, 0, 0))
+    F3X:SetCollision(cano, false)
+    F3X:Anchor(cano)
+    F3X:Move(cano, cabo.CFrame * CFrame.new(0, 1, -2) * CFrame.Angles(math.rad(-90), 0, 0))
+    task.wait(0.1)
+    if not criarWeldServerSide(seBTP, cano, cabo) then
+        pcall(function() F3X:Remove(cano) end)
+        return false
+    end
+    F3X:Unanchor(cano)
+    partesClone["_ArmaCano"] = cano
+    return true
+end
+
+local function desativarArmaDoClone()
+    if partesClone["_ArmaCabo"] then pcall(function() F3X:Remove(partesClone["_ArmaCabo"]) end) partesClone["_ArmaCabo"] = nil end
+    if partesClone["_ArmaCano"] then pcall(function() F3X:Remove(partesClone["_ArmaCano"]) end) partesClone["_ArmaCano"] = nil end
+end
+
+local function criarGuiArma()
+    if guiArmaToggle then guiArmaToggle:Destroy() end
+    guiArmaToggle = Instance.new("ScreenGui")
+    guiArmaToggle.Name = "GuiArmaClone"
+    guiArmaToggle.ResetOnSpawn = false
+    guiArmaToggle.Parent = playerGui
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 160, 0, 45)
+    btn.Position = UDim2.new(0.5, -80, 0.8, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(48, 48, 56)
+    btn.Text = "ðŸ”« Ativar Arma\n[ DESLIGADO ]"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.Parent = guiArmaToggle
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.MouseButton1Click:Connect(function()
+        armaAtiva = not armaAtiva
+        if armaAtiva then
+            btn.Text = "ðŸ”« Ativar Arma\n[ LIGADO ]"
+            btn.BackgroundColor3 = Color3.fromRGB(125, 45, 45)
+            if not ativarArmaNoClone() then
+                armaAtiva = false
+                btn.Text = "ðŸ”« Ativar Arma\n[ DESLIGADO ]"
+                btn.BackgroundColor3 = Color3.fromRGB(48, 48, 56)
+            else
+                notifySucesso("Arma ativada!")
+            end
+        else
+            btn.Text = "ðŸ”« Ativar Arma\n[ DESLIGADO ]"
+            btn.BackgroundColor3 = Color3.fromRGB(48, 48, 56)
+            desativarArmaDoClone()
+            notifyInfo("Arma desativada")
+        end
+    end)
+end
+
+local function iniciarSistemaDeTiro()
+    if conexaoTiro then conexaoTiro:Disconnect() end
+    local function dispararTiro(posInicio, direcao)
+        local posBala = posInicio + direcao * 3
+        local cframeInicial = CFrame.new(posBala, posBala + direcao)
+        local bala = F3X:CreatePart("Normal", cframeInicial, workspace)
+        if not bala then return end
+        F3X:Resize(bala, Vector3.new(1.2, 1.2, 5))
+        F3X:SetColor(bala, Color3.fromRGB(255, 255, 0))
+        F3X:Anchor(bala)
+        F3X:SetCollision(bala, false)
+        local atingiu = false
+        local velocidade = 200
+        local dt = 0.02
+        local tempoDecorrido = 0
+        local posAtual = posBala
+        local function verificarAcerto()
+            if atingiu then return end
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= plr and player.Character then
+                    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp and (hrp.Position - posAtual).Magnitude < 3 then
+                        atingiu = true
+                        cmdHD(";dmg " .. player.Name .. " 10")
+                        return
+                    end
+                end
+            end
+        end
+        local conexaoTouched = bala.Touched:Connect(function(hit)
+            if atingiu then return end
+            local char = hit:FindFirstAncestorOfClass("Model")
+            if char and char ~= plr.Character then
+                local playerAlvo = Players:GetPlayerFromCharacter(char)
+                if playerAlvo and char:FindFirstChild("Humanoid") then
+                    atingiu = true
+                    cmdHD(";dmg " .. playerAlvo.Name .. " 10")
+                end
+            end
+        end)
+        task.spawn(function()
+            while not atingiu and tempoDecorrido < 7 do
+                task.wait(dt)
+                tempoDecorrido = tempoDecorrido + dt
+                if not bala or not bala.Parent then break end
+                posAtual = posAtual + direcao * (velocidade * dt)
+                pcall(function() F3X:Move(bala, CFrame.new(posAtual, posAtual + direcao)) end)
+                verificarAcerto()
+            end
+            conexaoTouched:Disconnect()
+            if bala and bala.Parent then pcall(function() F3X:Remove(bala) end) end
+        end)
+    end
+    local function getPosInicio()
+        if partesClone["_ArmaCano"] and partesClone["_ArmaCano"].Parent then
+            return partesClone["_ArmaCano"].Position
+        end
+        local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then return hrp.Position + Vector3.new(0, 1, 0) end
+        return nil
+    end
+    conexaoTiro = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed or not cloneAtivo or not armaAtiva then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local mouse = plr:GetMouse()
+            local posInicio = getPosInicio()
+            if not posInicio or not mouse.Target then return end
+            dispararTiro(posInicio, (mouse.Hit.Position - posInicio).Unit)
+        elseif input.UserInputType == Enum.UserInputType.Touch then
+            local posInicio = getPosInicio()
+            if not posInicio then return end
+            local camera = workspace.CurrentCamera
+            if not camera then return end
+            local ray = camera:ScreenPointToRay(input.Position.X, input.Position.Y)
+            local rayParams = RaycastParams.new()
+            rayParams.FilterDescendantsInstances = {plr.Character}
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+            local resultado = workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
+            local alvo = resultado and resultado.Position or (ray.Origin + ray.Direction * 500)
+            dispararTiro(posInicio, (alvo - posInicio).Unit)
+        end
+    end)
+end
+
+local function pararSistemaDeTiro()
+    if conexaoTiro then conexaoTiro:Disconnect() conexaoTiro = nil end
+end
+
+local function toggleClonePersonagem(ativar)
+    local seBTP = getFork3XEndpoint()
+    if not seBTP then
+        notifyErro("Building Tools+ nÃ£o encontrada!")
+        return
+    end
+    if ativar then
+        if cloneAtivo then return end
+        cloneAtivo = true
+        cmdHD(";invisible")
+        local char = plr.Character
+        if not char then return end
+        local localSeguro = Vector3.new(0, -200, 0)
+        for _, dados in ipairs(BLUEPRINT_PERSONAGEM) do
+            local parteOriginal = char:FindFirstChild(dados.n)
+            if parteOriginal and parteOriginal:IsA("BasePart") then
+                local clone = F3X:CreatePart("Normal", CFrame.new(localSeguro), workspace)
+                if clone then
+                    F3X:Resize(clone, dados.s)
+                    F3X:SetColor(clone, dados.c)
+                    pcall(function() clone.Material = Enum.Material[dados.m] end)
+                    if dados.t then F3X:SetTransparency(clone, dados.t) else F3X:SetTransparency(clone, 0) end
+                    if dados.n == "Head" then
+                        task.wait(0.05)
+                        pcall(function() seBTP:InvokeServer("CreateMeshes", {{Part = clone}}) end)
+                        task.wait(0.05)
+                        pcall(function()
+                            seBTP:InvokeServer("SyncMesh", {{
+                                Part = clone, MeshType = "Head", Mesh = 0, TextureId = 0,
+                                Scale = Vector3.new(1.25, 1.25, 1.25)
+                            }})
+                        end)
+                    end
+                    F3X:SetCollision(clone, false)
+                    F3X:Anchor(clone)
+                    F3X:Move(clone, parteOriginal.CFrame)
+                    task.wait(0.1)
+                    if dados.weld then
+                        if criarWeldServerSide(seBTP, clone, parteOriginal) then
+                            F3X:Unanchor(clone)
+                            partesClone[dados.n] = clone
+                        else
+                            F3X:Anchor(clone)
+                            partesClone[dados.n] = clone
+                        end
+                    else
+                        F3X:Unanchor(clone)
+                        partesClone[dados.n] = clone
+                    end
+                end
+            end
+        end
+        criarGuiArma()
+        iniciarSistemaDeTiro()
+        iniciarAnimacaoCabeca()
+        iniciarAnimacaoCorpo()
+        notifySucesso("Clone ativado!")
+    else
+        if not cloneAtivo then return end
+        cloneAtivo = false
+        cmdHD(";visible")
+        pararSistemaDeTiro()
+        desativarArmaDoClone()
+        if guiArmaToggle then guiArmaToggle:Destroy() guiArmaToggle = nil end
+        armaAtiva = false
+        limparCloneCompletamente()
+        notifyInfo("Clone removido")
+    end
+end
+
+-- ============== GUI - TEMA BLACK AMOLED COM ABAS ==============
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BlackGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game:GetService("CoreGui")
+screenGui.IgnoreGuiInset = true
+screenGui.DisplayOrder = 999999
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 320, 0, 210)
+mainFrame.Position = UDim2.new(0.05, 0, 0.1, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+mainFrame.ClipsDescendants = true
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(30, 30, 30)
+mainStroke.Thickness = 1.5
+mainStroke.Parent = mainFrame
+
+local bgGradient = Instance.new("ImageLabel")
+bgGradient.Name = "DarkOverlay"
+bgGradient.Size = UDim2.new(1, 0, 1, 0)
+bgGradient.BackgroundTransparency = 1
+bgGradient.Image = "rbxassetid://117638534679966"
+bgGradient.ImageTransparency = 0.92
+bgGradient.ImageColor3 = Color3.fromRGB(40, 40, 40)
+bgGradient.ScaleType = Enum.ScaleType.Crop
+bgGradient.ZIndex = 0
+bgGradient.Parent = mainFrame
+
+-- ============== TITLE BAR ==============
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 38)
+titleBar.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+titleBar.BorderSizePixel = 0
+titleBar.ZIndex = 2
+titleBar.Parent = mainFrame
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 12)
+
+local titleDivider = Instance.new("Frame")
+titleDivider.Size = UDim2.new(1, 0, 0, 1)
+titleDivider.Position = UDim2.new(0, 0, 1, -1)
+titleDivider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+titleDivider.BorderSizePixel = 0
+titleDivider.ZIndex = 3
+titleDivider.Parent = titleBar
+
+local logo = Instance.new("ImageLabel")
+logo.Size = UDim2.new(0, 22, 0, 22)
+logo.Position = UDim2.new(0, 12, 0.5, -11)
+logo.BackgroundTransparency = 1
+logo.Image = "rbxassetid://117638534679966"
+logo.ImageColor3 = Color3.fromRGB(255, 255, 255)
+logo.ZIndex = 3
+logo.Parent = titleBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -100, 1, 0)
+titleLabel.Position = UDim2.new(0, 42, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "BlackGUI F3X + HDADMIN"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 13
+titleLabel.ZIndex = 3
+titleLabel.Parent = titleBar
+
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 30, 0, 30)
+minBtn.Position = UDim2.new(1, -68, 0, 4)
+minBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+minBtn.Text = "â€”"
+minBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextSize = 14
+minBtn.ZIndex = 3
+minBtn.Parent = titleBar
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 6)
+local minStroke = Instance.new("UIStroke")
+minStroke.Color = Color3.fromRGB(50, 50, 50)
+minStroke.Thickness = 1
+minStroke.Parent = minBtn
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -34, 0, 4)
+closeBtn.BackgroundColor3 = Color3.fromRGB(140, 30, 30)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 12
+closeBtn.ZIndex = 3
+closeBtn.Parent = titleBar
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+
+-- ============== SISTEMA DE ABAS (SCROLL HORIZONTAL) ==============
+local tabsContainer = Instance.new("Frame")
+tabsContainer.Name = "TabsContainer"
+tabsContainer.Size = UDim2.new(1, 0, 0, 40)
+tabsContainer.Position = UDim2.new(0, 0, 0, 38)
+tabsContainer.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+tabsContainer.BorderSizePixel = 0
+tabsContainer.ZIndex = 2
+tabsContainer.Parent = mainFrame
+
+local tabsScroll = Instance.new("ScrollingFrame")
+tabsScroll.Name = "TabsScroll"
+tabsScroll.Size = UDim2.new(1, -10, 0, 70)
+tabsScroll.Position = UDim2.new(0, 5, 0, -16)
+tabsScroll.BackgroundTransparency = 1
+tabsScroll.BorderSizePixel = 0
+tabsScroll.ScrollBarThickness = 0
+tabsScroll.ScrollingDirection = Enum.ScrollingDirection.X
+tabsScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
+tabsScroll.ZIndex = 2
+tabsScroll.Parent = tabsContainer
+
+local tabsLayout = Instance.new("UIListLayout")
+tabsLayout.Padding = UDim.new(0, 6)
+tabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tabsLayout.FillDirection = Enum.FillDirection.Horizontal
+tabsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+tabsLayout.Parent = tabsScroll
+
+local contentArea = Instance.new("Frame")
+contentArea.Name = "ContentArea"
+contentArea.Size = UDim2.new(1, -14, 1, -90)
+contentArea.Position = UDim2.new(0, 7, 0, 85)
+contentArea.BackgroundTransparency = 1
+contentArea.BorderSizePixel = 0
+contentArea.ZIndex = 1
+contentArea.Parent = mainFrame
+
+    -- ============== IMAGEM DE FUNDO ==============
+    local bgImage = Instance.new("ImageLabel")
+    bgImage.Name = "BackgroundImage"
+    bgImage.Size = UDim2.new(1, 0, 1, 0)
+    bgImage.BackgroundTransparency = 1
+    bgImage.Image = "rbxassetid://117638534679966"
+    bgImage.ImageTransparency = 0.25
+    bgImage.ScaleType = Enum.ScaleType.Crop
+    bgImage.ZIndex = 1
+    bgImage.Parent = contentArea
+
+local abas = {}
+local conteudos = {}
+
+local function selecionarAba(index)
+    for i, abaBtn in ipairs(abas) do
+        if i == index then
+            abaBtn.BackgroundColor3 = Color3.fromRGB(15, 50, 20)
+            abaBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            abaBtn:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(40, 180, 70)
+            conteudos[i].Visible = true
+        else
+            abaBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            abaBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+            abaBtn:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(35, 35, 35)
+            conteudos[i].Visible = false
+        end
+    end
+end
+
+local function adicionarAba(nome, icone, ordem)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 80, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    btn.Text = icone .. " " .. nome
+    btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.ZIndex = 3
+    btn.Parent = tabsScroll
+    btn.LayoutOrder = ordem
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = Color3.fromRGB(35, 35, 35)
+    btnStroke.Thickness = 1
+    btnStroke.Parent = btn
+    
+    local contentFrame = Instance.new("ScrollingFrame")
+    contentFrame.Size = UDim2.new(1, 0, 1, 0)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.BorderSizePixel = 0
+    contentFrame.ScrollBarThickness = 3
+    contentFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 60)
+    contentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    contentFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+    contentFrame.Visible = false
+    contentFrame.ZIndex = 1
+    contentFrame.Parent = contentArea
+    
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 6)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = contentFrame
+    Instance.new("UIPadding", contentFrame).PaddingTop = UDim.new(0, 6)
+    Instance.new("UIPadding", contentFrame).PaddingBottom = UDim.new(0, 6)
+    Instance.new("UIPadding", contentFrame).PaddingLeft = UDim.new(0, 2)
+    Instance.new("UIPadding", contentFrame).PaddingRight = UDim.new(0, 2)
+    
+    local currentIndex = #abas + 1
+    btn.MouseButton1Click:Connect(function()
+        selecionarAba(currentIndex)
+    end)
+    
+    table.insert(abas, btn)
+    table.insert(conteudos, contentFrame)
+    return contentFrame
+end
+
+-- ============== FUNÃ‡Ã•ES DE CRIAÃ‡ÃƒO (COM SUPORTE A PARENT) ==============
+local function criarToggle(texto, callback, parentFrame)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -4, 0, 50)
+    btn.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+    btn.Text = texto .. "\n[ DESLIGADO ]"
+    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 12
+    btn.ZIndex = 2
+    btn.Parent = parentFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = Color3.fromRGB(35, 35, 35)
+    btnStroke.Thickness = 1
+    btnStroke.Parent = btn
+    
+    local estado = false
+    btn.MouseButton1Click:Connect(function()
+        estado = not estado
+        btn.Text = texto .. (estado and "\n[ LIGADO ]" or "\n[ DESLIGADO ]")
+        if estado then
+            btn.BackgroundColor3 = Color3.fromRGB(15, 50, 20)
+            btnStroke.Color = Color3.fromRGB(40, 180, 70)
+            btnStroke.Thickness = 1.5
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+            btnStroke.Color = Color3.fromRGB(35, 35, 35)
+            btnStroke.Thickness = 1
+        end
+        callback(estado)
+    end)
+    
+    btn.MouseEnter:Connect(function() if not estado then btnStroke.Color = Color3.fromRGB(70, 70, 70) end end)
+    btn.MouseLeave:Connect(function() if not estado then btnStroke.Color = Color3.fromRGB(35, 35, 35) end end)
+    return btn
+end
+
+local function criarBotao(texto, callback, parentFrame)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -4, 0, 50)
+    btn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    btn.Text = texto
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.ZIndex = 2
+    btn.Parent = parentFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = Color3.fromRGB(45, 45, 45)
+    btnStroke.Thickness = 1
+    btnStroke.Parent = btn
+    
+    btn.MouseButton1Click:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        btnStroke.Color = Color3.fromRGB(100, 100, 100)
+        task.wait(0.15)
+        btn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        btnStroke.Color = Color3.fromRGB(45, 45, 45)
+        callback()
+    end)
+    
+    btn.MouseEnter:Connect(function() btnStroke.Color = Color3.fromRGB(90, 90, 90) end)
+    btn.MouseLeave:Connect(function() btnStroke.Color = Color3.fromRGB(45, 45, 45) end)
+    return btn
+end
+
+-- ============== ORGANIZAÃ‡ÃƒO DAS ABAS ==============
+
+-- 1. ABA JOGADOR
+local tabJogador = adicionarAba("Jogador", "ðŸ‘¤", 1)
+criarToggle("Clone Personagem + Arma", function(e) toggleClonePersonagem(e) end, tabJogador)
+criarToggle("ðŸ§Ÿ ZUMBI", function(e) toggleZumbi(e) end, tabJogador)
+criarBotao("ðŸ‘» TOOL INVISIBLE", botaoCriarToolInvisible, tabJogador)
+criarBotao("ðŸ”¨ TOOL HACKER", botaoCriarToolHacker, tabJogador)
+criarBotao("ðŸ˜ˆ MODO TÃ“XICO (ANTI-UN)", botaoModoToxico, tabJogador)
+criarBotao("âš¡ COMANDOS EM JOGADOR", function() criarListaJogadores(function(jogador) criarListaComandos(jogador) end) end, tabJogador)
+criarBotao("ðŸ“¦ ARMADILHA DE JOGADOR", function() criarListaJogadores(function(jogador) task.spawn(function() armarArmadilha(jogador) end) end) end, tabJogador)
+
+-- 2. ABA VISUAL
+local tabVisual = adicionarAba("Visual", "ðŸ‘ï¸", 2)
+criarToggle("âœ¨ Spam de PartÃ­culas", function(e) if e then iniciarSpam() else pararSpam() end end, tabVisual)
+criarToggle("ðŸ‘» Esconder GUIs + Mutar", function(e) if e then ligarHideGuis() else desligarHideGuis() end end, tabVisual)
+criarToggle("ðŸ§¹ Limpar Efeitos (loop)", function(e) if e then ligarLimpar() else desligarLimpar() end end, tabVisual)
+criarToggle("ðŸŽ† PartÃ­culas Server-Side", function(e) if e then ligarParticulas() else desligarParticulas() end end, tabVisual)
+criarBotao("ðŸŒ€ Mesh Glitch (-3500)", botaoMeshGlitch, tabVisual)
+criarBotao("ðŸŽ¨ TEXTURIZAR MAPA INTEIRO", botaoTexturizarTudo, tabVisual)
+criarBotao("ðŸŽ¨ COLORIR MAPA TODO", botaoColorirMapa, tabVisual)
+
+-- 3. ABA MAPA
+local tabMapa = adicionarAba("Mapa", "ðŸ—ºï¸", 3)
+criarToggle("ðŸŽ¯ Sistema Obby", function(e) toggleObby(e) end, tabMapa)
+criarBotao("ðŸŒªï¸ NATURAL DISASTER", botaoNaturalDisaster, tabMapa)
+criarBotao("ðŸ—ºï¸ MAPA RÃPIDO", botaoConstruirMapaRapido, tabMapa)
+criarBotao("ðŸ’£ BOMBA NUCLEAR", executarMeteroAudio, tabMapa)
+criarBotao("â˜„ï¸ METEORITO GIGANTE", botaoMeteorito, tabMapa)
+criarBotao("ðŸ³ï¸ BANDEIRA COLORIDA", botaoBandeira, tabMapa)
+criarBotao("ðŸ¤– CRIAR NPC CONTROLÃVEL", criarNPC, tabMapa)
+
+-- 4. ABA ADMIN
+local tabAdmin = adicionarAba("Admin", "âš™ï¸", 4)
+criarToggle("ðŸ‘‹ Boas Vindas AutomÃ¡ticas", function(e) if e then ligarBoasVindas() else desligarBoasVindas() end end, tabAdmin)
+criarBotao("ðŸ‡§ðŸ‡· TÃTULO BL5CK", function() cmdHD(";titlebk me ðŸ‡§ðŸ‡· BL5CK ðŸ‡§ðŸ‡·"); notifySucesso("TÃ­tulo aplicado!") end, tabAdmin)
+
+local msgBox = Instance.new("TextBox")
+msgBox.Size = UDim2.new(1, -4, 0, 42)
+msgBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+msgBox.BorderSizePixel = 0
+msgBox.Text = ""
+msgBox.PlaceholderText = "Digite a mensagem..."
+msgBox.PlaceholderColor3 = Color3.fromRGB(80, 80, 80)
+msgBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+msgBox.Font = Enum.Font.GothamMedium
+msgBox.TextSize = 13
+msgBox.ClearTextOnFocus = false
+msgBox.ZIndex = 2
+msgBox.Parent = tabAdmin
+Instance.new("UICorner", msgBox).CornerRadius = UDim.new(0, 8)
+local msgStroke = Instance.new("UIStroke")
+msgStroke.Color = Color3.fromRGB(40, 40, 40)
+msgStroke.Thickness = 1
+msgStroke.Parent = msgBox
+
+local sendBtn = Instance.new("TextButton")
+sendBtn.Size = UDim2.new(1, -4, 0, 46)
+sendBtn.BackgroundColor3 = Color3.fromRGB(20, 60, 30)
+sendBtn.Text = "ðŸ“¢ Enviar serverMessage"
+sendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+sendBtn.Font = Enum.Font.GothamBold
+sendBtn.TextSize = 13
+sendBtn.ZIndex = 2
+sendBtn.Parent = tabAdmin
+Instance.new("UICorner", sendBtn).CornerRadius = UDim.new(0, 8)
+local sendStroke = Instance.new("UIStroke")
+sendStroke.Color = Color3.fromRGB(40, 120, 60)
+sendStroke.Thickness = 1
+sendStroke.Parent = sendBtn
+
+sendBtn.MouseButton1Click:Connect(function()
+    local txt = msgBox.Text
+    if txt and txt ~= "" then
+        cmdHD(";serverMessage " .. txt)
+        notifySucesso("Mensagem enviada!")
+        msgBox.Text = ""
+    end
+end)
+
+-- 5. ABA MÃDIA
+local tabMidia = adicionarAba("MÃ­dia", "ðŸŽµ", 5)
+
+local musicRow = Instance.new("Frame")
+musicRow.Size = UDim2.new(1, -4, 0, 50)
+musicRow.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+musicRow.BorderSizePixel = 0
+musicRow.ZIndex = 2
+musicRow.Parent = tabMidia
+Instance.new("UICorner", musicRow).CornerRadius = UDim.new(0, 8)
+local musicStroke = Instance.new("UIStroke")
+musicStroke.Color = Color3.fromRGB(40, 40, 40)
+musicStroke.Thickness = 1
+musicStroke.Parent = musicRow
+
+local musicRowLayout = Instance.new("UIListLayout")
+musicRowLayout.FillDirection = Enum.FillDirection.Horizontal
+musicRowLayout.Padding = UDim.new(0, 4)
+musicRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
+musicRowLayout.Parent = musicRow
+Instance.new("UIPadding", musicRow).PaddingLeft = UDim.new(0, 4)
+Instance.new("UIPadding", musicRow).PaddingRight = UDim.new(0, 4)
+
+musicToggleBtn = Instance.new("TextButton")
+musicToggleBtn.Size = UDim2.new(1, -50, 1, -4)
+musicToggleBtn.Position = UDim2.new(0, 0, 0, 2)
+musicToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+musicToggleBtn.Text = "ðŸŽµ MÃºsica [" .. currentName .. "]\n[ DESLIGADO ]"
+musicToggleBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+musicToggleBtn.Font = Enum.Font.GothamMedium
+musicToggleBtn.TextSize = 11
+musicToggleBtn.ZIndex = 3
+musicToggleBtn.Parent = musicRow
+Instance.new("UICorner", musicToggleBtn).CornerRadius = UDim.new(0, 6)
+
+musicToggleBtn.MouseButton1Click:Connect(function()
+    if musicaLigada then desligarMusica() else ligarMusica() end
+end)
+
+presetBtn = Instance.new("TextButton")
+presetBtn.Size = UDim2.new(0, 42, 1, -4)
+presetBtn.Position = UDim2.new(0, 0, 0, 2)
+presetBtn.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+presetBtn.Text = "ðŸ”„"
+presetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+presetBtn.Font = Enum.Font.GothamBold
+presetBtn.TextSize = 16
+presetBtn.ZIndex = 3
+presetBtn.Parent = musicRow
+Instance.new("UICorner", presetBtn).CornerRadius = UDim.new(0, 6)
+
+presetBtn.MouseButton1Click:Connect(function()
+    presetBtn.BackgroundColor3 = Color3.fromRGB(90, 50, 140)
+    task.wait(0.15)
+    presetBtn.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+    trocarPreset()
+end)
+
+criarBotao("ðŸŒˆ DISCO + FOG + TIME 0", botaoDiscoFog, tabMidia)
+
+-- ============== JANELA E CONTROLES ==============
+local minimizado = false
+local tamanhoOriginal = UDim2.new(0, 320, 0, 210)
+
+minBtn.MouseButton1Click:Connect(function()
+    minimizado = not minimizado
+    tabsContainer.Visible = not minimizado
+    contentArea.Visible = not minimizado
+    mainFrame.Size = minimizado and UDim2.new(0, 320, 0, 38) or tamanhoOriginal
+    minBtn.Text = minimizado and "+" or "â€”"
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    spamLigado = false
+    texturizandoTudo = false
+    desligarMusica()
+    desligarHideGuis()
+    desligarLimpar()
+    pararSpam()
+    modoToxicoAtivo = false
+    if screenGui then screenGui:Destroy() end
+end)
+
+-- Ativar a primeira aba por padrÃ£o
+selecionarAba(1)
+
+-- ============== PROTEÃ‡ÃƒO ANTI-HIDE ==============
+task.spawn(function()
+    while screenGui and screenGui.Parent do
+        task.wait(0.3)
+        pcall(function()
+            if screenGui.Enabled == false then screenGui.Enabled = true end
+            if mainFrame and mainFrame.Visible == false then mainFrame.Visible = true end
+            if mainFrame and mainFrame.BackgroundTransparency >= 0.99 then mainFrame.BackgroundTransparency = 0 end
+            screenGui.IgnoreGuiInset = true
+            screenGui.DisplayOrder = 999999
+        end)
+    end
+end)
+notifySucesso("BlackGUI com Abas carregado!")
