@@ -1,0 +1,674 @@
+--[[ 
+    🚀 FLY GUI v11 - CORREÇÕES:
+    ✅ Botão Fly não trava mais (refresh de referências)
+    ✅ Ghost mode não ativa colisão com players
+    ✅ Estado original de CanCollide preservado
+    ✅ Desligamento instantâneo
+    ✅ RootPart invisível sempre
+    ✅ Notificações bonitas
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+local Camera = workspace.CurrentCamera
+
+-- ======================================================
+-- NOTIFICAÇÃO BONITINHA
+-- ======================================================
+local function showNotification(text, duration)
+    duration = duration or 2.5
+    local notif = Instance.new("TextLabel")
+    notif.Size = UDim2.new(0, 280, 0, 45)
+    notif.Position = UDim2.new(0.5, -140, 0.82, 0)
+    notif.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    notif.Text = text
+    notif.TextColor3 = Color3.new(1,1,1)
+    notif.Font = Enum.Font.Gotham
+    notif.TextSize = 14
+    notif.Parent = LocalPlayer.PlayerGui
+    Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 12)
+    
+    TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, -140, 0.76, 0)
+    }):Play()
+    
+    task.delay(duration, function()
+        TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            TextTransparency = 1,
+            BackgroundTransparency = 1
+        }):Play()
+        task.wait(0.4)
+        notif:Destroy()
+    end)
+end
+
+-- ======================================================
+-- CONFIGURAÇÕES
+-- ======================================================
+local Flying = false
+local GhostMode = false
+local Speed = 60 
+local UpValue = 0 
+local CurrentVelocity = Vector3.new(0, 0, 0)
+local TargetVelocity = Vector3.new(0, 0, 0)
+local SMOOTHNESS = 8
+
+local BodyVelocity = nil
+local BodyGyro = nil
+local NoclipConnection = nil
+
+-- 🔧 CORREÇÃO: Estado de colisão salvo
+local savedCollideStates = {}
+local hasSavedCollide = false
+
+-- Variáveis da GUI
+local FlyBtn = nil
+local GhostBtn = nil
+local MobileFrame = nil
+
+-- ======================================================
+-- FUNÇÃO: MANTER ROOTPART INVISÍVEL
+-- ======================================================
+local function keepRootInvisible()
+    if RootPart and RootPart.Parent then
+        RootPart.Transparency = 1
+        RootPart.CanCollide = false
+    end
+end
+
+-- ======================================================
+-- 🔧 CORREÇÃO: SALVAR ESTADO DE COLISÃO
+-- ======================================================
+local function CaptureCollideStates()
+    savedCollideStates = {}
+    if Character then
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                savedCollideStates[part] = part.CanCollide
+            end
+        end
+    end
+    hasSavedCollide = true
+end
+
+-- ======================================================
+-- 🔧 CORREÇÃO: RESTAURAR ESTADO DE COLISÃO
+-- ======================================================
+local function RestoreCollideStates()
+    for part, state in pairs(savedCollideStates) do
+        if part and part.Parent then
+            part.CanCollide = state
+        end
+    end
+    savedCollideStates = {}
+    hasSavedCollide = false
+end
+
+-- ======================================================
+-- 🔧 CORREÇÃO: ATUALIZAR NOCLIP (SEM QUEBRAR COLISÃO)
+-- ======================================================
+local function UpdateNoclip()
+    if NoclipConnection then
+        NoclipConnection:Disconnect()
+        NoclipConnection = nil
+    end
+    
+    if GhostMode and Flying then
+        -- Salva o estado original ANTES de mexer
+        if not hasSavedCollide then
+            CaptureCollideStates()
+        end
+        
+        -- Noclip contínuo
+        NoclipConnection = RunService.Stepped:Connect(function()
+            if Character then
+                for _, part in pairs(Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+        showNotification("👻 MODO FANTASMA ATIVADO!")
+    else
+        -- 🔧 CORREÇÃO: Só restaura se tinha algo salvo
+        if hasSavedCollide then
+            RestoreCollideStates()
+        end
+        
+        -- Garante que o RootPart continua invisível e sem colisão
+        keepRootInvisible()
+        
+        if GhostMode then
+            showNotification("👻 MODO FANTASMA DESATIVADO")
+        end
+    end
+end
+
+-- ======================================================
+-- FUNÇÃO: DECOLAGEM
+-- ======================================================
+local function TakeoffAnimation()
+    if not BodyVelocity then return end
+    
+    local takeoffVelocity = RootPart.CFrame.UpVector * 60
+    CurrentVelocity = takeoffVelocity
+    
+    TweenService:Create(BodyVelocity, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        Velocity = Vector3.new(0, 0, 0)
+    }):Play()
+end
+
+-- ======================================================
+-- 🔧 CORREÇÃO: PARAR VOO (COM PROTEÇÕES)
+-- ======================================================
+local function StopFlyInstant()
+    Flying = false
+    
+    if FlyBtn then
+        FlyBtn.Text = "FLY: OFF"
+        FlyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+    
+    -- Destroy seguro (pcall pra evitar erro se já foi destruído)
+    if BodyVelocity then
+        pcall(function() BodyVelocity:Destroy() end)
+        BodyVelocity = nil
+    end
+    
+    if BodyGyro then 
+        pcall(function() BodyGyro:Destroy() end)
+        BodyGyro = nil 
+    end
+
+    if Humanoid and Humanoid.Parent then
+        pcall(function() Humanoid.PlatformStand = false end)
+    end
+    
+    if MobileFrame then
+        MobileFrame.Visible = false
+    end
+    
+    CurrentVelocity = Vector3.new(0, 0, 0)
+    TargetVelocity = Vector3.new(0, 0, 0)
+    UpValue = 0
+    
+    UpdateNoclip()
+    keepRootInvisible()
+    
+    showNotification("🛑 VOO DESLIGADO")
+end
+
+-- ======================================================
+-- 🔧 CORREÇÃO: INICIAR VOO (COM REFRESH)
+-- ======================================================
+local function StartFly()
+    -- Atualiza referências (evita bug do botão travado)
+    Character = LocalPlayer.Character
+    if not Character or not Character.Parent then
+        showNotification("❌ Personagem não encontrado!")
+        return
+    end
+    
+    RootPart = Character:FindFirstChild("HumanoidRootPart")
+    Humanoid = Character:FindFirstChild("Humanoid")
+    
+    if not RootPart or not Humanoid or not RootPart.Parent then
+        showNotification("❌ Personagem não está pronto! Tente de novo.")
+        return
+    end
+    
+    Flying = true
+    
+    if FlyBtn then
+        FlyBtn.Text = "FLY: ON"
+        FlyBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+    end
+    
+    Humanoid.PlatformStand = true
+
+    BodyVelocity = Instance.new("BodyVelocity")
+    BodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    BodyVelocity.Parent = RootPart
+
+    BodyGyro = Instance.new("BodyGyro")
+    BodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    BodyGyro.CFrame = RootPart.CFrame
+    BodyGyro.Parent = RootPart
+
+    if MobileFrame then
+        MobileFrame.Visible = UserInputService.TouchEnabled
+    end
+
+    TakeoffAnimation()
+    UpdateNoclip()
+    keepRootInvisible()
+    
+    showNotification("🚀 VOO ATIVADO! (Velocidade: " .. Speed .. ")")
+end
+
+-- ======================================================
+-- 🔧 CORREÇÃO: TOGGLE FLY (COM SYNC CHECK)
+-- ======================================================
+local function ToggleFly()
+    -- 🔧 CORREÇÃO: Atualiza referências ANTES de qualquer coisa
+    Character = LocalPlayer.Character
+    if not Character or not Character.Parent then
+        showNotification("❌ Personagem não encontrado!")
+        return
+    end
+    
+    RootPart = Character:FindFirstChild("HumanoidRootPart")
+    Humanoid = Character:FindFirstChild("Humanoid")
+    
+    if not RootPart or not Humanoid or not RootPart.Parent then
+        showNotification("❌ Personagem não está pronto! Tente de novo.")
+        return
+    end
+    
+    -- 🔧 CORREÇÃO: Detecta se o estado tá dessincronizado
+    if Flying and (not BodyVelocity or not BodyGyro) then
+        -- Estado dessincronizado - força reset
+        Flying = false
+    end
+    
+    if Flying then
+        StopFlyInstant()
+    else
+        StartFly()
+    end
+end
+
+-- ======================================================
+-- MONITOR: MANTER ROOTPART INVISÍVEL
+-- ======================================================
+task.spawn(function()
+    while task.wait(0.1) do
+        if not Character or not Character.Parent then
+            Character = LocalPlayer.Character
+            if Character then
+                RootPart = Character:FindFirstChild("HumanoidRootPart")
+                Humanoid = Character:FindFirstChild("Humanoid")
+            end
+        end
+        
+        if RootPart and RootPart.Parent then
+            if RootPart.Transparency ~= 1 then
+                RootPart.Transparency = 1
+            end
+            if RootPart.CanCollide ~= false then
+                RootPart.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- ======================================================
+-- 🔧 CORREÇÃO: QUANDO O PERSONAGEM REVIVE
+-- ======================================================
+LocalPlayer.CharacterAdded:Connect(function(Char)
+    Character = Char
+    
+    -- 🔧 CORREÇÃO: WaitForChild (mais confiável que task.wait)
+    Humanoid = Char:WaitForChild("Humanoid", 5)
+    RootPart = Char:WaitForChild("HumanoidRootPart", 5)
+    
+    -- 🔧 CORREÇÃO: Reset do estado salvo (personagem novo)
+    savedCollideStates = {}
+    hasSavedCollide = false
+    
+    if not Humanoid or not RootPart then
+        showNotification("⚠️ Erro ao carregar personagem!")
+        return
+    end
+    
+    keepRootInvisible()
+    
+    if Flying then
+        Flying = false
+        task.wait(0.1)
+        
+        if BodyVelocity then
+            pcall(function() BodyVelocity:Destroy() end)
+            BodyVelocity = nil
+        end
+        if BodyGyro then
+            pcall(function() BodyGyro:Destroy() end)
+            BodyGyro = nil
+        end
+        if Humanoid then
+            pcall(function() Humanoid.PlatformStand = false end)
+        end
+        if FlyBtn then
+            FlyBtn.Text = "FLY: OFF"
+            FlyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end
+        
+        showNotification("🔄 REVIVEU - Voo desligado")
+    end
+end)
+
+-- ======================================================
+-- GUI SETUP
+-- ======================================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FlyGui_v11"
+ScreenGui.ResetOnSpawn = false
+
+local success, err = pcall(function()
+    ScreenGui.Parent = CoreGui
+end)
+if not success then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- ======================================================
+-- FUNÇÕES GUI
+-- ======================================================
+local function round(obj, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 8)
+    corner.Parent = obj
+end
+
+local function makeDraggable(guiObject)
+    local dragging = false
+    local dragStart = Vector2.new(0, 0)
+    local initialPosition = UDim2.new(0, 0, 0, 0)
+
+    guiObject.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            initialPosition = guiObject.Position
+        end
+    end)
+
+    guiObject.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging then
+                local delta = input.Position - dragStart
+                guiObject.Position = UDim2.new(
+                    initialPosition.X.Scale, initialPosition.X.Offset + delta.X,
+                    initialPosition.Y.Scale, initialPosition.Y.Offset + delta.Y
+                )
+            end
+        end
+    end)
+
+    guiObject.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+-- ======================================================
+-- JANELA PRINCIPAL
+-- ======================================================
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 200, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -100, 0.5, -90)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+round(MainFrame, 10)
+makeDraggable(MainFrame)
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+round(TitleBar, 10)
+
+local TitleBarFix = Instance.new("Frame")
+TitleBarFix.Size = UDim2.new(1, 0, 0, 10)
+TitleBarFix.Position = UDim2.new(0, 0, 1, -10)
+TitleBarFix.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+TitleBarFix.BorderSizePixel = 0
+TitleBarFix.Parent = TitleBar
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(1, -40, 1, 0)
+TitleText.Position = UDim2.new(0, 10, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "🚀 Fly v11"
+TitleText.TextColor3 = Color3.fromRGB(0, 170, 255)
+TitleText.Font = Enum.Font.GothamBold
+TitleText.TextSize = 14
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Parent = TitleBar
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+MinimizeBtn.Position = UDim2.new(1, -30, 0, 0)
+MinimizeBtn.BackgroundTransparency = 1
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextSize = 18
+MinimizeBtn.Parent = TitleBar
+
+local Minimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    Minimized = not Minimized
+    if Minimized then
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 200, 0, 30)
+        }):Play()
+        MinimizeBtn.Text = "+"
+    else
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 200, 0, 180)
+        }):Play()
+        MinimizeBtn.Text = "-"
+    end
+end)
+
+-- Botão Fly
+FlyBtn = Instance.new("TextButton")
+FlyBtn.Size = UDim2.new(0, 180, 0, 35)
+FlyBtn.Position = UDim2.new(0, 10, 0, 40)
+FlyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+FlyBtn.Text = "FLY: OFF"
+FlyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FlyBtn.Font = Enum.Font.GothamBold
+FlyBtn.TextSize = 14
+FlyBtn.Parent = MainFrame
+round(FlyBtn, 8)
+FlyBtn.MouseButton1Click:Connect(ToggleFly)
+
+-- Botão Ghost
+GhostBtn = Instance.new("TextButton")
+GhostBtn.Size = UDim2.new(0, 180, 0, 35)
+GhostBtn.Position = UDim2.new(0, 10, 0, 85)
+GhostBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+GhostBtn.Text = "GHOST: OFF"
+GhostBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+GhostBtn.Font = Enum.Font.GothamBold
+GhostBtn.TextSize = 14
+GhostBtn.Parent = MainFrame
+round(GhostBtn, 8)
+GhostBtn.MouseButton1Click:Connect(function()
+    GhostMode = not GhostMode
+    if GhostMode then
+        GhostBtn.Text = "GHOST: ON"
+        GhostBtn.TextColor3 = Color3.fromRGB(170, 0, 255)
+    else
+        GhostBtn.Text = "GHOST: OFF"
+        GhostBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+    UpdateNoclip()
+end)
+
+-- Slider de Velocidade
+local SpeedLabel = Instance.new("TextLabel")
+SpeedLabel.Size = UDim2.new(0, 180, 0, 20)
+SpeedLabel.Position = UDim2.new(0, 10, 0, 125)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Text = "Velocidade: 60"
+SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+SpeedLabel.Font = Enum.Font.Gotham
+SpeedLabel.TextSize = 12
+SpeedLabel.Parent = MainFrame
+
+local SliderBG = Instance.new("Frame")
+SliderBG.Size = UDim2.new(0, 180, 0, 10)
+SliderBG.Position = UDim2.new(0, 10, 0, 150)
+SliderBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+SliderBG.Parent = MainFrame
+round(SliderBG, 5)
+
+local SliderFill = Instance.new("Frame")
+SliderFill.Size = UDim2.new(0.5, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+SliderFill.Parent = SliderBG
+round(SliderFill, 5)
+
+local SliderBtn = Instance.new("TextButton")
+SliderBtn.Size = UDim2.new(1, 0, 1, 0)
+SliderBtn.BackgroundTransparency = 1
+SliderBtn.Text = ""
+SliderBtn.Parent = SliderBG
+
+local draggingSlider = false
+SliderBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingSlider = true
+    end
+end)
+
+local function updateSlider(input)
+    local relativeX = math.clamp(input.Position.X - SliderBG.AbsolutePosition.X, 0, SliderBG.AbsoluteSize.X)
+    local percentage = relativeX / SliderBG.AbsoluteSize.X
+    SliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+    Speed = math.floor(percentage * 140) + 10
+    SpeedLabel.Text = "Velocidade: " .. Speed
+end
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSlider(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingSlider = false
+    end
+end)
+
+-- Botões Mobile
+MobileFrame = Instance.new("Frame")
+MobileFrame.Size = UDim2.new(0, 60, 0, 130)
+MobileFrame.Position = UDim2.new(0.85, -30, 0.6, 0)
+MobileFrame.BackgroundTransparency = 1
+MobileFrame.Visible = false
+MobileFrame.Parent = ScreenGui
+makeDraggable(MobileFrame)
+
+local UpBtn = Instance.new("TextButton")
+UpBtn.Size = UDim2.new(1, 0, 0, 60)
+UpBtn.Position = UDim2.new(0, 0, 0, 0)
+UpBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+UpBtn.BorderSizePixel = 2
+UpBtn.BorderColor3 = Color3.fromRGB(0, 170, 255)
+UpBtn.Text = "▲"
+UpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+UpBtn.Font = Enum.Font.GothamBold
+UpBtn.TextSize = 24
+UpBtn.Parent = MobileFrame
+round(UpBtn, 10)
+
+local DownBtn = Instance.new("TextButton")
+DownBtn.Size = UDim2.new(1, 0, 0, 60)
+DownBtn.Position = UDim2.new(0, 0, 0, 70)
+DownBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+DownBtn.BorderSizePixel = 2
+DownBtn.BorderColor3 = Color3.fromRGB(0, 170, 255)
+DownBtn.Text = "▼"
+DownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DownBtn.Font = Enum.Font.GothamBold
+DownBtn.TextSize = 24
+DownBtn.Parent = MobileFrame
+round(DownBtn, 10)
+
+UpBtn.MouseButton1Down:Connect(function() UpValue = 1 end)
+UpBtn.MouseButton1Up:Connect(function() UpValue = 0 end)
+DownBtn.MouseButton1Down:Connect(function() UpValue = -1 end)
+DownBtn.MouseButton1Up:Connect(function() UpValue = 0 end)
+
+-- ======================================================
+-- 🔧 CORREÇÃO: LOOP PRINCIPAL (COM PROTEÇÕES)
+-- ======================================================
+RunService.RenderStepped:Connect(function(deltaTime)
+    if Flying then
+        -- 🔧 CORREÇÃO: Se perdeu referências, força stop
+        if not RootPart or not RootPart.Parent or not Humanoid or not Humanoid.Parent then
+            Character = LocalPlayer.Character
+            if Character then
+                RootPart = Character:FindFirstChild("HumanoidRootPart")
+                Humanoid = Character:FindFirstChild("Humanoid")
+            end
+            
+            if not RootPart or not Humanoid then
+                StopFlyInstant()
+                return
+            end
+        end
+        
+        if not Humanoid.PlatformStand then
+            Humanoid.PlatformStand = true
+        end
+
+        if BodyVelocity and BodyGyro then
+            local ControlModule = nil
+            pcall(function()
+                ControlModule = require(LocalPlayer.PlayerScripts:WaitForChild("PlayerModule")):GetControls()
+            end)
+            
+            if ControlModule then
+                local RawMove = ControlModule:GetMoveVector()
+                
+                local Look = Camera.CFrame.LookVector
+                local Right = Camera.CFrame.RightVector
+                
+                local MoveDir = (Look * -RawMove.Z) + (Right * RawMove.X)
+                
+                local Vertical = UpValue
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then Vertical = 1
+                elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then Vertical = -1 end
+                
+                MoveDir = Vector3.new(MoveDir.X, Vertical, MoveDir.Z)
+                if MoveDir.Magnitude > 0 then MoveDir = MoveDir.Unit end
+                
+                TargetVelocity = MoveDir * Speed
+                CurrentVelocity = CurrentVelocity:Lerp(TargetVelocity, SMOOTHNESS * deltaTime)
+                
+                BodyVelocity.Velocity = CurrentVelocity
+                BodyGyro.CFrame = Camera.CFrame
+            end
+        end
+    end
+end)
+
+-- ======================================================
+-- INICIALIZAÇÃO
+-- ======================================================
+task.wait(0.5)
+keepRootInvisible()
+showNotification("🚀 FLY v11 CARREGADO!")
+showNotification("✅ Botão travado CORRIGIDO!")
+showNotification("✅ Ghost mode CORRIGIDO!")
