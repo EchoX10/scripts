@@ -1,0 +1,415 @@
+-- ===============================================
+-- 🎭 Painel de Emotes v4 — com /e point
+-- ===============================================
+local Players           = game:GetService("Players")
+local TweenService      = game:GetService("TweenService")
+local UserInputService  = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer       = Players.LocalPlayer
+
+local parent = (gethui and gethui()) or game:GetService("CoreGui")
+if parent:FindFirstChild("EmotesPanelGui") then parent.EmotesPanelGui:Destroy() end
+
+-- ===============================================
+-- 🔧 Helpers
+-- ===============================================
+local function addCorner(inst, r)
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 8); c.Parent = inst; return c
+end
+local function addGradient(inst, c1, c2, rot, trans)
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new(c1, c2)
+    g.Rotation = rot or 90
+    if trans then g.Transparency = trans end
+    g.Parent = inst; return g
+end
+
+-- ===============================================
+-- 💃 IDs dos emotes (fallback via LoadAnimation)
+-- ===============================================
+local EMOTE_IDS = {
+    dance1 = 507770818,
+    dance2 = 507777826,
+    dance3 = 507771019,
+    cheer  = 507770677,
+    wave   = 507770239,
+    laugh  = 507770699,
+    point  = 507770647,
+}
+
+-- ===============================================
+-- 💃 TOCAR EMOTE (3 métodos + fallback anim)
+-- ===============================================
+local function playEmote(emoteName)
+    local char = LocalPlayer.Character
+    if not char then return false, "sem char" end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return false, "sem humanoid" end
+
+    -- Método 1: Humanoid:PlayEmote (API oficial)
+    local ok, res = pcall(function()
+        return humanoid:PlayEmote(emoteName)
+    end)
+    if ok and res then return true, "PlayEmote" end
+
+    -- Método 2: Animate.PlayEmote BindableFunction
+    local animate = char:FindFirstChild("Animate")
+    if animate then
+        for _, child in ipairs(animate:GetDescendants()) do
+            if child:IsA("BindableFunction")
+            and child.Name:lower():find("emote") then
+                local ok2, res2 = pcall(function() return child:Invoke(emoteName) end)
+                if ok2 and res2 then return true, "Animate" end
+            end
+        end
+    end
+
+    -- Método 3: carregar animação direto pelo ID
+    local id = EMOTE_IDS[emoteName]
+    if id then
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if not animator then
+            animator = Instance.new("Animator"); animator.Parent = humanoid
+        end
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://" .. id
+        local ok3, track = pcall(function() return animator:LoadAnimation(anim) end)
+        if ok3 and track then
+            for _, t in ipairs(animator:GetPlayingAnimationTracks()) do
+                local tid = t.Animation and t.Animation.AnimationId or ""
+                if tid:match("50777") then t:Stop() end
+            end
+            track:Play()
+            return true, "Anim"
+        end
+    end
+
+    return false, "falhou"
+end
+
+-- ===============================================
+-- 💬 Chat (fallback para ficar visível no RP)
+-- ===============================================
+local function sendChat(msg)
+    pcall(function()
+        local ev = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+        if ev and ev:FindFirstChild("SayMessageRequest") then
+            ev.SayMessageRequest:FireServer(msg, "All"); return
+        end
+    end)
+    pcall(function()
+        local TCS = game:GetService("TextChatService")
+        if TCS.ChatVersion == Enum.ChatVersion.TextChatService then
+            local ch = TCS:FindFirstChild("TextChannels")
+            local gen = ch and ch:FindFirstChild("RBXGeneral")
+            if gen then gen:SendAsync(msg) end
+        end
+    end)
+end
+
+-- ===============================================
+-- 🖼️ Gui + Painel (240x320)
+-- ===============================================
+local gui = Instance.new("ScreenGui")
+gui.Name = "EmotesPanelGui"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.DisplayOrder = 999
+gui.Parent = parent
+
+local PANEL_W, PANEL_H, TOPBAR_H = 240, 320, 34
+
+local panel = Instance.new("Frame")
+panel.Size = UDim2.fromOffset(0, 0)
+panel.Position = UDim2.new(0.5, -PANEL_W/2, 0.5, -PANEL_H/2)
+panel.BackgroundColor3 = Color3.fromRGB(30, 25, 45)
+panel.BorderSizePixel = 0
+panel.ClipsDescendants = true
+panel.Parent = gui
+addCorner(panel, 12)
+addGradient(panel, Color3.fromRGB(50, 35, 80), Color3.fromRGB(20, 20, 40), 135)
+
+local panelStroke = Instance.new("UIStroke")
+panelStroke.Color = Color3.fromRGB(255, 255, 255)
+panelStroke.Thickness = 1.5
+panelStroke.Transparency = 0.2
+panelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+panelStroke.Parent = panel
+addGradient(panelStroke, Color3.fromRGB(220, 130, 255), Color3.fromRGB(100, 180, 255), 45)
+
+-- ===============================================
+-- 🎯 TopBar
+-- ===============================================
+local topBar = Instance.new("Frame")
+topBar.Size = UDim2.new(1, 0, 0, TOPBAR_H)
+topBar.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+topBar.BackgroundTransparency = 0.35
+topBar.BorderSizePixel = 0
+topBar.Parent = panel
+addGradient(topBar, Color3.fromRGB(100, 55, 180), Color3.fromRGB(40, 50, 120), 90,
+    NumberSequence.new({NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 0.65)}))
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -70, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "✦ Emotes"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 13
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Active = false
+title.Parent = topBar
+addGradient(title, Color3.fromRGB(255, 180, 255), Color3.fromRGB(150, 220, 255), 0)
+
+local function makeWinBtn(text, xOff, c1, c2)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.fromOffset(22, 22)
+    b.Position = UDim2.new(1, xOff, 0, 6)
+    b.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    b.BorderSizePixel = 0
+    b.Text = text; b.TextColor3 = Color3.new(1,1,1)
+    b.Font = Enum.Font.GothamBold; b.TextSize = 12
+    b.AutoButtonColor = false; b.Parent = topBar
+    addCorner(b, 6); addGradient(b, c1, c2, 45)
+    b.MouseEnter:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.15), {Size = UDim2.fromOffset(24, 24)}):Play()
+    end)
+    b.MouseLeave:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.15), {Size = UDim2.fromOffset(22, 22)}):Play()
+    end)
+    return b
+end
+local minBtn   = makeWinBtn("—", -54, Color3.fromRGB(90, 180, 255), Color3.fromRGB(110, 90, 255))
+local closeBtn = makeWinBtn("✕", -28, Color3.fromRGB(255, 100, 120), Color3.fromRGB(255, 50, 160))
+
+-- ===============================================
+-- 📜 ScrollingFrame
+-- ===============================================
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -14, 1, -TOPBAR_H - 8)
+scroll.Position = UDim2.new(0, 7, 0, TOPBAR_H + 4)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 3
+scroll.ScrollBarImageColor3 = Color3.fromRGB(180, 120, 255)
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+scroll.Parent = panel
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 6)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = scroll
+
+local pad = Instance.new("UIPadding")
+pad.PaddingTop = UDim.new(0, 4); pad.PaddingBottom = UDim.new(0, 4)
+pad.Parent = scroll
+
+-- ===============================================
+-- 🍞 Toast
+-- ===============================================
+local toast = Instance.new("TextLabel")
+toast.Size = UDim2.fromOffset(PANEL_W, 22)
+toast.Position = UDim2.new(0.5, -PANEL_W/2, 1, 6)
+toast.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+toast.BorderSizePixel = 0
+toast.Text = ""; toast.TextColor3 = Color3.new(1,1,1)
+toast.Font = Enum.Font.GothamMedium; toast.TextSize = 11
+toast.TextTransparency = 1; toast.BackgroundTransparency = 1
+toast.ZIndex = 10; toast.Visible = false
+toast.Parent = panel
+addCorner(toast, 6)
+addGradient(toast, Color3.fromRGB(160, 90, 255), Color3.fromRGB(80, 160, 255), 0)
+
+local toastToken = 0
+local function showToast(txt, ok)
+    toastToken = toastToken + 1
+    local my = toastToken
+    toast.Text = (ok and "✅ " or "❌ ") .. txt
+    toast.Visible = true
+    toast.TextTransparency = 0
+    toast.BackgroundTransparency = 0.15
+    task.delay(1.6, function()
+        if my ~= toastToken then return end
+        TweenService:Create(toast, TweenInfo.new(0.4), {
+            TextTransparency = 1, BackgroundTransparency = 1
+        }):Play()
+        task.delay(0.45, function() if my == toastToken then toast.Visible = false end end)
+    end)
+end
+
+-- ===============================================
+-- 🎭 Emotes (incluindo point)
+-- ===============================================
+local emotes = {
+    {internal = "dance1", label = "/e dance1", c1 = Color3.fromRGB(255,100,200), c2 = Color3.fromRGB(150,80,255)},
+    {internal = "dance2", label = "/e dance2", c1 = Color3.fromRGB(100,200,255), c2 = Color3.fromRGB(80,100,255)},
+    {internal = "dance3", label = "/e dance3", c1 = Color3.fromRGB(100,255,180), c2 = Color3.fromRGB(60,200,255)},
+    {internal = "cheer",  label = "/e cheer",  c1 = Color3.fromRGB(255,220,100), c2 = Color3.fromRGB(255,140,100)},
+    {internal = "wave",   label = "/e wave",   c1 = Color3.fromRGB(180,130,255), c2 = Color3.fromRGB(100,100,255)},
+    {internal = "laugh",  label = "/e laugh",  c1 = Color3.fromRGB(255,150,150), c2 = Color3.fromRGB(255,70,200)},
+    {internal = "point",  label = "/e point",  c1 = Color3.fromRGB(120,255,220), c2 = Color3.fromRGB(60,180,255)},
+}
+
+for i, e in ipairs(emotes) do
+    local btn = Instance.new("TextButton")
+    btn.LayoutOrder = i
+    btn.Size = UDim2.new(1, 0, 0, 40)
+    btn.BackgroundTransparency = 1
+    btn.BorderSizePixel = 0
+    btn.Text = ""; btn.AutoButtonColor = false
+    btn.Parent = scroll
+    addCorner(btn, 8)
+
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.fromScale(1, 1)
+    bg.BackgroundColor3 = Color3.fromRGB(50, 40, 80)
+    bg.BorderSizePixel = 0
+    bg.Parent = btn
+    addCorner(bg, 8)
+    local bgGrad = addGradient(bg, e.c1, e.c2, 45,
+        NumberSequence.new({NumberSequenceKeypoint.new(0, 0.45), NumberSequenceKeypoint.new(1, 0.75)}))
+
+    local bStroke = Instance.new("UIStroke")
+    bStroke.Color = e.c1; bStroke.Thickness = 1.2; bStroke.Transparency = 0.4
+    bStroke.Parent = btn
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.fromScale(1, 1)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = e.label
+    lbl.TextColor3 = Color3.new(1,1,1)
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 13
+    lbl.Active = false
+    lbl.Parent = btn
+    addGradient(lbl, Color3.fromRGB(255,255,255), Color3.fromRGB(220,220,255), 0)
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(bgGrad, TweenInfo.new(0.2), {
+            Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 0.5)})
+        }):Play()
+        TweenService:Create(bStroke, TweenInfo.new(0.2), {Transparency = 0.1, Thickness = 1.8}):Play()
+        TweenService:Create(lbl, TweenInfo.new(0.2), {TextSize = 14}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(bgGrad, TweenInfo.new(0.2), {
+            Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.45), NumberSequenceKeypoint.new(1, 0.75)})
+        }):Play()
+        TweenService:Create(bStroke, TweenInfo.new(0.2), {Transparency = 0.4, Thickness = 1.2}):Play()
+        TweenService:Create(lbl, TweenInfo.new(0.2), {TextSize = 13}):Play()
+    end)
+
+    btn.MouseButton1Click:Connect(function()
+        local ok, method = playEmote(e.internal)
+        sendChat(e.label)
+        showToast(e.label .. " (" .. method .. ")", ok)
+
+        local flash = Instance.new("Frame")
+        flash.Size = UDim2.fromScale(1, 1)
+        flash.BackgroundColor3 = Color3.new(1,1,1)
+        flash.BackgroundTransparency = 0.35
+        flash.BorderSizePixel = 0
+        flash.ZIndex = 5
+        flash.Parent = btn
+        addCorner(flash, 8)
+        TweenService:Create(flash, TweenInfo.new(0.45), {BackgroundTransparency = 1}):Play()
+        task.delay(0.45, function() flash:Destroy() end)
+    end)
+end
+
+-- ===============================================
+-- ✋ Drag robusto
+-- ===============================================
+local dragging, dragStart, startPos = false, nil, nil
+
+local function insideBounds(g, pos)
+    local tl, sz = g.AbsolutePosition, g.AbsoluteSize
+    return pos.X >= tl.X and pos.X <= tl.X + sz.X
+       and pos.Y >= tl.Y and pos.Y <= tl.Y + sz.Y
+end
+
+local function tryStart(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+    and input.UserInputType ~= Enum.UserInputType.Touch then return end
+    if not insideBounds(topBar, input.Position) then return end
+    if insideBounds(minBtn, input.Position) then return end
+    if insideBounds(closeBtn, input.Position) then return end
+    dragging = true
+    dragStart = input.Position
+    startPos = panel.Position
+end
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp and input.UserInputType == Enum.UserInputType.MouseButton1 then return end
+    tryStart(input)
+end)
+topBar.InputBegan:Connect(tryStart)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not dragging then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseMovement
+    and input.UserInputType ~= Enum.UserInputType.Touch then return end
+    local d = input.Position - dragStart
+    panel.Position = UDim2.new(
+        startPos.X.Scale, startPos.X.Offset + d.X,
+        startPos.Y.Scale, startPos.Y.Offset + d.Y
+    )
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- ===============================================
+-- ➖ Minimizar / ❌ Fechar
+-- ===============================================
+local minimized = false
+minBtn.MouseButton1Click:Connect(function()
+    if not minimized then
+        minimized = true; scroll.Visible = false
+        TweenService:Create(panel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Size = UDim2.fromOffset(PANEL_W, TOPBAR_H)}):Play()
+    else
+        minimized = false
+        TweenService:Create(panel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Size = UDim2.fromOffset(PANEL_W, PANEL_H)}):Play()
+        task.delay(0.1, function() scroll.Visible = true end)
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    local t = TweenService:Create(panel, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.fromOffset(0, 0),
+        Position = UDim2.new(panel.Position.X.Scale, panel.Position.X.Offset + PANEL_W/2,
+                             panel.Position.Y.Scale, panel.Position.Y.Offset + PANEL_H/2)
+    })
+    t:Play(); t.Completed:Connect(function() gui:Destroy() end)
+end)
+
+-- ===============================================
+-- ✨ Abertura
+-- ===============================================
+TweenService:Create(panel, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Size = UDim2.fromOffset(PANEL_W, PANEL_H)
+}):Play()
+
+-- ===============================================
+-- 🧪 Debug
+-- ===============================================
+print("[Emotes] Script carregado.")
+print("[Emotes] Char:", LocalPlayer.Character and "OK" or "nil (aguardando spawn)")
+task.spawn(function()
+    if not LocalPlayer.Character then
+        LocalPlayer.CharacterAdded:Wait()
+        task.wait(1)
+    end
+    local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    print("[Emotes] Humanoid:", h and "OK" or "nil")
+    print("[Emotes] RigType:", h and h.RigType or "?")
+end)
