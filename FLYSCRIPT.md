@@ -1,8 +1,8 @@
--- ====== SUBSTITUA AS URLs ABAIXO PELAS SUAS ======
-local IMAGE_URL = "https://cdn.phototourl.com/free/2026-08-06-e5494160-d34a-495f-b882-107639956873.png"
-local AUDIO_URL = "https://convinced-lavender-jbgaa7qy.edgeone.dev/" -- SOM DO CONTADOR (opcional)
-local AUDIO_URL2 = "https://xenial-chocolate-awqrrkqh.edgeone.dev/" -- SOM TROLL (vai tocar na espera de 5min)
--- ===============================================
+-- ====== SUBSTITUA AS URLs ======
+local IMAGE_URL = "https://raw.githubusercontent.com/EchoX10/scripts/main/imgtroll.png"
+local AUDIO_URL = "https://raw.githubusercontent.com/EchoX10/scripts/main/contadormusica.mp3" -- SOM DO CONTADOR
+local AUDIO_URL2 = "https://raw.githubusercontent.com/EchoX10/scripts/main/musicatroll.mp3" -- SOM TROLL
+-- =================================
 
 local FOLDER = "ScriptAssets"
 local IMG_FILE = "img.png"
